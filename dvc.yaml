@@ -1,0 +1,27 @@
+stages:
+  train:
+    cmd: python -m src.ml.train
+    deps:
+      - data/raw/dataset.csv
+      - src/ml/train.py
+      - src/ml/features.py
+    params:
+      - data
+      - features
+      - model
+    outs:
+      - models/model.joblib
+      - models/schema.json
+    metrics:
+      - models/metrics.json:
+          cache: false
+  export_onnx:
+    cmd: python -m src.ml.export_onnx
+    deps:
+      - models/model.joblib
+      - src/ml/export_onnx.py
+    outs:
+      - models/model.onnx
+    metrics:
+      - reports/onnx_benchmark.json:
+          cache: false

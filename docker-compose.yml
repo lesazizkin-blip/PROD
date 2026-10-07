@@ -1,0 +1,12 @@
+services:
+  api:
+    image: prod-ml-api:latest
+    build:
+      context: .
+      args:
+        MODEL_VERSION: ${MODEL_VERSION:-dev}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped

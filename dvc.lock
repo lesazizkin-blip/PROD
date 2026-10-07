@@ -1,0 +1,77 @@
+schema: '2.0'
+stages:
+  train:
+    cmd: python -m src.ml.train
+    deps:
+    - path: data/raw/dataset.csv
+      hash: md5
+      md5: ce2b20ae6123eff38c1bf143e530c681
+      size: 231931
+    - path: src/ml/features.py
+      hash: md5
+      md5: 08dca94f4a7d7d71807adcb052d99b3a
+      size: 2443
+    - path: src/ml/train.py
+      hash: md5
+      md5: 02013f4388ecab89f7e6d88f98bcf2f3
+      size: 4695
+    params:
+      params.yaml:
+        data:
+          raw_path: data/raw/dataset.csv
+          target: salary
+          test_size: 0.2
+          val_size: 0.2
+          seed: 42
+        features:
+          numeric:
+          - experience_years
+          - skills_count
+          - company_size
+          - remote
+          categorical:
+          - role
+          - region
+          - education
+        model:
+          quantiles:
+          - 0.1
+          - 0.5
+          - 0.9
+          max_iter: 150
+          learning_rate: 0.05
+          max_depth: 4
+          min_samples_leaf: 60
+    outs:
+    - path: models/metrics.json
+      hash: md5
+      md5: dc4cbadeaa685efb52def733542865bf
+      size: 417
+    - path: models/model.joblib
+      hash: md5
+      md5: c41732677ce9af6164f2f73799042aff
+      size: 709044
+    - path: models/schema.json
+      hash: md5
+      md5: f337834098456c494c1b9e70ebac6db0
+      size: 654
+  export_onnx:
+    cmd: python -m src.ml.export_onnx
+    deps:
+    - path: models/model.joblib
+      hash: md5
+      md5: c41732677ce9af6164f2f73799042aff
+      size: 709044
+    - path: src/ml/export_onnx.py
+      hash: md5
+      md5: bf41e8d5ccfbdc894b86ab13aad9ff8b
+      size: 2248
+    outs:
+    - path: models/model.onnx
+      hash: md5
+      md5: d9447e7b4ef9e51202f7a08184f53070
+      size: 128974
+    - path: reports/onnx_benchmark.json
+      hash: md5
+      md5: 301e7e00e0bae88b06ad9738ecd4ec2f
+      size: 119

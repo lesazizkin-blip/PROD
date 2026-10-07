@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+.env
+.DS_Store
+
+# ML (данные и модели ведёт DVC - он сам дописывает свои .gitignore)
+mlruns/
+mlartifacts/
+mlflow.db
+logs/
+dvcstore/

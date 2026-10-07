@@ -1,0 +1,113 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  MLFLOW_DISABLE_AGENT_HINT: "1"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Data (если нет - демо)
+        run: python -m src.ml.make_demo_data
+
+      - name: ML pipeline (dvc repro)
+        run: dvc repro
+
+      - name: Tests
+        run: pytest --cov=src --cov-report=term-missing --cov-report=xml
+
+      - name: Метрики в summary
+        if: always()
+        run: |
+          echo '### Метрики модели' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat models/metrics.json >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model
+          path: |
+            models/
+            reports/
+            coverage.xml
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: model
+      - name: Build image
+        run: docker build --build-arg MODEL_VERSION=${{ github.sha }} -t prod-ml-api:latest .
+      - name: Smoke test контейнера
+        run: |
+          docker run -d --name api -p 8000:8000 prod-ml-api:latest
+          for i in $(seq 1 30); do
+            curl -fs localhost:8000/health && break || sleep 2
+          done
+          curl -fs -X POST localhost:8000/predict -H 'content-type: application/json' \
+            -d '{"role":"backend","region":"moscow","experience_years":3}'
+      - name: Save image
+        if: github.ref == 'refs/heads/main'
+        run: docker save prod-ml-api:latest | gzip > image.tar.gz
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          name: image
+          path: image.tar.gz
+          retention-days: 3
+
+  deploy:
+    # Включается так: Settings -> Secrets and variables -> Actions:
+    #   variable DEPLOY_ENABLED=true; secrets DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY
+    needs: docker
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: image
+      - name: SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+      - name: Deploy
+        env:
+          TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+        run: |
+          SSH="ssh -i ~/.ssh/id_deploy"
+          $SSH "$TARGET" 'mkdir -p ~/prod-ml'
+          scp -i ~/.ssh/id_deploy docker-compose.yml "$TARGET":~/prod-ml/
+          gunzip -c image.tar.gz | $SSH "$TARGET" 'docker load'
+          $SSH "$TARGET" 'cd ~/prod-ml && docker compose up -d --no-build'
+      - name: Проверка после деплоя
+        run: |
+          sleep 10
+          curl -fs "http://${{ secrets.DEPLOY_HOST }}:8000/health"
