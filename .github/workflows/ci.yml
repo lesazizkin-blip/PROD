@@ -6,84 +6,109 @@ on:
   pull_request:
   workflow_dispatch:
 
-env:
-  MLFLOW_DISABLE_AGENT_HINT: "1"
-
 jobs:
-  test:
+  backend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: requirements*.txt
-
+          cache-dependency-path: backend/requirements*.txt
       - run: pip install -r requirements-dev.txt
-
       - name: Lint
         run: |
           ruff check .
           ruff format --check .
-
-      - name: Data (если нет - демо)
-        run: python -m src.ml.make_demo_data
-
-      - name: ML pipeline (dvc repro)
-        run: dvc repro
-
-      - name: Tests
-        run: pytest --cov=src --cov-report=term-missing --cov-report=xml
-
-      - name: Метрики в summary
+      - name: Tests + coverage
+        run: pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-report=html
+      - name: Отчёт о покрытии в summary
         if: always()
         run: |
-          echo '### Метрики модели' >> "$GITHUB_STEP_SUMMARY"
-          echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          cat models/metrics.json >> "$GITHUB_STEP_SUMMARY" || true
+          echo '### Покрытие тестами (backend)' >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-
+          coverage report >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: model
+          name: backend-coverage
           path: |
-            models/
-            reports/
-            coverage.xml
+            backend/coverage.xml
+            backend/htmlcov
+      - name: Миграции на PostgreSQL (проверка, что схема применяется и откатывается)
+        env:
+          DATABASE_URL: postgresql+psycopg://app:app@localhost:5432/app
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 3s --health-retries 10
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
 
   docker:
-    needs: test
+    needs: [backend, frontend]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: model
-      - name: Build image
-        run: docker build --build-arg MODEL_VERSION=${{ github.sha }} -t prod-ml-api:latest .
-      - name: Smoke test контейнера
+      - name: Поднять весь стек
+        run: docker compose up -d --build
+      - name: Smoke-тест (через nginx: фронтенд + API + БД)
         run: |
-          docker run -d --name api -p 8000:8000 prod-ml-api:latest
-          for i in $(seq 1 30); do
-            curl -fs localhost:8000/health && break || sleep 2
+          for i in $(seq 1 40); do
+            curl -fs localhost:8080/api/health && break || sleep 2
           done
-          curl -fs -X POST localhost:8000/predict -H 'content-type: application/json' \
-            -d '{"role":"backend","region":"moscow","experience_years":3}'
-      - name: Save image
+          curl -fs localhost:8080/api/health
+          curl -fs localhost:8080/ | grep -q '<div id="root">'
+          TOKEN=$(curl -fs -X POST localhost:8080/api/auth/login -H 'content-type: application/json' \
+            -d '{"email":"admin@example.com","password":"admin12345"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+          curl -fs localhost:8080/api/items -H "Authorization: Bearer $TOKEN"
+          curl -fs -o /dev/null localhost:8080/api/docs
+      - name: Логи при падении
+        if: failure()
+        run: docker compose logs
+      - name: Сохранить образы
         if: github.ref == 'refs/heads/main'
-        run: docker save prod-ml-api:latest | gzip > image.tar.gz
+        run: docker save prod-backend:latest prod-frontend:latest | gzip > images.tar.gz
       - uses: actions/upload-artifact@v4
         if: github.ref == 'refs/heads/main'
         with:
-          name: image
-          path: image.tar.gz
+          name: images
+          path: images.tar.gz
           retention-days: 3
 
   deploy:
-    # Включается так: Settings -> Secrets and variables -> Actions:
-    #   variable DEPLOY_ENABLED=true; secrets DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY
+    # Включение: Settings -> Secrets and variables -> Actions
+    #   variable DEPLOY_ENABLED=true; secrets DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY,
+    #   POSTGRES_PASSWORD, SECRET_KEY, ADMIN_PASSWORD
     needs: docker
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
@@ -91,7 +116,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: image
+          name: images
       - name: SSH
         run: |
           install -m 700 -d ~/.ssh
@@ -101,13 +126,19 @@ jobs:
       - name: Deploy
         env:
           TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: |
           SSH="ssh -i ~/.ssh/id_deploy"
-          $SSH "$TARGET" 'mkdir -p ~/prod-ml'
-          scp -i ~/.ssh/id_deploy docker-compose.yml "$TARGET":~/prod-ml/
-          gunzip -c image.tar.gz | $SSH "$TARGET" 'docker load'
-          $SSH "$TARGET" 'cd ~/prod-ml && docker compose up -d --no-build'
+          $SSH "$TARGET" 'mkdir -p ~/prod-app'
+          scp -i ~/.ssh/id_deploy docker-compose.yml "$TARGET":~/prod-app/
+          # Секреты кладём в .env на сервере (не в репозиторий и не в логи)
+          printf 'PORT=80\nPOSTGRES_PASSWORD=%s\nSECRET_KEY=%s\nADMIN_PASSWORD=%s\n' \
+            "$POSTGRES_PASSWORD" "$SECRET_KEY" "$ADMIN_PASSWORD" | $SSH "$TARGET" 'umask 077; cat > ~/prod-app/.env'
+          gunzip -c images.tar.gz | $SSH "$TARGET" 'docker load'
+          $SSH "$TARGET" 'cd ~/prod-app && docker compose up -d --no-build'
       - name: Проверка после деплоя
         run: |
           sleep 10
-          curl -fs "http://${{ secrets.DEPLOY_HOST }}:8000/health"
+          curl -fs "http://${{ secrets.DEPLOY_HOST }}/api/health"

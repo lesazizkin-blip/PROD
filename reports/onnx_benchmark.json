@@ -1,7 +1,0 @@
-{
-  "rows": 1000,
-  "sklearn_ms": 26.81,
-  "onnx_ms": 1.83,
-  "speedup": 14.67,
-  "max_abs_diff": 0.10000855417456478
-}

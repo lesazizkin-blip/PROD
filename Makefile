@@ -1,51 +1,46 @@
-.PHONY: setup data eda train onnx repro test lint fmt api mlflow load docker up clean
+.PHONY: setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
 
-PY := .venv/bin/python
-export MLFLOW_DISABLE_AGENT_HINT := 1
+backend-setup:
+	cd backend && python3 -m venv .venv && .venv/bin/pip install -U pip && .venv/bin/pip install -r requirements-dev.txt
 
-setup:  ## виртуальное окружение + зависимости
-	python3 -m venv .venv
-	.venv/bin/pip install -U pip
-	.venv/bin/pip install -r requirements-dev.txt
+frontend-setup:
+	cd frontend && npm install
 
-data:  ## демо-данные (если data/raw/dataset.csv ещё нет)
-	$(PY) -m src.ml.make_demo_data
+setup: backend-setup frontend-setup  ## окружение для бэкенда и фронтенда
 
-eda:  ## графики и статистика -> reports/eda
-	$(PY) -m src.ml.eda
+db:  ## применить миграции (SQLite по умолчанию)
+	cd backend && .venv/bin/alembic upgrade head
 
-train:  ## обучение + логирование в MLflow
-	$(PY) -m src.ml.train
+seed:  ## демо-пользователи и записи
+	cd backend && .venv/bin/python -m app.seed
 
-onnx:  ## экспорт в ONNX + бенчмарк
-	$(PY) -m src.ml.export_onnx
+api:  ## бэкенд на :8000, Swagger: /api/docs
+	cd backend && .venv/bin/uvicorn app.main:app --reload
 
-repro:  ## весь пайплайн одной командой (DVC)
-	.venv/bin/dvc repro
+web:  ## фронтенд на :5173 (проксирует /api на :8000)
+	cd frontend && npm run dev
 
-test:  ## тесты + покрытие
-	.venv/bin/pytest --cov=src --cov-report=term-missing
+test:  ## тесты бэкенда + покрытие
+	cd backend && .venv/bin/pytest --cov=app --cov-report=term-missing
 
 lint:
-	.venv/bin/ruff check . && .venv/bin/ruff format --check .
+	cd backend && .venv/bin/ruff check . && .venv/bin/ruff format --check .
+	cd frontend && npm run lint && npx tsc -b
 
 fmt:
-	.venv/bin/ruff check . --fix && .venv/bin/ruff format .
+	cd backend && .venv/bin/ruff check . --fix && .venv/bin/ruff format .
 
-api:  ## API с автоперезагрузкой, Swagger на :8000/docs
-	.venv/bin/uvicorn src.app.main:app --reload
+migration:  ## новая миграция: make migration m="add field"
+	cd backend && .venv/bin/alembic revision --autogenerate -m "$(m)"
 
-mlflow:  ## UI экспериментов на :5000
-	.venv/bin/mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
+build:
+	cd frontend && npm run build
 
-load:  ## нагрузочный тест (API должен быть запущен)
-	$(PY) scripts/load_test.py --requests 500 --concurrency 20
-
-docker:  ## собрать образ (сначала make repro)
-	docker build -t prod-ml-api:latest .
-
-up:
+up:  ## всё в Docker (Postgres + backend + nginx) на :8080
 	docker compose up -d --build
 
-clean:
-	rm -rf mlruns mlflow.db logs .pytest_cache .ruff_cache .coverage htmlcov
+down:
+	docker compose down
+
+logs:  ## общие логи всех сервисов
+	docker compose logs -f --tail=100

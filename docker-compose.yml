@@ -1,12 +1,41 @@
+# Запуск всего: docker compose up -d --build   ->   http://localhost:8080  (Swagger: /api/docs)
 services:
-  api:
-    image: prod-ml-api:latest
-    build:
-      context: .
-      args:
-        MODEL_VERSION: ${MODEL_VERSION:-dev}
-    ports:
-      - "${API_PORT:-8000}:8000"
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_DB: app
     volumes:
-      - ./logs:/app/logs
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     restart: unless-stopped
+
+  backend:
+    build: ./backend
+    image: prod-backend:latest
+    environment:
+      DATABASE_URL: postgresql+psycopg://app:${POSTGRES_PASSWORD:-app}@db:5432/app
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-change-me-dev-secret-change-me}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin12345}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    image: prod-frontend:latest
+    ports:
+      - "${PORT:-8080}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:

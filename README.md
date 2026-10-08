@@ -1,79 +1,82 @@
-# PROD Hackathon — ML-шаблон
+# PROD Hackathon — fullstack-шаблон
 
-Готовый каркас под направление MLOps-инжиниринг: данные → EDA → обучение с трекингом → API → Docker → CI/CD.
-Демо-кейс: оценка вилки зарплаты по резюме (на синтетических данных). Под настоящий кейс переделывается за пару часов, см. «Адаптация под кейс».
+Готовый каркас под хакатон PROD: **FastAPI + PostgreSQL + React (Vite, TypeScript)**, миграции, тесты, Docker, CI/CD.
+Демо-домен — процесс согласования записи (черновик → на согласовании → согласовано / отклонено / нужны правки) с историей изменений.
+Под реальный кейс переименовываются сущности и правила переходов (см. «Адаптация под кейс»).
 
 ## Быстрый старт
 
 ```bash
-make setup      # venv + зависимости
-make data       # демо-датасет в data/raw/dataset.csv (если файла ещё нет)
-make eda        # графики -> reports/eda/
-make repro      # весь пайплайн: обучение + ONNX (DVC)
+make setup      # окружение: venv + pip + npm install
+make db         # миграции (SQLite, без Docker)
+make seed       # демо-данные: admin@example.com / admin12345, user@example.com / user12345
+make api        # бэкенд :8000, Swagger: http://localhost:8000/api/docs
+make web        # фронтенд :5173 (в другом терминале)
 make test       # тесты + покрытие
-make api        # API на :8000, Swagger: http://localhost:8000/docs
-make mlflow     # эксперименты на :5000
-make load       # нагрузочный тест (при запущенном API)
 ```
 
-Пример запроса:
+Всё в Docker (Postgres + backend + nginx с фронтендом), порт 8080:
 
 ```bash
-curl -X POST localhost:8000/predict -H 'content-type: application/json' \
-  -d '{"role":"backend","region":"moscow","education":"bachelor","experience_years":3.5,"skills_count":8}'
+cp .env.example .env     # поменяй пароли
+docker compose up -d --build
+# приложение: http://localhost:8080   Swagger: http://localhost:8080/api/docs
 ```
 
 ## Структура
 
 ```
-params.yaml          все параметры (признаки, гиперпараметры) — меняешь тут
-dvc.yaml             пайплайн: train -> export_onnx
-src/ml/              make_demo_data, eda, features, train, export_onnx
-src/app/             FastAPI: main, schemas, model_service, observability
-tests/               API и ML тесты
-scripts/load_test.py нагрузочный тест
-Dockerfile, docker-compose.yml
-.github/workflows/ci.yml   lint -> dvc repro -> tests -> docker build + smoke -> deploy (по SSH)
-docs/DEFENSE.md      шпаргалка к защите и «мини-правкам»
-docs/ARCHITECTURE.md архитектура и принятые решения
+backend/
+  app/
+    routers/       HTTP: валидация входа, коды ответов (без бизнес-логики)
+    services/      бизнес-логика и права (ItemService.RULES - правила переходов)
+    repositories/  работа с БД (запросы)
+    models.py      таблицы SQLAlchemy      schemas.py  контракт API (pydantic)
+    errors.py      доменные ошибки -> HTTP-коды в одном месте (main.py)
+  alembic/         миграции схемы БД
+  tests/           unit (сервисы) + integration (HTTP) + миграции
+frontend/          React: вход/регистрация, список, фильтры, создание, статусы, история
+docker-compose.yml db + backend + frontend(nginx, проксирует /api)
+.github/workflows/ci.yml   lint → тесты+покрытие → миграции на Postgres → docker smoke → deploy
+docs/ARCHITECTURE.md  архитектурный документ (ER-диаграмма, процесс, решения)
+docs/DEFENSE.md       чек-лист жюри, «мини-правки», план на 3 дня
 ```
 
-## Чек-лист по критериям жюри (ML)
+## Что покрывает критерии жюри
 
-| Критерий | Баллы | Где в шаблоне |
-|---|---|---|
-| A. EDA и качество данных | 2 | `make eda`, `reports/eda/`; пропуски — импутация в `features.py`, выбросы — `clean()` в `train.py` |
-| B. Воспроизводимость | 2 | Git + `requirements*.txt` + `params.yaml` + `dvc.yaml` |
-| C. Качество модели | 3 | `train.py`: train/val/test, baseline, MAE/RMSE/R², покрытие интервала |
-| D. Serving | 2 | FastAPI, `/predict`, `/predict/batch`, Swagger на `/docs` |
-| E. Деплой | 1 | `deploy`-джоба в CI + Docker (см. «Деплой») |
-| P1. Feature engineering, метрики | 0–2 | `add_features()`; обоснование метрик — в `docs/DEFENSE.md` |
-| P2. Пайплайн и эксперименты | 0–2 | `dvc repro` одной командой; MLflow (`make mlflow`); DVC для данных/моделей |
-| P3. Observability | 0–2 | JSON-логи с request_id и latency, `/metrics` (p50/p95/p99), ONNX-бенчмарк, `make load` |
+| Критерий (Backend) | Где |
+|---|---|
+| Деплой + Swagger по URL, CI/CD | `ci.yml`, `/api/docs`, job `deploy` |
+| API и спецификация | pydantic-схемы с примерами → OpenAPI, единый формат ошибок |
+| Схема данных и миграции | `docs/ARCHITECTURE.md` (ER), `backend/alembic/` |
+| Тестирование | unit + integration + негативные, отчёт покрытия в CI summary и artifacts |
+| Понятность бизнес-логики | диаграмма статусов в `ARCHITECTURE.md` и в докстринге `services/items.py` |
+| Архитектура и код (P1) | слои router → service → repository, правила переходов данными |
+| БД и эффективность (P2) | индексы, `joinedload` (нет N+1), транзакция «статус + история» |
+| Эволюция логики (P3) | `RULES` + тесты; JSON-логи с `request_id`, 500 отдаёт `request_id` для поиска в логах |
 
-## Адаптация под кейс (в день хакатона)
+Фронтенд: деплой по CI, запросы к бэкенду, валидация форм, состояния загрузки/ошибки/пусто, адаптивная вёрстка, тёмная тема.
 
-1. Положи данные в `data/raw/dataset.csv` (имя можно сменить в `params.yaml`).
-2. `params.yaml`: `data.target`, `features.numeric`, `features.categorical`.
-3. `python -m src.ml.eda` — посмотри данные, запиши выводы и гипотезы в `docs/DEFENSE.md`.
-4. `src/ml/features.py` — добавь признаки из выводов EDA.
-5. `src/app/schemas.py` — поля запроса под свои признаки (`Literal` для категорий).
-6. **Классификация вместо регрессии:** в `features.py` замени `HistGradientBoostingRegressor` на `HistGradientBoostingClassifier`, в `train.py` — метрики на `f1`, `roc_auc`, `precision`, `recall`, а в `model_service.py` — `predict_proba`.
-7. Данные большие (>50 МБ): `dvc add data/raw/dataset.csv`, настрой remote (`dvc remote add -d storage <url>`), коммить `.dvc`-файл.
-8. `make repro && make test`, затем коммит и пуш — CI всё проверит.
+## Адаптация под кейс (день 1)
+
+1. **Прочитай кейс, выпиши сущности и роли.** Заполни `docs/ARCHITECTURE.md` (требования → сценарии → данные → API → решения).
+2. `backend/app/models.py` — свои сущности (`Item` → `Offer`/`Order`/…); `make migration m="describe"` создаёт миграцию.
+3. `backend/app/schemas.py`, `services/`, `routers/` — переименовать и поправить правила в `RULES`.
+4. Фронтенд: `frontend/src/api.ts` и `types.ts` повторяют контракт; компоненты правятся под сущности.
+5. Первым делом (до фич!) — **задеплоить** шаблон: пустой, но живой сервис по ссылке снимает штраф −20% и даёт CI/CD с первого часа.
 
 ## Деплой
 
-Репозиторий уже умеет деплоить по SSH на любой сервер с Docker (CI собирает образ, передаёт `docker save | ssh docker load`, поднимает `docker compose`). Включение:
+Включается секретами репозитория (Settings → Secrets and variables → Actions):
+- Variables: `DEPLOY_ENABLED=true`
+- Secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (приватный ключ; публичный — в `authorized_keys` на сервере), `POSTGRES_PASSWORD`, `SECRET_KEY`, `ADMIN_PASSWORD`
 
-1. На сервере установлен Docker, у пользователя есть доступ к `docker`.
-2. GitHub → Settings → Secrets and variables → Actions:
-   - **Secrets:** `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (приватный ключ, публичный — в `~/.ssh/authorized_keys` на сервере).
-   - **Variables:** `DEPLOY_ENABLED` = `true`.
-3. Пуш в `main` → через ~3–5 минут `http://<DEPLOY_HOST>:8000/docs`.
+На сервере нужен только Docker. Пуш в `main` → CI собирает образы, передаёт их по SSH, поднимает стек на порту 80.
+Без своего сервера: Render / Railway / Fly.io собирают `backend/Dockerfile` и `frontend/Dockerfile`.
 
-Без сервера: Render/Railway/Fly.io подключаются к репозиторию и собирают `Dockerfile` сами (перед этим модель должна лежать в `models/` — запусти `make repro` и закоммить `models/model.joblib`, либо настрой сборку через CI).
+## Полезно знать
 
-## Git-процесс на хакатоне
-
-Ветка на каждую фичу → PR в `main` → CI зелёный → merge. Коммиты по-русски или по-английски, но осмысленные («add feature skills_per_year»), а не «fix».
+- Миграции применяются автоматически при старте контейнера бэкенда (`alembic upgrade head`).
+- Администратор создаётся при старте из `ADMIN_EMAIL` / `ADMIN_PASSWORD`; обычные пользователи регистрируются сами.
+- Логи — JSON в stdout, общие для всех сервисов: `make logs` (`docker compose logs -f`).
+- Дефолтные пароли в `docker-compose.yml` — только для разработки; на публичном сервере задайте свои через `.env` / секреты.
