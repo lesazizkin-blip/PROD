@@ -32,7 +32,7 @@ class ItemRepository:
             )
         return conds
 
-    def list(
+    def search(
         self, *, owner_id: int | None, status: str | None, q: str | None, limit: int, offset: int
     ) -> list[Item]:
         stmt = (

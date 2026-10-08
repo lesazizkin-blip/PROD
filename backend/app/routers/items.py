@@ -28,7 +28,7 @@ def list_items(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    items, total = ItemService(db).list(
+    items, total = ItemService(db).list_items(
         user, status=status.value if status else None, q=q, mine=mine, limit=limit, offset=offset
     )
     return ItemList(items=items, total=total, limit=limit, offset=offset)

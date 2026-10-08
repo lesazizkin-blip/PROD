@@ -79,11 +79,11 @@ class ItemService:
     def get(self, item_id: int, user: User) -> Item:
         return self._get_visible(item_id, user)
 
-    def list(
+    def list_items(
         self, user: User, *, status: str | None, q: str | None, mine: bool, limit: int, offset: int
     ) -> tuple[list[Item], int]:
         owner_id = user.id if (user.role != "admin" or mine) else None
-        items = self.repo.list(owner_id=owner_id, status=status, q=q, limit=limit, offset=offset)
+        items = self.repo.search(owner_id=owner_id, status=status, q=q, limit=limit, offset=offset)
         return items, self.repo.count(owner_id=owner_id, status=status, q=q)
 
     def update(self, item_id: int, data: ItemUpdate, user: User) -> Item:
