@@ -81,7 +81,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Поднять весь стек
         run: docker compose up -d --build
-      - name: Smoke-тест (через nginx: фронтенд + API + БД)
+      - name: "Smoke-тест через nginx (фронтенд + API + БД)"
         run: |
           for i in $(seq 1 40); do
             curl -fs localhost:8080/api/health && break || sleep 2
