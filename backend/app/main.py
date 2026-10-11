@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.errors import AppError
 from app.logging_setup import log, setup_logging
-from app.routers import auth, health, items
+from app.routers import auth, health, items, stats
 from app.services.auth import AuthService
 
 settings = get_settings()
@@ -28,6 +28,10 @@ async def lifespan(app: FastAPI):
             AuthService(db).ensure_admin(
                 settings.admin_email, settings.admin_password, settings.admin_full_name
             )
+    if settings.seed_demo:
+        from app.seed import run as seed_demo
+
+        seed_demo()
     log(logger, "startup")
     yield
 
@@ -124,4 +128,5 @@ api = APIRouter(prefix="/api")
 api.include_router(health.router)
 api.include_router(auth.router)
 api.include_router(items.router)
+api.include_router(stats.router)
 app.include_router(api)

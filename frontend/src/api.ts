@@ -1,4 +1,4 @@
-import type { Action, FieldError, Item, ItemEvent, ItemList, Status, User } from './types'
+import type { Action, FieldError, Item, ItemEvent, ItemList, Stats, Status, User } from './types'
 
 const TOKEN_KEY = 'token'
 
@@ -74,4 +74,5 @@ export const api = {
   transition: (id: number, action: Action, comment?: string) =>
     request<Item>(`/items/${id}/transitions`, { method: 'POST', body: json({ action, comment }) }),
   events: (id: number) => request<ItemEvent[]>(`/items/${id}/events`),
+  stats: () => request<Stats>('/stats'),
 }

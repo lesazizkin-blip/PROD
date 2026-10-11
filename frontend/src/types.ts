@@ -41,3 +41,11 @@ export interface FieldError {
   field: string
   message: string
 }
+
+export interface Stats {
+  total: number
+  by_status: Record<Status, number>
+  amount_by_status: Record<Status, number>
+  approval_rate: number | null
+  pending: number
+}

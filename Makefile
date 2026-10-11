@@ -1,4 +1,4 @@
-.PHONY: setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
+.PHONY: preflight setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
 
 backend-setup:
 	cd backend && python3 -m venv .venv && .venv/bin/pip install -U pip && .venv/bin/pip install -r requirements-dev.txt
@@ -44,3 +44,6 @@ down:
 
 logs:  ## общие логи всех сервисов
 	docker compose logs -f --tail=100
+
+preflight:  ## проверка стенда: make preflight URL=http://1.2.3.4
+	scripts/preflight.sh $(or $(URL),http://localhost:8080)

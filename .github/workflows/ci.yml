@@ -81,17 +81,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Поднять весь стек
         run: docker compose up -d --build
-      - name: "Smoke-тест через nginx (фронтенд + API + БД)"
+      - name: "Предполётная проверка (тот же скрипт, что и перед сдачей)"
         run: |
-          for i in $(seq 1 40); do
-            curl -fs localhost:8080/api/health && break || sleep 2
-          done
-          curl -fs localhost:8080/api/health
-          curl -fs localhost:8080/ | grep -q '<div id="root">'
-          TOKEN=$(curl -fs -X POST localhost:8080/api/auth/login -H 'content-type: application/json' \
-            -d '{"email":"admin@example.com","password":"admin12345"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
-          curl -fs localhost:8080/api/items -H "Authorization: Bearer $TOKEN"
-          curl -fs -o /dev/null localhost:8080/api/docs
+          for i in $(seq 1 40); do curl -fs localhost:8080/api/health && break || sleep 2; done
+          scripts/preflight.sh http://localhost:8080
       - name: Логи при падении
         if: failure()
         run: docker compose logs

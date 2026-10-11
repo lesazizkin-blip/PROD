@@ -67,6 +67,11 @@ button.link { border: 0; background: none; color: var(--primary); padding: 4px; 
 .auth { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
 .auth-card { width: 100%; max-width: 380px; display: grid; gap: 14px; }
 
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 2px; }
+.stat b { font-size: 1.35rem; }
+.stat span { color: var(--muted); font-size: .78rem; }
+
 .toolbar { display: grid; grid-template-columns: 1fr 180px auto; gap: 8px; margin-bottom: 16px; }
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; transition: opacity .15s; }
 .list.dim { opacity: .6; }

@@ -41,3 +41,23 @@ def test_ensure_admin_is_idempotent(db_session):
     auth.ensure_admin("boss@example.com", "password123", "Босс")
     assert auth.users.count() == 1
     assert auth.users.get_by_email("boss@example.com").role == "admin"
+
+
+def test_demo_seed_is_idempotent_and_complete(monkeypatch, db_session):
+    import app.seed as seed
+
+    monkeypatch.setattr(seed, "SessionLocal", lambda: db_session)
+    seed.run()
+    seed.run()  # повторный запуск ничего не дублирует
+    from app.models import Item, User
+
+    assert db_session.query(User).count() == 3
+    items = db_session.query(Item).all()
+    assert len(items) == 12
+    assert {i.status for i in items} == {
+        "draft",
+        "in_review",
+        "changes_requested",
+        "approved",
+        "rejected",
+    }

@@ -142,3 +142,27 @@ def test_unhandled_error_returns_500_with_request_id(db_session, monkeypatch):
     app.dependency_overrides.clear()
     assert r.status_code == 500
     assert r.json()["code"] == "internal_error" and r.json()["request_id"]
+
+
+def test_stats_counts_by_status_and_visibility(client, user_h, other_h, admin_h):
+    a = client.post("/api/items", json=ITEM, headers=user_h).json()["id"]
+    b = client.post("/api/items", json=ITEM, headers=user_h).json()["id"]
+    client.post("/api/items", json=ITEM, headers=other_h)
+    for item_id in (a, b):
+        client.post(f"/api/items/{item_id}/transitions", json={"action": "submit"}, headers=user_h)
+    client.post(f"/api/items/{a}/transitions", json={"action": "approve"}, headers=admin_h)
+
+    mine = client.get("/api/stats", headers=user_h).json()
+    assert (
+        mine["total"] == 2
+        and mine["by_status"]["in_review"] == 1
+        and mine["by_status"]["approved"] == 1
+    )
+    assert mine["approval_rate"] == 1.0 and mine["pending"] == 1
+
+    everything = client.get("/api/stats", headers=admin_h).json()
+    assert everything["total"] == 3 and everything["by_status"]["draft"] == 1
+
+
+def test_stats_requires_auth(client):
+    assert client.get("/api/stats").status_code == 401

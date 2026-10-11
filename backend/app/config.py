@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     admin_email: str | None = None
     admin_password: str | None = None
     admin_full_name: str = "Администратор"
+    # true -> при старте создаются демо-пользователи и записи (чтобы жюри сразу видело данные)
+    seed_demo: bool = False
     log_level: str = "INFO"
 
 

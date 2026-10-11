@@ -4,6 +4,7 @@ import { STATUS_LABEL, formatDate, formatMoney } from '../labels'
 import type { Item, Status, User } from '../types'
 import ItemForm from './ItemForm'
 import ItemModal from './ItemModal'
+import StatsBar from './StatsBar'
 import StatusBadge from './StatusBadge'
 
 const PAGE_SIZE = 10
@@ -28,6 +29,7 @@ export default function ItemsPage({ user, onLogout }: { user: User; onLogout: ()
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
   const [selected, setSelected] = useState<Item | null>(null)
+  const [version, setVersion] = useState(0) // растёт после изменений: обновляет сводку
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -36,6 +38,7 @@ export default function ItemsPage({ user, onLogout }: { user: User; onLogout: ()
       const res = await api.listItems({ status, q, limit: PAGE_SIZE, offset })
       setItems(res.items)
       setTotal(res.total)
+      setVersion((v) => v + 1)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Не удалось загрузить данные')
     } finally {
@@ -66,6 +69,7 @@ export default function ItemsPage({ user, onLogout }: { user: User; onLogout: ()
       </header>
 
       <main className="container">
+        <StatsBar version={version} />
         <div className="toolbar">
           <input
             type="search"
