@@ -2,7 +2,7 @@
 # Подготовка чистого Ubuntu/Debian-сервера под деплой из GitHub Actions. Запускать от root:
 #   curl -fsSL https://raw.githubusercontent.com/<вы>/<репо>/main/scripts/bootstrap-server.sh | bash -s -- "<ПУБЛИЧНЫЙ SSH-КЛЮЧ>"
 # (репозиторий приватный - проще скопировать файл на сервер через scp и запустить: bash bootstrap-server.sh "<ключ>")
-# ВАЖНО: скрипт не проверялся на реальном сервере - прогоните его заранее, до хакатона.
+# Проверено в контейнере Ubuntu 24.04 (пользователь, ключ, группа docker); установка Docker и ufw на реальном сервере не проверялись.
 set -euo pipefail
 
 PUBKEY="${1:-}"
@@ -22,10 +22,12 @@ grep -qF "$PUBKEY" /home/deploy/.ssh/authorized_keys 2>/dev/null || echo "$PUBKE
 chown deploy:deploy /home/deploy/.ssh/authorized_keys
 chmod 600 /home/deploy/.ssh/authorized_keys
 
-# Файрвол: SSH, HTTP, HTTPS
-ufw allow OpenSSH
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw --force enable
+# Файрвол: SSH, HTTP, HTTPS (пропустить: SKIP_FIREWALL=1; на хостингах со своим файрволом он не нужен)
+if [ -z "${SKIP_FIREWALL:-}" ]; then
+  ufw allow OpenSSH
+  ufw allow 80/tcp
+  ufw allow 443/tcp
+  ufw --force enable
+fi
 
 echo "Готово. В GitHub: DEPLOY_USER=deploy, DEPLOY_HOST=<IP сервера>, DEPLOY_SSH_KEY=<приватный ключ>."

@@ -92,7 +92,7 @@ docs/DEFENSE.md       чек-лист жюри, «мини-правки», во�
 - Variables: `DEPLOY_ENABLED=true`
 - Secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (приватный ключ; публичный — в `authorized_keys` на сервере), `POSTGRES_PASSWORD`, `SECRET_KEY`, `ADMIN_PASSWORD`
 
-Подробности и варианты (VPS / PaaS) — `docs/DEPLOY.md`. На сервере нужен только Docker. Пуш в `main` → CI собирает образы, передаёт их по SSH, поднимает стек на порту 80.
+Будет ли сервер от организаторов — не подтверждено; три ступени плана (уточнить → свой VPS → аварийная ссылка `make tunnel`) и готовые пути (CI-деплой, ручной деплой `scripts/deploy-manual.sh`, PaaS) — `docs/DEPLOY.md`. На сервере нужен только Docker. Пуш в `main` → CI собирает образы, передаёт их по SSH, поднимает стек на порту 80.
 Без своего сервера: Render / Railway / Fly.io собирают `backend/Dockerfile` и `frontend/Dockerfile`.
 
 ## Полезно знать

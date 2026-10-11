@@ -1,4 +1,4 @@
-.PHONY: preflight setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
+.PHONY: tunnel preflight setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
 
 backend-setup:
 	cd backend && python3 -m venv .venv && .venv/bin/pip install -U pip && .venv/bin/pip install -r requirements-dev.txt
@@ -47,3 +47,6 @@ logs:  ## общие логи всех сервисов
 
 preflight:  ## проверка стенда: make preflight URL=http://1.2.3.4
 	scripts/preflight.sh $(or $(URL),http://localhost:8080)
+
+tunnel:  ## аварийная публичная ссылка на локальный стек (:8080) через Docker; Ctrl+C - остановить
+	docker run --rm -it cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://host.docker.internal:8080
