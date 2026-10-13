@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Чек-лист хакатона PROD</title>
+<style>
+  :root { --bg:#f2f5f7; --surface:#fff; --line:#dce3e8; --fg:#14202a; --muted:#5a6977; --accent:#0f766e; --accent-soft:#d4eeea;
+          --next-soft:#fcebc6; --danger:#b42318; --track:#e3e9ed; --on-accent:#fff;
+          --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; --mono: ui-monospace, "SF Mono", Menlo, monospace; color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0d1316; --surface:#151d22; --line:#26323a; --fg:#e6edf2; --muted:#93a3af;
+          --accent:#34d3bd; --accent-soft:#143a38; --next-soft:#3a2d12; --danger:#ff8a80; --track:#222d34; --on-accent:#0d1316; color-scheme: dark; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:400 15px/1.5 var(--sans); }
+  .wrap { max-width:760px; margin:0 auto; padding:24px 16px 56px; display:grid; gap:20px; }
+  h1 { font-size:clamp(1.6rem,5vw,2.1rem); line-height:1.15; margin:0; }
+  .meta { color:var(--muted); display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; }
+  .chip { font:500 .8rem var(--mono); background:var(--accent-soft); color:var(--accent); border-radius:999px; padding:3px 10px; }
+  .panel { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .progress { display:grid; gap:10px; }
+  .progress-top { display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:12px; }
+  .progress-top b { font-size:1.9rem; font-variant-numeric:tabular-nums; }
+  .progress-top span { color:var(--muted); }
+  .bar { height:8px; background:var(--track); border-radius:999px; overflow:hidden; }
+  .bar > i { display:block; height:100%; background:var(--accent); transition:width .25s; }
+  .next { background:var(--next-soft); border-color:transparent; display:grid; gap:4px; }
+  .next small { font:500 .75rem var(--mono); letter-spacing:.06em; text-transform:uppercase; opacity:.8; }
+  .next[hidden] { display:none; }
+  .controls { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:center; }
+  .controls .grow { flex:1; }
+  .toggle { display:inline-flex; align-items:center; gap:8px; cursor:pointer; min-height:44px; }
+  .toggle input { width:18px; height:18px; accent-color:var(--accent); }
+  button { font:inherit; color:inherit; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:0 14px; min-height:44px; cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:600; }
+  button.armed { border-color:var(--danger); color:var(--danger); }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  section.group { display:grid; gap:8px; }
+  .group-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .group-head h2 { font-size:1.15rem; margin:0; }
+  .group-head p { margin:0; color:var(--muted); font-size:.85rem; flex-basis:100%; order:3; }
+  .count { font:500 .85rem var(--mono); color:var(--muted); }
+  .count.full { color:var(--accent); }
+  .mini { height:4px; background:var(--track); border-radius:999px; overflow:hidden; }
+  .mini > i { display:block; height:100%; background:var(--accent); transition:width .25s; }
+  ul.items { list-style:none; margin:0; padding:0; border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden; }
+  li.item { display:flex; border-top:1px solid var(--line); }
+  li.item:first-child { border-top:0; }
+  li.item label { flex:1; min-width:0; display:flex; gap:12px; align-items:flex-start; padding:12px 14px; cursor:pointer; }
+  li.item input[type=checkbox] { width:20px; height:20px; margin:2px 0 0; flex:none; accent-color:var(--accent); cursor:pointer; }
+  .body { display:grid; gap:2px; min-width:0; overflow-wrap:anywhere; }
+  li.done .text { color:var(--muted); text-decoration:line-through; text-decoration-color:var(--line); }
+  .note { color:var(--muted); font-size:.85rem; }
+  li.is-next { background:var(--next-soft); }
+  code { font:400 .85em var(--mono); background:var(--track); border-radius:4px; padding:1px 5px; }
+  .x { border:0; background:none; color:var(--muted); min-width:44px; border-radius:0; padding:0 10px; }
+  form.add { display:grid; gap:10px; }
+  form.add .fields { display:grid; gap:10px; grid-template-columns:1fr minmax(0,11rem); }
+  input[type=text], select { font:inherit; color:var(--fg); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:0 12px; min-height:44px; width:100%; min-width:0; }
+  h3 { margin:0; font-size:1rem; }
+  .empty { color:var(--muted); text-align:center; padding:20px; }
+  .hint { color:var(--muted); font-size:.85rem; }
+  #toast { position:fixed; left:50%; transform:translateX(-50%); bottom:16px; background:var(--fg); color:var(--bg); padding:10px 16px; border-radius:8px; max-width:calc(100% - 32px); }
+  #toast[hidden] { display:none; }
+  @media (max-width:520px) { form.add .fields { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Чек-лист хакатона PROD</h1>
+    <div class="meta"><span>Санкт-Петербург · 16–18 октября 2026</span><span class="chip" id="countdown"></span></div>
+  </header>
+  <div class="panel progress" id="progress" aria-live="polite"></div>
+  <div class="panel next" id="next" hidden></div>
+  <div class="controls">
+    <label class="toggle"><input type="checkbox" id="hide-done"> Скрыть выполненное</label>
+    <span class="grow"></span>
+    <button type="button" id="export">Сохранить в файл</button>
+    <button type="button" id="import">Загрузить из файла</button>
+    <button type="button" id="reset">Сбросить мои отметки</button>
+    <input type="file" id="file" accept="application/json,.json" hidden>
+  </div>
+  <p class="hint">Отметки хранятся в этом браузере (на этом компьютере). Чтобы перенести или поделиться с командой: «Сохранить в файл», затем «Загрузить из файла» на другом компьютере.</p>
+  <div id="groups"></div>
+  <form class="panel add" id="add" autocomplete="off">
+    <h3>Добавить свою задачу</h3>
+    <div class="fields">
+      <input type="text" id="new-text" maxlength="200" placeholder="Например: проверить зарядку и кабель HDMI" aria-label="Текст задачи">
+      <select id="new-section" aria-label="Раздел"></select>
+    </div>
+    <div><button class="primary">Добавить</button></div>
+  </form>
+</div>
+<div id="toast" role="status" hidden></div>
+<script id="data" type="application/json">{"title": "Чек-лист хакатона PROD", "subtitle": "Санкт-Петербург · 16–18 октября 2026", "sections": [{"key": "before", "title": "До хакатона", "sub": "до 15 октября"}, {"key": "fixa", "title": "Исправления по ревью: критично", "sub": "сделано 13 октября"}, {"key": "fixb", "title": "Исправления по ревью: важно", "sub": "сделано 13 октября"}, {"key": "fixc", "title": "Исправления по ревью: мелочи", "sub": "сделано 13 октября"}, {"key": "d1", "title": "День 1", "sub": "16 октября · регистрация, кейс, первый деплой"}, {"key": "d2", "title": "День 2", "sub": "17 октября · разработка, тесты, консультации"}, {"key": "d3", "title": "День 3", "sub": "18 октября · заморозка в 12:00, стоп-кодинг в 15:00"}, {"key": "submit", "title": "Перед сдачей", "sub": "то, что жюри откроет в первую очередь"}], "items": [{"id": "before-01", "section": "before", "order": 10, "text": "Шаблон в `main`, CI зелёный, ревью команды проведено", "note": "", "done": true}, {"id": "before-02", "section": "before", "order": 20, "text": "Спросить организаторов, выдают ли сервер", "note": "Чат участников после регистрации или почта из приглашения. Нет ответа к 14 октября: свой VPS (`docs/DEPLOY.md`).", "done": false}, {"id": "before-03", "section": "before", "order": 30, "text": "Прочитать Положение о хакатоне", "note": "Правила про готовый код и ИИ, нужно ли раскрывать шаблон, состав архитектурного документа. Главное неизвестное: если шаблон ограничен, нужен план Б.", "done": false}, {"id": "before-04", "section": "before", "order": 40, "text": "Docker Desktop установлен, весь стек запускается локально", "note": "", "done": true}, {"id": "before-05", "section": "before", "order": 50, "text": "`scripts/preflight.sh`: 10 из 10 на локальном стеке", "note": "", "done": true}, {"id": "before-06", "section": "before", "order": 60, "text": "Имя и почта в Git глобально", "note": "`git config --global user.name` и `git config --global user.email`. Без этого первый коммит в новом репозитории упадёт.", "done": true}, {"id": "before-07", "section": "before", "order": 70, "text": "SSH-ключ деплоя", "note": "`ssh-keygen -t ed25519 -f ~/.ssh/prod_deploy -N \"\"`", "done": true}, {"id": "before-08", "section": "before", "order": 80, "text": "Git, Node 22, Python 3.11+ и Docker у каждого участника команды", "note": "", "done": true}, {"id": "before-09", "section": "before", "order": 90, "text": "Распределить роли: бэкенд, фронтенд, платформа, продакт, дизайн", "note": "", "done": false}, {"id": "before-10", "section": "before", "order": 100, "text": "Репетиция на настоящем кейсе, 4–5 часов", "note": "Wellness Gift Shop или GPU-платформа. Засечь время и записать, что тормозило.", "done": false}, {"id": "before-11", "section": "before", "order": 110, "text": "Решение по серверу к 14 октября", "note": "Организаторы не подтвердили: взять VPS на неделю (`docs/DEPLOY.md`, путь 4).", "done": false}, {"id": "before-12", "section": "before", "order": 120, "text": "Паспорта, ноутбуки, зарядки", "note": "", "done": true}, {"id": "fixa-01", "section": "fixa", "order": 10, "text": "Пустые секреты не должны превращаться в публичные значения по умолчанию", "note": "`docker-compose.yml` подставляет `dev-secret…` и `admin12345`, если `SECRET_KEY` или `ADMIN_PASSWORD` пусты: токен админа можно подделать, а деплой при этом зелёный. Использовать `${VAR:?}`, падать в `ci.yml` и `deploy-manual.sh`, в `Settings` не стартовать с дефолтным ключом при Postgres.", "done": true}, {"id": "fixa-02", "section": "fixa", "order": 20, "text": "Админ из демо-данных не должен иметь известный пароль", "note": "`seed.py` создаёт `admin@example.com / admin12345`. Риск проявляется, если сменить `ADMIN_EMAIL`; ревьюеры оценили его по-разному, проверить. В seed брать админа из `ADMIN_EMAIL` и `ADMIN_PASSWORD`.", "done": true}, {"id": "fixa-03", "section": "fixa", "order": 30, "text": "Деплой-джоба должна ждать готовности стенда, а не `sleep 10`", "note": "Первый старт (миграции, демо-данные) дольше 10 с: деплой окажется ложно-красным. Цикл ожидания до 60 с и `preflight.sh` в конце `ci.yml`.", "done": true}, {"id": "fixa-04", "section": "fixa", "order": 40, "text": "Двойной переход статуса при параллельных запросах", "note": "`approve` и `reject` одновременно оба вернули 200 (воспроизведено на Postgres). Нужен `with_for_update()` в `services/items.py` или условный UPDATE по статусу.", "done": true}, {"id": "fixb-01", "section": "fixb", "order": 10, "text": "Регистрация: параллельные одинаковые email дают 500", "note": "В `services/auth.py` ловить `IntegrityError` и отдавать 409.", "done": true}, {"id": "fixb-02", "section": "fixb", "order": 20, "text": "Имя и название из одних пробелов проходят валидацию", "note": "`schemas.py`: `StringConstraints(strip_whitespace=True, min_length=…)`. Сейчас в базу попадает пустая строка.", "done": true}, {"id": "fixb-03", "section": "fixb", "order": 30, "text": "Ответ 500 без заголовков CORS и `x-request-id`", "note": "`main.py`: браузер покажет CORS-ошибку вместо 500, а `request_id` останется только в теле.", "done": true}, {"id": "fixb-04", "section": "fixb", "order": 40, "text": "Пробелы в тестах бэкенда", "note": "Тест «409» принимает и 403. Не покрыты: просроченный и чужой токен, 404, `reject` без комментария по HTTP, PATCH в `in_review`, создание админа из env.", "done": true}, {"id": "fixb-05", "section": "fixb", "order": 50, "text": "Решить: может ли админ согласовать собственную запись", "note": "Сейчас может (`services/items.py`). Запретить или осознанно оставить ради удобства демо.", "done": true}, {"id": "fixb-06", "section": "fixb", "order": 60, "text": "Пароль Postgres: меняется только на пустом томе", "note": "Смена секрета после первого деплоя даст crash-loop бэкенда; спецсимволы ломают `DATABASE_URL`. Генерировать `openssl rand -hex 16`, записать в `docs/DEPLOY.md`.", "done": true}, {"id": "fixb-07", "section": "fixb", "order": 70, "text": "CI: права, параллельные деплои, ключ SSH, откат", "note": "Добавить `permissions: contents: read` и `concurrency`; ключ передавать через `env:`; образы тегировать по SHA (артефакт живёт 3 дня, повторный деплой потом упадёт).", "done": true}, {"id": "fixb-08", "section": "fixb", "order": 80, "text": "Скрипты деплоя: `rsync` и проверка прав на Docker", "note": "`bootstrap-server.sh` не ставит `rsync`, а `deploy-manual.sh` на нём держится. В `deploy-manual.sh` проверять `docker info`, а не `docker compose version`.", "done": true}, {"id": "fixb-09", "section": "fixb", "order": 90, "text": "nginx: DNS бэкенда, кэш `index.html`, заголовки прокси", "note": "`resolver 127.0.0.11` (риск 502 после пересоздания бэкенда), `no-cache` для `index.html`, `X-Forwarded-For` и `X-Forwarded-Proto`.", "done": true}, {"id": "fixb-10", "section": "fixb", "order": 100, "text": "Линтер не должен блокировать деплой", "note": "Сейчас любое замечание `ruff format --check` останавливает деплой, это противоречит правилу «каждый merge на прод». Решить: `continue-on-error` или `make fmt` в PLAYBOOK.", "done": true}, {"id": "fixb-11", "section": "fixb", "order": 110, "text": "Фронтенд: гонка запросов в списке", "note": "`ItemsPage.tsx`: устаревший ответ может перезаписать новый. Отменять запрос через `AbortController`.", "done": true}, {"id": "fixb-12", "section": "fixb", "order": 120, "text": "Фронтенд: после согласования последней записи на странице список пуст", "note": "`offset` становится больше `total`. Ужимать `offset` после загрузки.", "done": true}, {"id": "fixb-13", "section": "fixb", "order": 130, "text": "Фронтенд: при ошибке 409 запись не перечитывается", "note": "В `api.ts` нет `getItem`, кнопки остаются устаревшими.", "done": true}, {"id": "fixb-14", "section": "fixb", "order": 140, "text": "Фронтенд: общий `Modal` на `<dialog>`", "note": "Escape, фокус, потеря введённого текста при закрытии, прокрутка фона. Заодно в `ItemForm.tsx` показывать сообщение при любой ошибке, не только `ApiError`.", "done": true}, {"id": "fixb-15", "section": "fixb", "order": 150, "text": "Зафиксировать версии зависимостей бэкенда", "note": "`requirements.txt` с `>=` без lock-файла: свежий релиз посреди хакатона может сломать сборку. `pip freeze` в lock или пины.", "done": true}, {"id": "fixb-16", "section": "fixb", "order": 160, "text": "Чек-лист переименования `Item` → сущность кейса", "note": "На один экран в PLAYBOOK: модель, схема, миграция, сервис, роутер, типы, UI. Сейчас этого нет, а на день 1 уходит около 2 часов.", "done": true}, {"id": "fixb-17", "section": "fixb", "order": 170, "text": "Обновить устаревшее в документах", "note": "Даты в PLAYBOOK («До хакатона»), README «Как проверить» согласовать с секретом `ADMIN_PASSWORD`.", "done": true}, {"id": "fixc-01", "section": "fixc", "order": 10, "text": "Роутер на фронтенде (кнопка «Назад», F5 не теряет запись)", "note": "Делать, если кейс требует нескольких экранов. Оценка ревьюера: 2–3 часа.", "done": true}, {"id": "fixc-02", "section": "fixc", "order": 20, "text": "Тесты фронтенда (vitest)", "note": "Сейчас тестов нет. Хватит на формы и `labels.ts`, около 1,5–2 часов.", "done": true}, {"id": "fixc-03", "section": "fixc", "order": 30, "text": "Поиск: `%` и `_` работают как подстановки", "note": "`repositories/items.py`: передавать `escape=`; сейчас `q=%` возвращает всё.", "done": true}, {"id": "fixc-04", "section": "fixc", "order": 40, "text": "Токен без `exp` принимается; вход выдаёт, есть ли email", "note": "`options={\"require\": [\"exp\"]}` в `security.py`; считать хеш и для неизвестного email. Защиты от перебора паролей тоже нет.", "done": true}, {"id": "fixc-05", "section": "fixc", "order": 50, "text": "`/api/stats` и `/api/health` без схемы ответа в Swagger", "note": "Добавить `response_model`. Также PATCH не пишет событие в историю.", "done": true}, {"id": "fixc-06", "section": "fixc", "order": 60, "text": "Неточности в `docs/ARCHITECTURE.md`", "note": "Добавить `/api/stats`; «без внешних зависимостей» неверно (нужен `pyjwt`); ER-атрибуты через `;` могут не отрисоваться; `migration` нет в `.PHONY`.", "done": true}, {"id": "fixc-07", "section": "fixc", "order": 70, "text": "`make tunnel` работает только на Docker Desktop", "note": "`host.docker.internal` на Linux недоступен. Указать это в документации.", "done": true}, {"id": "fixc-08", "section": "fixc", "order": 80, "text": "Сократить и согласовать документы", "note": "В `ANALYSIS.md` «9 кейсов» против 8 в таблице. Для уставшей команды в день 1 хватит README (быстрый старт), PLAYBOOK и CASE; дубли в DEFENSE убрать.", "done": true}, {"id": "fixc-09", "section": "fixc", "order": 90, "text": "Шаблоны в `CASE.md`: user story и «ценность в цифрах»", "note": "Product-жюри оценивает путь пользователя и бизнес-ценность; `approval_rate` — процессная метрика, не ценность. Дополнить `DEFENSE.md` мини-правками по UI.", "done": true}, {"id": "fixc-10", "section": "fixc", "order": 100, "text": "Фронтенд: доступность и мелкие правки", "note": "Контраст белого текста на `#818cf8` в тёмной теме, `role=\"alert\"`, таймаут `fetch`, `localStorage` без try/catch, сводка перезапрашивается при каждом листании.", "done": true}, {"id": "fixc-11", "section": "fixc", "order": 110, "text": "Мелочи в инфраструктуре", "note": "`uvicorn` без `exec` (SIGTERM), двойной `Cache-Control` на `/assets/`, токен в аргументах `curl` в `preflight.sh`, нет бэкапа базы и HTTPS.", "done": true}, {"id": "d1-01", "section": "d1", "order": 10, "text": "10:00 Регистрация: паспорт, ноутбук", "note": "", "done": false}, {"id": "d1-02", "section": "d1", "order": 20, "text": "Команда собрана, роли распределены, репозиторий склонирован у всех", "note": "", "done": false}, {"id": "d1-03", "section": "d1", "order": 30, "text": "12:00–13:00 Менторы: спросить про сервер, прочитать все три кейса, выбрать один", "note": "Вопросы про сервер: `docs/DEPLOY.md`, раздел «Если сервер выдают».", "done": false}, {"id": "d1-04", "section": "d1", "order": 40, "text": "Заполнить `docs/CASE.md`: минимум кейса, что НЕ делаем, объём данных", "note": "За невыполненный минимум штраф −30%.", "done": false}, {"id": "d1-05", "section": "d1", "order": 50, "text": "Получить сервер и сделать первый деплой пустого шаблона", "note": "До конца обеда. Нет сервера: свой VPS или `make tunnel` как аварийный вариант.", "done": false}, {"id": "d1-06", "section": "d1", "order": 60, "text": "15:00–17:00 Продакт-менеджеры: сценарий, роли, главная метрика, план приоритетов", "note": "", "done": false}, {"id": "d1-07", "section": "d1", "order": 70, "text": "Первая вертикаль на проде: один сценарий насквозь", "note": "Форма → API → БД → список. Реально для дня 1: деплой каркаса плюс модель и миграция.", "done": false}, {"id": "d1-08", "section": "d1", "order": 80, "text": "ER-диаграмма и первая миграция закоммичены", "note": "", "done": false}, {"id": "d1-09", "section": "d1", "order": 90, "text": "Конец дня: ссылка работает, CI зелёный, демо-аккаунты есть", "note": "", "done": false}, {"id": "d2-01", "section": "d2", "order": 10, "text": "Остальные сценарии кейса", "note": "", "done": false}, {"id": "d2-02", "section": "d2", "order": 20, "text": "Тесты на каждое правило: unit, интеграционные и минимум 2 негативных", "note": "", "done": false}, {"id": "d2-03", "section": "d2", "order": 30, "text": "Фронтенд: экраны по сценариям, состояния «загрузка / ошибка / пусто»", "note": "", "done": false}, {"id": "d2-04", "section": "d2", "order": 40, "text": "10:30–13:00 Один человек на воркшопе CI/CD", "note": "", "done": false}, {"id": "d2-05", "section": "d2", "order": 50, "text": "15:00–17:00 Консультация UI/UX: показать живую версию, 2–3 вопроса", "note": "", "done": false}, {"id": "d2-06", "section": "d2", "order": 60, "text": "Каждый merge сразу на прод", "note": "", "done": false}, {"id": "d2-07", "section": "d2", "order": 70, "text": "Весь минимум кейса работает на проде", "note": "Критерий конца дня 2. Всё остальное — день 3.", "done": false}, {"id": "d2-08", "section": "d2", "order": 80, "text": "Вечером: `preflight.sh` на проде и список «что сломалось»", "note": "", "done": false}, {"id": "d3-01", "section": "d3", "order": 10, "text": "10:00–12:00 Дополнительные функции (1–2) и правки по консультации", "note": "", "done": false}, {"id": "d3-02", "section": "d3", "order": 20, "text": "12:00 Заморозка фич", "note": "Дальше только баги, документы и репетиция.", "done": false}, {"id": "d3-03", "section": "d3", "order": 30, "text": "Обновить `ARCHITECTURE.md` под реальный код", "note": "", "done": false}, {"id": "d3-04", "section": "d3", "order": 40, "text": "README «Как проверить»: реальный адрес и пароли", "note": "Пароль админа в секрете `ADMIN_PASSWORD` должен совпадать с README.", "done": false}, {"id": "d3-05", "section": "d3", "order": 50, "text": "`scripts/preflight.sh` на проде: все пункты OK", "note": "", "done": false}, {"id": "d3-06", "section": "d3", "order": 60, "text": "Запасное демо: видео и скриншоты", "note": "", "done": false}, {"id": "d3-07", "section": "d3", "order": 70, "text": "Репетиция 5 минут вслух", "note": "", "done": false}, {"id": "d3-08", "section": "d3", "order": 80, "text": "15:00 Стоп-кодинг: презентация загружена, больше нет пушей в `main`", "note": "", "done": false}, {"id": "d3-09", "section": "d3", "order": 90, "text": "16:30 Защита: демо открыто, запасной план под рукой", "note": "", "done": false}, {"id": "submit-01", "section": "submit", "order": 10, "text": "Приложение открывается по ссылке, в том числе с телефона", "note": "", "done": false}, {"id": "submit-02", "section": "submit", "order": 20, "text": "Swagger `/api/docs` доступен", "note": "", "done": false}, {"id": "submit-03", "section": "submit", "order": 30, "text": "Демо-аккаунты работают, нужный объём данных есть", "note": "", "done": false}, {"id": "submit-04", "section": "submit", "order": 40, "text": "CI зелёный, отчёт покрытия виден в Summary", "note": "", "done": false}, {"id": "submit-05", "section": "submit", "order": 50, "text": "Минимум кейса: каждый пункт в `CASE.md` в статусе «готово»", "note": "", "done": false}, {"id": "submit-06", "section": "submit", "order": 60, "text": "Схема данных и диаграмма процесса в `ARCHITECTURE.md` соответствуют коду", "note": "", "done": false}, {"id": "submit-07", "section": "submit", "order": 70, "text": "В репозитории нет секретов, на публичном стенде нет дефолтных паролей админа", "note": "", "done": false}, {"id": "submit-08", "section": "submit", "order": 80, "text": "Презентация: 7 слайдов, главная метрика посчитана, план приоритетов", "note": "", "done": false}]}</script>
+<script>
+(function () {
+  var DATA = JSON.parse(document.getElementById("data").textContent);
+  var KEY = "hackathon-checklist-v1";
+  var START = new Date(2026, 9, 16);
+  var $ = function (id) { return document.getElementById(id); };
+  var SECTIONS = DATA.sections.concat([{ key: "extra", title: "Мои задачи", sub: "добавлено вручную" }]);
+
+  var state = { done: {}, custom: [], hideDone: false };
+  function load() {
+    try { var s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s) state = Object.assign(state, s); } catch (e) {}
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  load();
+
+  function all() {
+    return DATA.items.map(function (i) { return Object.assign({}, i, { done: i.id in state.done ? state.done[i.id] : i.done }); })
+      .concat(state.custom.map(function (c) { return Object.assign({ order: 1e9, custom: true }, c, { done: !!state.done[c.id] }); }));
+  }
+  function h(tag, attrs) {
+    var el = document.createElement(tag);
+    for (var k in attrs || {}) { if (k === "class") el.className = attrs[k]; else if (k === "text") el.textContent = attrs[k]; else el.setAttribute(k, attrs[k]); }
+    for (var i = 2; i < arguments.length; i++) if (arguments[i]) el.appendChild(arguments[i]);
+    return el;
+  }
+  function rich(parent, text) {
+    String(text || "").split("`").forEach(function (part, i) {
+      if (!part) return;
+      parent.appendChild(i % 2 ? h("code", { text: part }) : document.createTextNode(part));
+    });
+    return parent;
+  }
+  function toast(msg) { var t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 3500); }
+
+  function countdown() {
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var d = Math.round((START - today) / 86400000), el = $("countdown");
+    el.textContent = d > 1 ? "до старта " + d + " дн." : d === 1 ? "старт завтра" : d >= -2 ? "хакатон идёт: день " + (1 - d) : "хакатон завершён";
+  }
+  function sorted(l) { return l.slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0) || (a.id < b.id ? -1 : 1); }); }
+
+  function render() {
+    var focusId = document.activeElement && document.activeElement.id;
+    var items = all(), total = items.length, done = items.filter(function (t) { return t.done; }).length;
+    var pct = total ? Math.round(done * 100 / total) : 0;
+    $("progress").replaceChildren(
+      h("div", { class: "progress-top" }, h("b", { text: done + " из " + total }), h("span", { text: pct + "% выполнено" })),
+      h("div", { class: "bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": String(total), "aria-valuenow": String(done) }, h("i", { style: "width:" + pct + "%" })));
+    var next = null;
+    SECTIONS.some(function (s) {
+      var f = sorted(items.filter(function (t) { return (t.section || "extra") === s.key && !t.done; }))[0];
+      if (f) { next = f; return true; }
+    });
+    if (next) { $("next").replaceChildren(h("small", { text: "Дальше" }), rich(h("strong"), next.text)); $("next").hidden = false; } else $("next").hidden = true;
+
+    var nodes = [];
+    SECTIONS.forEach(function (s) {
+      var inSec = sorted(items.filter(function (t) { return (t.section || "extra") === s.key; }));
+      if (!inSec.length) return;
+      var sd = inSec.filter(function (t) { return t.done; }).length;
+      var vis = state.hideDone ? inSec.filter(function (t) { return !t.done; }) : inSec;
+      var ul = h("ul", { class: "items" });
+      vis.forEach(function (t) {
+        var cb = h("input", { type: "checkbox", id: "c-" + t.id, "data-id": t.id }); cb.checked = t.done;
+        var body = h("span", { class: "body" }, rich(h("span", { class: "text" }), t.text));
+        if (t.note) body.appendChild(rich(h("span", { class: "note" }), t.note));
+        var li = h("li", { class: "item" + (t.done ? " done" : "") + (next && next.id === t.id ? " is-next" : "") }, h("label", {}, cb, body));
+        if (t.custom) li.appendChild(h("button", { type: "button", class: "x", id: "x-" + t.id, "data-del": t.id, "aria-label": "Удалить задачу", text: "×" }));
+        ul.appendChild(li);
+      });
+      nodes.push(h("section", { class: "group" },
+        h("div", { class: "group-head" }, h("h2", { text: s.title }), h("span", { class: "count" + (sd === inSec.length ? " full" : ""), text: sd + " / " + inSec.length }), h("p", { text: s.sub })),
+        h("div", { class: "mini" }, h("i", { style: "width:" + Math.round(sd * 100 / inSec.length) + "%" })),
+        vis.length ? ul : h("div", { class: "panel empty", text: "Всё выполнено в этом разделе" })));
+    });
+    $("groups").replaceChildren.apply($("groups"), nodes);
+    if (focusId) { var again = document.getElementById(focusId); if (again) again.focus(); }
+  }
+
+  $("groups").addEventListener("change", function (ev) {
+    var id = ev.target.getAttribute && ev.target.getAttribute("data-id");
+    if (!id) return; state.done[id] = ev.target.checked; save(); render();
+  });
+  function armed(btn, label, action) {
+    if (btn.getAttribute("data-armed")) { clearTimeout(btn._t); btn.removeAttribute("data-armed"); btn.classList.remove("armed"); btn.textContent = btn._label; action(); return; }
+    btn._label = btn.textContent; btn.setAttribute("data-armed", "1"); btn.classList.add("armed"); btn.textContent = label;
+    btn._t = setTimeout(function () { btn.removeAttribute("data-armed"); btn.classList.remove("armed"); btn.textContent = btn._label; }, 4000);
+  }
+  $("groups").addEventListener("click", function (ev) {
+    var btn = ev.target.closest && ev.target.closest("[data-del]"); if (!btn) return;
+    var id = btn.getAttribute("data-del");
+    armed(btn, "Удалить?", function () { state.custom = state.custom.filter(function (c) { return c.id !== id; }); delete state.done[id]; save(); render(); });
+  });
+  $("reset").addEventListener("click", function () {
+    armed($("reset"), "Точно сбросить?", function () { state.done = {}; save(); render(); toast("Отметки сброшены до исходных."); });
+  });
+  $("hide-done").checked = !!state.hideDone;
+  $("hide-done").addEventListener("change", function (ev) { state.hideDone = ev.target.checked; save(); render(); });
+
+  $("export").addEventListener("click", function () {
+    var blob = new Blob([JSON.stringify(state, null, 1)], { type: "application/json" });
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "checklist-progress.json";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    toast("Файл checklist-progress.json сохранён.");
+  });
+  $("import").addEventListener("click", function () { $("file").click(); });
+  $("file").addEventListener("change", function (ev) {
+    var f = ev.target.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var s = JSON.parse(r.result);
+        if (!s || typeof s.done !== "object") throw new Error("формат");
+        state = { done: s.done || {}, custom: Array.isArray(s.custom) ? s.custom : [], hideDone: !!s.hideDone };
+        save(); $("hide-done").checked = state.hideDone; render(); toast("Отметки загружены.");
+      } catch (e) { toast("Не удалось прочитать файл: это не файл отметок."); }
+    };
+    r.readAsText(f); ev.target.value = "";
+  });
+
+  var sel = $("new-section");
+  SECTIONS.forEach(function (s) { sel.appendChild(h("option", { value: s.key, text: s.title })); });
+  sel.value = "extra";
+  $("add").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var text = $("new-text").value.trim(); if (!text) { $("new-text").focus(); return; }
+    state.custom.push({ id: "custom-" + Date.now(), section: sel.value, text: text });
+    save(); $("new-text").value = ""; render();
+  });
+
+  countdown(); render();
+})();
+</script>
+</body>
+</html>
