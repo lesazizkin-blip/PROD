@@ -15,13 +15,56 @@ make web        # фронтенд :5173 (в другом терминале)
 make test       # тесты бэкенда + покрытие;  make test-pg — то же на настоящем PostgreSQL;  npm test в frontend/ — тесты фронтенда
 ```
 
-Всё в Docker (Postgres + backend + nginx с фронтендом), порт 8080:
+Всё в Docker (Postgres + backend + nginx с фронтендом), порт 8080. Если Docker вам незнаком, читайте раздел «Docker для новичка» ниже:
 
 ```bash
 cp .env.example .env     # поменяй пароли
 docker compose up -d --build
 # приложение: http://localhost:8080   Swagger: http://localhost:8080/api/docs
 ```
+
+## Docker для новичка
+
+**Что это.** Docker запускает программу в «контейнере»: готовой коробке, где уже есть всё нужное (Python, Node, база данных). Поэтому приложение запускается одинаково на вашем ноутбуке, у товарища и на сервере: ничего устанавливать вручную не нужно. Здесь три контейнера: `db` (PostgreSQL), `backend` (API) и `frontend` (сайт + nginx). Их описывает файл `docker-compose.yml`, а `docker compose` запускает их вместе.
+
+**Перед началом.** Откройте приложение **Docker Desktop** и дождитесь надписи «Engine running» (значок кита в строке меню без анимации). Если оно не запущено, любая команда `docker` ответит «Cannot connect to the Docker daemon». Проверка: `docker compose version`.
+
+### Что делать каждый день
+Все команды выполняются в папке проекта.
+
+| Хочу | Команда | Что происходит |
+|---|---|---|
+| Запустить всё | `docker compose up -d --build` (или `make up`) | собирает образы и поднимает 3 контейнера в фоне; первый раз 2–5 минут, потом секунды |
+| Открыть сайт | браузер: `http://localhost:8080` | Swagger (документация API): `http://localhost:8080/api/docs` |
+| Посмотреть, что работает | `docker compose ps` | у `db` и `backend` должно быть `healthy` |
+| Смотреть логи | `docker compose logs -f backend` (или `make logs`) | выход — `Ctrl+C`; `-f` значит «следить за новыми строками» |
+| Остановить | `docker compose down` (или `make down`) | контейнеры удаляются, **данные базы сохраняются** |
+| Применить изменения кода | `docker compose up -d --build` | пересобирает только изменившееся; перезапускать вручную не нужно |
+| Пересобрать один сервис | `docker compose up -d --build backend` | `backend` или `frontend` |
+| Перезапустить без пересборки | `docker compose restart backend` | |
+| Сбросить данные (начать с чистой базы и демо-данных) | `docker compose down -v`, затем `docker compose up -d --build` | **`-v` стирает базу**: это нужно, например, если сменили пароль БД |
+| Проверить, что всё в порядке | `scripts/preflight.sh http://localhost:8080` | 10 проверок; все должны быть `OK` |
+
+### Полезное
+- **Зайти внутрь контейнера:** `docker compose exec backend sh` (выход — `exit`). В базу: `docker compose exec db psql -U app app`.
+- **Запустить тесты внутри Docker не нужно:** тесты идут на вашем компьютере (`make test`) и в CI.
+- **Сколько места занимает Docker:** `docker system df`. Убрать старое: `docker system prune` (спросит подтверждение; работающие контейнеры не трогает).
+- **Фронтенд без Docker, для разработки:** `make api` и `make web` (страница на `http://localhost:5173` обновляется при каждом сохранении файла, это быстрее, чем пересобирать образы).
+
+### Если что-то не работает
+| Симптом | Что делать |
+|---|---|
+| `Cannot connect to the Docker daemon` | запустите Docker Desktop и подождите минуту |
+| `port is already allocated` / `address already in use` | порт 8080 занят: остановите то, что его занимает, или запустите на другом: `PORT=8090 docker compose up -d` |
+| сайт открывается, но показывает ошибку или пустую страницу | `docker compose ps` (всё ли `healthy`), затем `docker compose logs backend` |
+| `backend` перезапускается снова и снова | `docker compose logs backend`: чаще всего неверные настройки (в режиме `production` нужны свои пароли, см. `docs/DEPLOY.md`) |
+| после смены пароля БД бэкенд не стартует | пароль применяется только на пустой базе: `docker compose down -v` и запустить заново |
+| сборка падает с `no space left on device` | `docker system prune`, затем повторить |
+| изменения в коде не видны | вы запускали без `--build`? Выполните `docker compose up -d --build` и обновите страницу (`Ctrl+Shift+R`) |
+| на Mac с Apple Silicon образ «не того процессора» | Docker Desktop собирает под вашу архитектуру сам; эту ошибку обычно даёт образ, скачанный вручную |
+
+### Как это связано с деплоем
+На сервере используется тот же `docker-compose.yml`: CI собирает образы, и сервер запускает их командой `docker compose up -d`. Поэтому «работает у меня в Docker» почти всегда значит «заработает и на сервере». Подробности — в `docs/DEPLOY.md`.
 
 ## Как проверить (для жюри)
 
