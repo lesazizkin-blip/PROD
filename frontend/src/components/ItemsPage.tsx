@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
-import { ApiError, api } from '../api'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ApiError, api, isAbort } from '../api'
 import { STATUS_LABEL, formatDate, formatMoney } from '../labels'
-import type { Item, Status, User } from '../types'
+import type { Item, ItemList, Status, User } from '../types'
 import ItemForm from './ItemForm'
 import ItemModal from './ItemModal'
+import Modal from './Modal'
 import StatsBar from './StatsBar'
 import StatusBadge from './StatusBadge'
 
 const PAGE_SIZE = 10
+const HASH_RE = /^#\/items\/(\d+)$/
 
 function useDebounced<T>(value: T, ms = 300) {
   const [v, setV] = useState(value)
@@ -18,40 +20,80 @@ function useDebounced<T>(value: T, ms = 300) {
   return v
 }
 
+// Открытая запись живёт в адресе (#/items/12): кнопка «Назад» закрывает окно, F5 и ссылка работают
+const idFromHash = () => {
+  const m = HASH_RE.exec(location.hash)
+  return m ? Number(m[1]) : null
+}
+
 export default function ItemsPage({ user, onLogout }: { user: User; onLogout: () => void }) {
-  const [items, setItems] = useState<Item[]>([])
-  const [total, setTotal] = useState(0)
-  const [offset, setOffset] = useState(0)
   const [status, setStatus] = useState<Status | ''>('')
   const [search, setSearch] = useState('')
   const q = useDebounced(search)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [creating, setCreating] = useState(false)
-  const [selected, setSelected] = useState<Item | null>(null)
-  const [version, setVersion] = useState(0) // растёт после изменений: обновляет сводку
+  // Страница привязана к фильтрам: при смене статуса или поиска она сама становится первой
+  // (без эффекта и без лишнего запроса со старым поиском)
+  const filterKey = `${status}|${q}`
+  const [paging, setPaging] = useState({ key: filterKey, offset: 0 })
+  const offset = paging.key === filterKey ? paging.offset : 0
+  const setOffset = (o: number) => setPaging({ key: filterKey, offset: o })
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const res = await api.listItems({ status, q, limit: PAGE_SIZE, offset })
-      setItems(res.items)
-      setTotal(res.total)
-      setVersion((v) => v + 1)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Не удалось загрузить данные')
-    } finally {
-      setLoading(false)
-    }
-  }, [status, q, offset])
+  const [reloadKey, setReloadKey] = useState(0) // растёт после изменений: перезагружает список и сводку
+  const reload = useCallback(() => setReloadKey((k) => k + 1), [])
+  const requestKey = `${filterKey}|${offset}|${reloadKey}`
+
+  const [result, setResult] = useState<{ key: string; data: ItemList } | null>(null)
+  const [failure, setFailure] = useState<{ key: string; message: string } | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [createDirty, setCreateDirty] = useState(false)
+  const [selectedId, setSelectedId] = useState<number | null>(idFromHash)
+  const openedByPush = useRef(false)
+
+  // Один запрос на комбинацию параметров; устаревший отменяется и не может перезаписать новый
+  useEffect(() => {
+    const ctrl = new AbortController()
+    api
+      .listItems({ status, q, limit: PAGE_SIZE, offset }, ctrl.signal)
+      .then((data) => {
+        // Страницы больше нет (например, согласовали последнюю запись при фильтре): идём на последнюю
+        if (data.total > 0 && offset >= data.total) {
+          setOffset(Math.floor((data.total - 1) / PAGE_SIZE) * PAGE_SIZE)
+          return
+        }
+        setResult({ key: requestKey, data })
+      })
+      .catch((e) => {
+        if (isAbort(e)) return
+        setFailure({ key: requestKey, message: e instanceof ApiError ? e.message : 'Не удалось загрузить данные' })
+      })
+    return () => ctrl.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setOffset пересоздаётся каждый рендер, ключ запроса его уже учитывает
+  }, [status, q, offset, requestKey])
 
   useEffect(() => {
-    // Загрузка при смене фильтров - синхронизация с внешним источником (API)
-    // oxlint-disable-next-line react/set-state-in-effect
-    load()
-  }, [load])
+    const onHash = () => setSelectedId(idFromHash())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
+  const openItem = (id: number) => {
+    openedByPush.current = true
+    location.hash = `/items/${id}`
+  }
+  const closeItem = () => {
+    if (openedByPush.current) {
+      openedByPush.current = false
+      history.back() // убираем запись из истории: «Назад» не возвращает в закрытое окно
+    } else {
+      history.replaceState(null, '', location.pathname + location.search)
+      setSelectedId(null)
+    }
+  }
+
+  const loading = result?.key !== requestKey && failure?.key !== requestKey
+  const data = result?.data
+  const items: Item[] = data?.items ?? []
+  const total = data?.total ?? 0
+  const error = failure?.key === requestKey ? failure.message : ''
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const page = Math.floor(offset / PAGE_SIZE) + 1
 
@@ -69,23 +111,16 @@ export default function ItemsPage({ user, onLogout }: { user: User; onLogout: ()
       </header>
 
       <main className="container">
-        <StatsBar version={version} />
+        <StatsBar version={reloadKey} />
         <div className="toolbar">
           <input
             type="search"
             placeholder="Поиск по названию и описанию"
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value)
-              setOffset(0) // новый поиск - с первой страницы
-            }}
+            onChange={(e) => setSearch(e.target.value)}
             aria-label="Поиск"
           />
-          <select value={status} onChange={(e) => {
-              setStatus(e.target.value as Status | '')
-              setOffset(0)
-            }}
-            aria-label="Статус">
+          <select value={status} onChange={(e) => setStatus(e.target.value as Status | '')} aria-label="Статус">
             <option value="">Все статусы</option>
             {(Object.keys(STATUS_LABEL) as Status[]).map((s) => (
               <option key={s} value={s}>
@@ -99,8 +134,8 @@ export default function ItemsPage({ user, onLogout }: { user: User; onLogout: ()
         </div>
 
         {error && (
-          <div className="alert">
-            {error} <button onClick={load}>Повторить</button>
+          <div className="alert" role="alert">
+            {error} <button onClick={reload}>Повторить</button>
           </div>
         )}
 
@@ -114,7 +149,6 @@ export default function ItemsPage({ user, onLogout }: { user: User; onLogout: ()
                 onClick={() => {
                   setSearch('')
                   setStatus('')
-                  setOffset(0)
                 }}
               >
                 Сбросить фильтры
@@ -125,14 +159,14 @@ export default function ItemsPage({ user, onLogout }: { user: User; onLogout: ()
           <ul className={`list ${loading ? 'dim' : ''}`}>
             {items.map((it) => (
               <li key={it.id}>
-                <button className="card item" onClick={() => setSelected(it)}>
-                  <div className="item-head">
+                <button className="card item" onClick={() => openItem(it.id)}>
+                  <span className="item-head">
                     <strong>{it.title}</strong>
                     <StatusBadge status={it.status} />
-                  </div>
-                  <div className="muted small">
+                  </span>
+                  <span className="muted small">
                     {formatMoney(it.amount)} · {it.owner_name} · {formatDate(it.updated_at)}
-                  </div>
+                  </span>
                 </button>
               </li>
             ))}
@@ -155,21 +189,21 @@ export default function ItemsPage({ user, onLogout }: { user: User; onLogout: ()
       </main>
 
       {creating && (
-        <div className="overlay" onClick={() => setCreating(false)}>
-          <div className="modal card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <h2>Новая запись</h2>
-            <ItemForm
-              onCancel={() => setCreating(false)}
-              onSaved={() => {
-                setCreating(false)
-                setOffset(0)
-                load()
-              }}
-            />
-          </div>
-        </div>
+        <Modal title="Новая запись" dirty={createDirty} onClose={() => setCreating(false)}>
+          <ItemForm
+            onDirtyChange={setCreateDirty}
+            onCancel={() => setCreating(false)}
+            onSaved={() => {
+              setCreating(false)
+              setOffset(0)
+              reload()
+            }}
+          />
+        </Modal>
       )}
-      {selected && <ItemModal item={selected} user={user} onClose={() => setSelected(null)} onChanged={load} />}
+      {selectedId !== null && (
+        <ItemModal itemId={selectedId} user={user} onClose={closeItem} onChanged={reload} />
+      )}
     </div>
   )
 }

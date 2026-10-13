@@ -36,7 +36,12 @@ def create_access_token(user_id: int) -> str:
 
 def decode_access_token(token: str) -> int:
     try:
-        payload = jwt.decode(token, get_settings().secret_key, algorithms=["HS256"])
+        payload = jwt.decode(
+            token,
+            get_settings().secret_key,
+            algorithms=["HS256"],
+            options={"require": ["exp", "sub"]},  # токен без срока жизни не принимаем
+        )
         return int(payload["sub"])
     except (jwt.PyJWTError, KeyError, ValueError) as exc:
         raise UnauthorizedError("Недействительный или просроченный токен") from exc

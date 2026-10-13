@@ -14,6 +14,10 @@ check() {  # check "описание" команда...
   if "$@" >/dev/null 2>&1; then printf '  \033[32mOK\033[0m   %s\n' "$name"
   else printf '  \033[31mFAIL\033[0m %s\n' "$name"; fail=1; fi
 }
+# Токен передаётся в заголовке через stdin, а не в аргументах: в `ps` его не видно
+authed_get() { printf 'Authorization: Bearer %s\n' "$T" | curl -fsS -H @- "$1"; }
+has_demo_data() { authed_get "$BASE/api/items?limit=100" | python3 -c 'import sys,json;sys.exit(0 if json.load(sys.stdin)["total"]>=5 else 1)'; }
+has_stats() { authed_get "$BASE/api/stats" | grep -q by_status; }
 token() { curl -fsS -X POST "$BASE/api/auth/login" -H 'content-type: application/json' \
   -d "{\"email\":\"$1\",\"password\":\"$2\"}" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])'; }
 
@@ -25,8 +29,8 @@ check "OpenAPI-схема отдаётся"                    sh -c "curl -fsS 
 check "вход обычным пользователем"                token "$USER_EMAIL" "$USER_PASSWORD"
 check "вход администратором"                      token "$ADMIN_EMAIL" "$ADMIN_PASSWORD"
 if T=$(token "$ADMIN_EMAIL" "$ADMIN_PASSWORD" 2>/dev/null); then
-  check "в системе есть демо-данные (>= 5 записей)" sh -c "curl -fsS '$BASE/api/items?limit=100' -H 'Authorization: Bearer $T' | python3 -c 'import sys,json;sys.exit(0 if json.load(sys.stdin)[\"total\"]>=5 else 1)'"
-  check "статистика считается (/api/stats)"         sh -c "curl -fsS '$BASE/api/stats' -H 'Authorization: Bearer $T' | grep -q by_status"
+  check "в системе есть демо-данные (>= 5 записей)" has_demo_data
+  check "статистика считается (/api/stats)"         has_stats
 fi
 check "без токена API отвечает 401, а не 500"     sh -c "[ \"\$(curl -s -o /dev/null -w '%{http_code}' '$BASE/api/items')\" = 401 ]"
 check "неизвестный путь API -> 404"               sh -c "[ \"\$(curl -s -o /dev/null -w '%{http_code}' '$BASE/api/nope')\" = 404 ]"

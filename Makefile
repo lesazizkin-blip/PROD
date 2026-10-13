@@ -1,7 +1,7 @@
-.PHONY: tunnel preflight setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
+.PHONY: tunnel preflight migration test-pg setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
 
 backend-setup:
-	cd backend && python3 -m venv .venv && .venv/bin/pip install -U pip && .venv/bin/pip install -r requirements-dev.txt
+	cd backend && python3 -m venv .venv && .venv/bin/pip install -U pip && .venv/bin/pip install -r requirements-dev.txt -c constraints.txt
 
 frontend-setup:
 	cd frontend && npm install
@@ -48,5 +48,11 @@ logs:  ## общие логи всех сервисов
 preflight:  ## проверка стенда: make preflight URL=http://1.2.3.4
 	scripts/preflight.sh $(or $(URL),http://localhost:8080)
 
-tunnel:  ## аварийная публичная ссылка на локальный стек (:8080) через Docker; Ctrl+C - остановить
-	docker run --rm -it cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://host.docker.internal:8080
+tunnel:  ## аварийная публичная ссылка на локальный стек (:8080) через Docker (Mac и Linux); Ctrl+C - остановить
+	docker run --rm -it --add-host=host.docker.internal:host-gateway cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://host.docker.internal:8080
+
+test-pg:  ## тесты бэкенда на настоящем PostgreSQL (временный контейнер на :55432), включая гонку переходов
+	-docker rm -f pgtest >/dev/null 2>&1
+	docker run -d --name pgtest -e POSTGRES_USER=app -e POSTGRES_PASSWORD=app -e POSTGRES_DB=app -p 55432:5432 postgres:16-alpine >/dev/null
+	@for i in $$(seq 1 30); do docker exec pgtest pg_isready -U app >/dev/null 2>&1 && break; sleep 1; done; sleep 2
+	cd backend && TEST_DATABASE_URL=postgresql+psycopg://app:app@localhost:55432/app .venv/bin/pytest -rs; code=$$?; docker rm -f pgtest >/dev/null; exit $$code

@@ -30,7 +30,7 @@ stateDiagram-v2
 ```
 
 Правила описаны данными в `backend/app/services/items.py` (`RULES`): откуда → куда, кто может, нужен ли комментарий.
-Невозможный переход → `409`, нет прав → `403`, нет обязательного комментария → `422`.
+Невозможный переход → `409`, нет прав → `403`, нет обязательного комментария → `422`. Автор не может согласовать или отклонить собственную запись (разделение обязанностей). Правка записи автором тоже пишется в историю (`update`).
 
 ## 3. Данные
 
@@ -39,9 +39,30 @@ erDiagram
     USERS ||--o{ ITEMS : "owner_id"
     USERS ||--o{ ITEM_EVENTS : "actor_id"
     ITEMS ||--o{ ITEM_EVENTS : "item_id"
-    USERS { int id PK; string email UK; string full_name; string password_hash; string role }
-    ITEMS { int id PK; string title; text description; int amount; string status; int owner_id FK }
-    ITEM_EVENTS { int id PK; int item_id FK; int actor_id FK; string action; string from_status; string to_status; string comment }
+    USERS {
+        int id PK
+        string email UK
+        string full_name
+        string password_hash
+        string role
+    }
+    ITEMS {
+        int id PK
+        string title
+        text description
+        int amount
+        string status
+        int owner_id FK
+    }
+    ITEM_EVENTS {
+        int id PK
+        int item_id FK
+        int actor_id FK
+        string action
+        string from_status
+        string to_status
+        string comment
+    }
 ```
 
 Индексы: `users.email` (уникальный, вход), `items.status` (фильтр), `(items.owner_id, items.status)` («мои записи» с фильтром), `item_events.item_id` (история записи).
@@ -60,6 +81,7 @@ erDiagram
 | GET / PATCH | `/api/items/{id}` | получить / изменить (автор, черновик или доработка) |
 | POST | `/api/items/{id}/transitions` | сменить статус (`action` + `comment`) |
 | GET | `/api/items/{id}/events` | история |
+| GET | `/api/stats` | сводка: записей по статусам, доля согласованных |
 | GET | `/api/health` | проверка живости (+ запрос к БД) |
 
 Единый формат ошибки: `{"detail", "code", "request_id", "errors?"}`.
@@ -77,10 +99,14 @@ erDiagram
 | Правила переходов — таблица `RULES` | новый статус = одна строка + тест, нет «магических» if-ов |
 | Статус и запись в историю в одной транзакции | история никогда не расходится с состоянием |
 | Чужая запись → `404`, а не `403` | не раскрываем существование данных |
-| JWT (HS256), пароли — scrypt с солью | без внешних зависимостей, стандартно |
+| JWT (HS256, `exp` обязателен), пароли — scrypt с солью (из стандартной библиотеки) | из внешних зависимостей нужна только `PyJWT`; токен без срока жизни не принимается |
+| Блокировка строки (`SELECT … FOR UPDATE`) при смене статуса | два администратора решают одну запись одновременно: без блокировки оба получали 200 (воспроизведено на PostgreSQL, закреплено тестом) |
+| Защита входа от перебора (10 неудач на пару IP+email за минуту → 429) | счётчик в памяти процесса; для нескольких реплик нужен общий (Redis) |
+| `APP_ENV=production` проверяет секреты при старте | пустой или публичный `SECRET_KEY`/`ADMIN_PASSWORD` не превращается молча в рабочий сервер: приложение не запускается |
+| Тесты прогоняются на SQLite и на PostgreSQL | различия СУБД (блокировки, LIKE) ловятся в CI, а не на защите |
 | `joinedload` для владельца | один запрос вместо N+1 при выдаче списка |
 | nginx проксирует `/api` | один origin: нет CORS и лишних настроек на проде |
 | SQLite локально, PostgreSQL в Docker/CI | быстрый старт; схема проверяется на реальной СУБД в CI |
 | JSON-логи в stdout + `request_id` | один поток логов для всех сервисов; по `request_id` из ответа находим запись |
 
-Известные ограничения: токен хранится в `localStorage` (для продакшена — httpOnly-cookie); нет rate limiting; нет refresh-токенов.
+Известные ограничения: токен хранится в `localStorage` (для продакшена — httpOnly-cookie); нет refresh-токенов; ограничение числа попыток входа — в памяти одного процесса; нет бэкапов базы и HTTPS (см. `DEPLOY.md`).

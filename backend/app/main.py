@@ -46,36 +46,56 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+def _internal_error(request_id: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Внутренняя ошибка", "code": "internal_error", "request_id": request_id},
+    )
+
+
+# Порядок важен: эта прослойка добавлена РАНЬШЕ CORS, поэтому лежит внутри неё. Ответ 500, который она
+# формирует, проходит через CORS и получает его заголовки; иначе браузер показывает CORS-ошибку вместо 500.
+@app.middleware("http")
+async def access_log(request: Request, call_next):
+    request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
+    request.state.request_id = request_id
+    t0 = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        # Стек пишем в лог с request_id; клиенту отдаём только id - по нему находим запись в логах
+        log(
+            logger,
+            "unhandled_exception",
+            level=logging.ERROR,
+            request_id=request_id,
+            path=request.url.path,
+            error=repr(exc),
+        )
+        logger.exception("traceback", extra={"extra_fields": {"request_id": request_id}})
+        response = _internal_error(request_id)
+    response.headers["x-request-id"] = request_id
+    log(
+        logger,
+        "request",
+        request_id=request_id,
+        method=request.method,
+        path=request.url.path,
+        status=response.status_code,
+        latency_ms=round((time.perf_counter() - t0) * 1000, 2),
+    )
+    return response
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.cors_origins.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["x-request-id"],
 )
-
-
-@app.middleware("http")
-async def access_log(request: Request, call_next):
-    request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
-    request.state.request_id = request_id
-    t0 = time.perf_counter()
-    status = 500
-    try:
-        response = await call_next(request)
-        status = response.status_code
-        response.headers["x-request-id"] = request_id
-        return response
-    finally:
-        log(
-            logger,
-            "request",
-            request_id=request_id,
-            method=request.method,
-            path=request.url.path,
-            status=status,
-            latency_ms=round((time.perf_counter() - t0) * 1000, 2),
-        )
 
 
 @app.exception_handler(AppError)
@@ -104,24 +124,8 @@ async def validation_handler(request: Request, exc: RequestValidationError):
 
 @app.exception_handler(Exception)
 async def unhandled_handler(request: Request, exc: Exception):
-    # Стек пишем в лог с request_id; клиенту отдаём только id - по нему находим запись в логах
-    log(
-        logger,
-        "unhandled_exception",
-        level=logging.ERROR,
-        request_id=request.state.request_id,
-        path=request.url.path,
-        error=repr(exc),
-    )
-    logger.exception("traceback", extra={"extra_fields": {"request_id": request.state.request_id}})
-    return JSONResponse(
-        status_code=500,
-        content={
-            "detail": "Внутренняя ошибка",
-            "code": "internal_error",
-            "request_id": request.state.request_id,
-        },
-    )
+    # Запасной путь: основную работу делает access_log (с CORS-заголовками)
+    return _internal_error(getattr(request.state, "request_id", "-"))
 
 
 api = APIRouter(prefix="/api")

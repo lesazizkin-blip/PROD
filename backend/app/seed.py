@@ -4,13 +4,13 @@
 с историей и комментариями, два пользователя и администратор.
 """
 
+from app.config import DEFAULT_ADMIN_PASSWORD, get_settings
 from app.db import SessionLocal
 from app.errors import AppError
 from app.schemas import Action, ItemCreate, RegisterIn
 from app.services.auth import AuthService
 from app.services.items import ItemService
 
-ADMIN = ("admin@example.com", "admin12345", "Администратор")
 USERS = [
     ("user@example.com", "user12345", "Иван Петров"),
     ("anna@example.com", "anna12345", "Анна Смирнова"),
@@ -53,16 +53,28 @@ ITEMS = [
 ]
 
 
+def _admin() -> tuple[str, str, str]:
+    """Админ демо-данных - тот же, что создаёт старт приложения (ADMIN_EMAIL / ADMIN_PASSWORD).
+    Жёстко прописанного пароля на сервере не появляется."""
+    s = get_settings()
+    return (
+        s.admin_email or "admin@example.com",
+        s.admin_password or DEFAULT_ADMIN_PASSWORD,
+        s.admin_full_name,
+    )
+
+
 def run() -> None:
+    admin_email, admin_password, admin_name = _admin()
     with SessionLocal() as db:
         auth = AuthService(db)
-        auth.ensure_admin(*ADMIN[:2], ADMIN[2])
+        auth.ensure_admin(admin_email, admin_password, admin_name)
         if auth.users.get_by_email(USERS[0][0]):
             return  # уже заполнено
         users = [
             auth.register(RegisterIn(email=e, password=p, full_name=n))[0] for e, p, n in USERS
         ]
-        admin = auth.users.get_by_email(ADMIN[0])
+        admin = auth.users.get_by_email(admin_email)
         svc = ItemService(db)
         for title, amount, chain in ITEMS:
             owner = users[0] if not chain or chain[0][1] in (0, "admin") else users[chain[0][1]]

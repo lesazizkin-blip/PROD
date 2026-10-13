@@ -17,8 +17,10 @@ services:
 
   backend:
     build: ./backend
-    image: prod-backend:latest
+    image: prod-backend:${IMAGE_TAG:-latest}
     environment:
+      # production: приложение не стартует с публичными секретами по умолчанию (см. backend/app/config.py)
+      APP_ENV: ${APP_ENV:-dev}
       DATABASE_URL: postgresql+psycopg://app:${POSTGRES_PASSWORD:-app}@db:5432/app
       SECRET_KEY: ${SECRET_KEY:-dev-secret-change-me-dev-secret-change-me}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
@@ -31,7 +33,7 @@ services:
 
   frontend:
     build: ./frontend
-    image: prod-frontend:latest
+    image: prod-frontend:${IMAGE_TAG:-latest}
     ports:
       - "${PORT:-8080}:80"
     depends_on:

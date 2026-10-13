@@ -8,7 +8,12 @@ export default function StatsBar({ version }: { version: number }) {
   const [stats, setStats] = useState<Stats | null>(null)
 
   useEffect(() => {
-    api.stats().then(setStats).catch(() => setStats(null))
+    const ctrl = new AbortController()
+    api
+      .stats(ctrl.signal)
+      .then(setStats)
+      .catch(() => {})
+    return () => ctrl.abort()
   }, [version])
 
   if (!stats) return null

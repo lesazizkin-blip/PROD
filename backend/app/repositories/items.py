@@ -4,6 +4,11 @@ from sqlalchemy.orm import Session, joinedload
 from app.models import Item, ItemEvent
 
 
+def escape_like(value: str) -> str:
+    """% и _ в поисковой строке - обычные символы, а не подстановки."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 class ItemRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
@@ -19,6 +24,11 @@ class ItemRepository:
             select(Item).options(joinedload(Item.owner)).where(Item.id == item_id)
         )
 
+    def lock(self, item_id: int) -> None:
+        """Блокировка строки до конца транзакции (SELECT ... FOR UPDATE): параллельные переходы
+        одной записи выстраиваются в очередь. В SQLite не нужна и игнорируется."""
+        self.db.execute(select(Item.id).where(Item.id == item_id).with_for_update())
+
     def _filters(self, owner_id: int | None, status: str | None, q: str | None) -> list:
         conds = []
         if owner_id is not None:
@@ -26,9 +36,12 @@ class ItemRepository:
         if status:
             conds.append(Item.status == status)
         if q:
-            like = f"%{q.lower()}%"
+            like = f"%{escape_like(q.lower())}%"
             conds.append(
-                or_(func.lower(Item.title).like(like), func.lower(Item.description).like(like))
+                or_(
+                    func.lower(Item.title).like(like, escape="\\"),
+                    func.lower(Item.description).like(like, escape="\\"),
+                )
             )
         return conds
 

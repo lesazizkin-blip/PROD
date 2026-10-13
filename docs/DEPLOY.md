@@ -36,18 +36,22 @@
 1. На своём ноутбуке: `ssh-keygen -t ed25519 -f ~/.ssh/prod_deploy -C prod-deploy`
 2. Если пользователь без Docker: скопируйте `scripts/bootstrap-server.sh` на сервер и запустите под root: `bash bootstrap-server.sh "<содержимое prod_deploy.pub>"` — ставит Docker, создаёт пользователя `deploy`, включает файрвол. Если вам дали готового пользователя — просто добавьте `prod_deploy.pub` в его `~/.ssh/authorized_keys` и убедитесь, что `docker ps` работает без sudo.
 3. GitHub → Settings → Secrets and variables → Actions:
-   - Variable `DEPLOY_ENABLED` = `true`
-   - Secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (приватный ключ), `POSTGRES_PASSWORD`, `SECRET_KEY` (длинная случайная строка), `ADMIN_PASSWORD`
-4. Если нужен не порт 80, поправьте `PORT` в шаге `Deploy` workflow (`.github/workflows/ci.yml`) и в проверке после деплоя.
-5. Пуш в `main` → `http://<IP>/` и `/api/docs`. Проверка: `ADMIN_PASSWORD=... scripts/preflight.sh http://<IP>`.
+   - Variable `DEPLOY_ENABLED` = `true` (по желанию `SEED_DEMO` = `false`, если демо-данные на сервере не нужны)
+   - Secrets: `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (приватный ключ), `POSTGRES_PASSWORD` (**только латинские буквы и цифры**, например `openssl rand -hex 16`), `SECRET_KEY` (не короче 32 символов, `openssl rand -hex 32`), `ADMIN_PASSWORD` (не короче 8 символов и не `admin12345`)
+   - По желанию: `DEPLOY_KNOWN_HOSTS` (вывод `ssh-keyscan <IP>` — закрепляет отпечаток сервера), `ADMIN_EMAIL`
+   - Деплой-джоба **сама остановится с понятной ошибкой**, если секрет пустой или слабый: пустой секрет не превращается в публичный пароль по умолчанию. На сервере приложение стартует с `APP_ENV=production` и отказывается работать с паролями по умолчанию.
+4. Если нужен не порт 80, поправьте `PORT=80` в шаге `Deploy` (`.github/workflows/ci.yml`).
+5. Пуш в `main` → `http://<IP>/` и `/api/docs`. Джоба сама ждёт старта стенда (до 2 минут) и гоняет `preflight.sh`. Образы тегируются SHA коммита и живут как артефакт 14 дней: повторный запуск деплоя старого коммита работает как откат.
+6. **Пароль БД меняется только на пустом томе** (`pgdata`): сменили секрет после первого деплоя — бэкенд не подключится. Либо верните прежний, либо стирайте данные: `docker compose down -v` на сервере.
 
 **1б. Ручной деплой с ноутбука** — если CI до сервера не достучится (закрытая сеть, VPN, NAT) или нужно срочно:
 ```bash
 scripts/deploy-manual.sh deploy@<IP>            # порт 80
 PORT=8080 scripts/deploy-manual.sh deploy@<IP>  # другой порт
 ```
-Скрипт копирует проект на сервер (rsync) и запускает там `docker compose up -d --build`. Сборка идёт на сервере: нужно ≥2 ГБ ОЗУ и доступ сервера в интернет.
-Секреты для публичного стенда: `POSTGRES_PASSWORD=... SECRET_KEY=... ADMIN_PASSWORD=... scripts/deploy-manual.sh ...`.
+Скрипт проверяет доступ к Docker и `rsync` на сервере, копирует проект и запускает `docker compose up -d --build`. Сборка идёт на сервере: нужен доступ сервера в интернет и около 2 ГБ ОЗУ (на 1 ГБ сборка фронтенда может упасть по памяти: добавьте swap или собирайте через CI, путь 1а).
+**Секреты:** при первом деплое скрипт генерирует случайные (пароль БД, `SECRET_KEY`, пароль администратора), пишет их в `.env` на сервере с правами 600 и **один раз печатает пароль администратора** — впишите его в README («Как проверить»). Повторный деплой `.env` не трогает. Свои значения: `POSTGRES_PASSWORD=... SECRET_KEY=... ADMIN_PASSWORD=... ADMIN_EMAIL=... scripts/deploy-manual.sh ...`.
+Другие параметры: `SSH_PORT`, `SSH_KEY`, `SEED_DEMO=false`.
 
 ## Путь 2. Готовая платформа (PaaS) или Kubernetes
 - Спросите, как деплоить: часто это «подключите Git-репозиторий» или `docker push` в их реестр.
@@ -67,7 +71,7 @@ PORT=8080 scripts/deploy-manual.sh deploy@<IP>  # другой порт
 4. Если организаторы заранее сообщат тип сервера — напишите сюда, подготовим точный сценарий.
 
 ## Путь 4. Свой VPS (если организаторы сервер не дают)
-Любой Ubuntu 22.04/24.04 с 1–2 ГБ ОЗУ; домен не нужен (`http://<IP>`). Дальше — Путь 1: `bootstrap-server.sh` под root, затем автодеплой (1а) или `deploy-manual.sh` (1б).
+Любой Ubuntu 22.04/24.04 с 2 ГБ ОЗУ (на 1 ГБ — со swap); домен не нужен (`http://<IP>`). Дальше — Путь 1: `bootstrap-server.sh` под root, затем автодеплой (1а) или `deploy-manual.sh` (1б).
 Если хостер даёт готовую панель файрвола, запускайте `SKIP_FIREWALL=1 bash bootstrap-server.sh "<ключ>"`.
 
 ## Путь 5. Аварийно: временная ссылка с ноутбука
@@ -75,11 +79,14 @@ PORT=8080 scripts/deploy-manual.sh deploy@<IP>  # другой порт
 make up        # стек на localhost:8080
 make tunnel    # печатает https://….trycloudflare.com (Ctrl+C - остановить)
 ```
-Работает через Docker (Cloudflare quick tunnel), ничего ставить на Mac не нужно, аккаунт не нужен.
+Работает через Docker (Cloudflare quick tunnel) на Mac и Linux, ничего ставить не нужно, аккаунт не нужен.
 Ограничения: ноутбук включён и онлайн всё время проверки; адрес новый при каждом запуске (его нужно указать в README и презентации); стабильность не гарантируется.
 Используйте как «лучше, чем ничего», и сообщите жюри честно, что это временная ссылка.
 
 ## Нюансы
 - Демо-данные (`SEED_DEMO=true`) — плюс для жюри, но пароли демо-аккаунтов публичны: не храните на стенде ничего ценного.
 - HTTPS в шаблон не включён (для хакатона достаточно HTTP). Если организаторы выдают домен — поставьте Caddy перед nginx.
+- Бэкап базы (один раз перед защитой): `docker compose exec -T db pg_dump -U app app | gzip > backup.sql.gz`. Автоматических бэкапов нет.
+- Контейнер, который стал `unhealthy`, сам не перезапускается (`restart: unless-stopped` реагирует только на падение процесса): смотрите `docker compose ps` и `docker compose logs backend`.
+- Бэкенд пишет JSON-логи в stdout: `docker compose logs -f backend` — одно место для всех сервисов; по `request_id` из ответа находится запись.
 - Пока деплой не заработал, **не пишите фичи вслепую**: первым деплоем должен стать пустой каркас, потом всё остальное.

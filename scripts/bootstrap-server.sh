@@ -9,7 +9,7 @@ PUBKEY="${1:-}"
 [ -n "$PUBKEY" ] || { echo "Передайте публичный SSH-ключ первым аргументом"; exit 1; }
 
 apt-get update -y
-apt-get install -y ca-certificates curl ufw
+apt-get install -y ca-certificates curl ufw rsync
 
 # Docker (официальный установочный скрипт; включает compose-плагин)
 command -v docker >/dev/null || curl -fsSL https://get.docker.com | sh

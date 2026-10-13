@@ -1,3 +1,4 @@
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.errors import ConflictError, UnauthorizedError
@@ -5,6 +6,10 @@ from app.models import User
 from app.repositories.users import UserRepository
 from app.schemas import LoginIn, RegisterIn
 from app.security import create_access_token, decode_access_token, hash_password, verify_password
+
+# Хеш-пустышка: для неизвестного email считаем тот же хеш, чтобы время ответа не выдавало,
+# есть ли такой пользователь
+_DUMMY_HASH = hash_password("not-a-real-password")
 
 
 class AuthService:
@@ -16,20 +21,26 @@ class AuthService:
         email = data.email.lower()
         if self.users.get_by_email(email):
             raise ConflictError("Пользователь с таким email уже существует")
-        user = self.users.add(
-            User(
-                email=email,
-                full_name=data.full_name.strip(),
-                password_hash=hash_password(data.password),
+        try:
+            user = self.users.add(
+                User(
+                    email=email,
+                    full_name=data.full_name,
+                    password_hash=hash_password(data.password),
+                )
             )
-        )
-        self.db.commit()
+            self.db.commit()
+        except IntegrityError as exc:
+            # Два одинаковых email одновременно: проверку выше прошли оба, уникальный индекс - только один
+            self.db.rollback()
+            raise ConflictError("Пользователь с таким email уже существует") from exc
         return user, create_access_token(user.id)
 
     def login(self, data: LoginIn) -> tuple[User, str]:
         user = self.users.get_by_email(data.email)
         # Одно и то же сообщение для "нет пользователя" и "неверный пароль" - не раскрываем, что есть в системе
-        if not user or not verify_password(data.password, user.password_hash):
+        password_ok = verify_password(data.password, user.password_hash if user else _DUMMY_HASH)
+        if not user or not password_ok:
             raise UnauthorizedError("Неверный email или пароль")
         return user, create_access_token(user.id)
 

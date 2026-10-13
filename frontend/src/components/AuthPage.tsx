@@ -4,7 +4,7 @@ import type { User } from '../types'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-export default function AuthPage({ onAuth }: { onAuth: (u: User) => void }) {
+export default function AuthPage({ onAuth, notice = '' }: { onAuth: (u: User) => void; notice?: string }) {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
@@ -16,9 +16,11 @@ export default function AuthPage({ onAuth }: { onAuth: (u: User) => void }) {
   const validate = () => {
     const e: Record<string, string> = {}
     if (!EMAIL_RE.test(email)) e.email = 'Введите корректный email'
-    if (mode === 'register' && fullName.trim().length < 2) e.full_name = 'Минимум 2 символа'
+    if (mode === 'register' && (fullName.trim().length < 2 || fullName.trim().length > 100))
+      e.full_name = 'От 2 до 100 символов'
     if (password.length < (mode === 'register' ? 8 : 1))
       e.password = mode === 'register' ? 'Минимум 8 символов' : 'Введите пароль'
+    if (password.length > 128) e.password = 'Не длиннее 128 символов'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -53,7 +55,7 @@ export default function AuthPage({ onAuth }: { onAuth: (u: User) => void }) {
         {mode === 'register' && (
           <label>
             Имя и фамилия
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" />
+            <input value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" maxLength={100} aria-invalid={!!errors.full_name} />
             {errors.full_name && <span className="error">{errors.full_name}</span>}
           </label>
         )}
@@ -73,12 +75,23 @@ export default function AuthPage({ onAuth }: { onAuth: (u: User) => void }) {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            maxLength={128}
+            aria-invalid={!!errors.password}
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
           />
           {errors.password && <span className="error">{errors.password}</span>}
         </label>
 
-        {formError && <div className="alert">{formError}</div>}
+        {notice && !formError && (
+          <div className="alert" role="status">
+            {notice}
+          </div>
+        )}
+        {formError && (
+          <div className="alert" role="alert">
+            {formError}
+          </div>
+        )}
         <button className="primary" disabled={busy}>
           {busy ? 'Подождите…' : mode === 'login' ? 'Войти' : 'Создать аккаунт'}
         </button>

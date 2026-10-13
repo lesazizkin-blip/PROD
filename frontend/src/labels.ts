@@ -17,6 +17,7 @@ export const ACTION_LABEL: Record<Action, string> = {
 
 export const EVENT_LABEL: Record<string, string> = {
   create: 'Создано',
+  update: 'Изменено автором',
   ...ACTION_LABEL,
 }
 

@@ -99,15 +99,34 @@ class ItemService:
                     field,
                     value.strip() if isinstance(value, str) and field == "title" else value,
                 )
+        # Правка тоже попадает в историю: по ней видно, что менялось после возврата на доработку
+        self.repo.add_event(
+            ItemEvent(
+                item_id=item.id,
+                actor_id=user.id,
+                action="update",
+                from_status=item.status,
+                to_status=item.status,
+            )
+        )
         self.db.commit()
         return self.repo.get(item.id)  # type: ignore[return-value]
 
     # --- процесс ---
     def transition(self, item_id: int, action: Action, comment: str | None, user: User) -> Item:
+        # Сначала блокируем строку, потом читаем статус: иначе два запроса одновременно
+        # увидят один и тот же статус и оба пройдут (проверено на PostgreSQL)
+        self.repo.lock(item_id)
         item = self._get_visible(item_id, user)
         rule = RULES[action]
 
-        allowed = item.owner_id == user.id if rule.actor == "owner" else user.role == "admin"
+        if rule.actor == "owner":
+            allowed = item.owner_id == user.id
+        else:
+            allowed = user.role == "admin"
+            if allowed and item.owner_id == user.id:
+                # Разделение обязанностей: автор не согласует собственную запись
+                raise ForbiddenError("Нельзя согласовывать или отклонять собственную запись")
         if not allowed:
             raise ForbiddenError("Недостаточно прав для этого действия")
         if Status(item.status) not in rule.from_statuses:

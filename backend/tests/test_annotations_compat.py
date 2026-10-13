@@ -23,6 +23,8 @@ def test_annotations_evaluate_eagerly_like_older_pythons():
         for _, obj in inspect.getmembers(mod):
             if getattr(obj, "__module__", None) != mod.__name__:
                 continue
+            if not (inspect.isclass(obj) or inspect.isfunction(obj)):
+                continue  # экземпляры (например, login_limiter) аннотаций не имеют
             targets = [obj]
             if inspect.isclass(obj):
                 targets += [f for _, f in inspect.getmembers(obj, inspect.isfunction)]
