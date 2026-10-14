@@ -11,3 +11,8 @@ __pycache__/
 coverage.xml
 htmlcov/
 *.db
+
+# локальный запуск GitLab CI (gitlab-ci-local) и кэши заданий
+.gitlab-ci-local/
+.gitlab-ci-local-variables.yml
+.cache/

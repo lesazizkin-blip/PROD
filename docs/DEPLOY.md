@@ -32,6 +32,8 @@
 
 ## Путь 1. VM с SSH и Docker (самый вероятный)
 
+> На хакатоне код живёт в GitLab организаторов, поэтому деплой настраивается через `.gitlab-ci.yml` (режимы `ssh` и `local`) — `docs/GITLAB.md`. Ниже описан вариант на GitHub Actions (запасной) и ручной деплой; скрипты у них общие.
+
 **1а. Автодеплой из CI** — если GitHub Actions достучится до сервера (публичный IP):
 1. На своём ноутбуке: `ssh-keygen -t ed25519 -f ~/.ssh/prod_deploy -C prod-deploy`
 2. Если пользователь без Docker: скопируйте `scripts/bootstrap-server.sh` на сервер и запустите под root: `bash bootstrap-server.sh "<содержимое prod_deploy.pub>"` — ставит Docker, создаёт пользователя `deploy`, включает файрвол. Если вам дали готового пользователя — просто добавьте `prod_deploy.pub` в его `~/.ssh/authorized_keys` и убедитесь, что `docker ps` работает без sudo.
