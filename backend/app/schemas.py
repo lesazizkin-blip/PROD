@@ -286,3 +286,26 @@ class BulkTransitionIn(BaseModel):
 
 class BulkTransitionOut(BaseModel):
     updated: list[BoxOut]
+
+
+# ---------- умный чек-лист ----------
+class ChecklistIn(BaseModel):
+    with_children: bool = False
+    with_pets: bool = False
+    other_city: bool = False
+
+
+class SuggestedTask(BaseModel):
+    stage: Stage
+    title: str
+    reason: str  # with_children | with_pets | other_city
+
+
+class ChecklistOut(BaseModel):
+    suggested_tasks: list[SuggestedTask]
+    suggested_first_day: list[str]
+
+
+class ChecklistApplied(BaseModel):
+    added_tasks: int
+    added_first_day: int

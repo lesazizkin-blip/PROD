@@ -67,6 +67,9 @@ def run(load: bool = False) -> None:
             for room, status, items in DEMO_BOXES:
                 box = svc.create(project.id, BoxCreate(room=room, items_text=items))
                 _advance(svc, project.id, box.number, status)
+            svc.create(
+                project.id, BoxCreate(room="Кабинет", fill_later=True)
+            )  # покажет напоминание об описи
             lost = svc.search(project.id, "Зарядки", 0, 1)[0][0]
             svc.update_item(project.id, lost.item_id, None, True)
             print(f"Демо-проект: {DEMO_ID}")

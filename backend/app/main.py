@@ -15,7 +15,7 @@ from app.db import SessionLocal
 from app.errors import AppError
 from app.logging_setup import log, setup_logging
 from app.reference_data import ensure_reference_data
-from app.routers import boxes, health, projects, reference
+from app.routers import assistant, boxes, health, projects, reference
 
 settings = get_settings()
 logger = setup_logging(settings.log_level)
@@ -130,4 +130,5 @@ api.include_router(health.router)
 api.include_router(reference.router)
 api.include_router(projects.router)
 api.include_router(boxes.router)
+api.include_router(assistant.router)
 app.include_router(api)

@@ -3,7 +3,7 @@ import uuid
 
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.errors import ConflictError, NotFoundError, ValidationFailed
 from app.models import Box, Item, Project
@@ -365,6 +365,27 @@ class BoxService:
             qr_path=f"/projects/{project.id}/boxes/{box.number}",
             items_preview=[i.name for i in box.items[:5]],
         )
+
+    def labels(self, project: Project, numbers: list[int] | None) -> list[LabelOut]:
+        """Этикетки для печати нескольких коробок сразу. Несуществующие номера пропускаются."""
+        q = (
+            select(Box)
+            .where(Box.project_id == project.id)
+            .options(selectinload(Box.items))
+            .order_by(Box.number)
+        )
+        if numbers is not None:
+            q = q.where(Box.number.in_(numbers))
+        return [
+            LabelOut(
+                number=box.number,
+                room=box.room,
+                project_name=project.name,
+                qr_path=f"/projects/{project.id}/boxes/{box.number}",
+                items_preview=[i.name for i in box.items[:5]],
+            )
+            for box in self.db.scalars(q)
+        ]
 
     def progress(self, project_id: uuid.UUID) -> ProgressOut:
         zero = {s: 0 for s in ORDER}

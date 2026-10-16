@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import PageParams, get_project
+from app.errors import ValidationFailed
 from app.models import Project
 from app.routers.common import confirm_param
 from app.schemas import (
@@ -112,6 +113,29 @@ def transition(
 )
 def label(n: int, project: Project = Depends(get_project), db: Session = Depends(get_db)):
     return BoxService(db).label(project, n)
+
+
+@router.get(
+    "/labels",
+    response_model=list[LabelOut],
+    summary="Пакет этикеток для печати (numbers=1,2,3; без параметра - все)",
+)
+def labels(
+    numbers: str | None = Query(
+        default=None, description="Номера коробок через запятую, не больше 100"
+    ),
+    project: Project = Depends(get_project),
+    db: Session = Depends(get_db),
+):
+    parsed = None
+    if numbers is not None:
+        try:
+            parsed = [int(x) for x in numbers.split(",") if x.strip()]
+        except ValueError:
+            raise ValidationFailed("numbers: ожидается список целых чисел через запятую") from None
+        if not parsed or len(parsed) > 100:
+            raise ValidationFailed("numbers: от 1 до 100 номеров")
+    return BoxService(db).labels(project, parsed)
 
 
 # ---------- вещи ----------
