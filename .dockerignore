@@ -1,0 +1,17 @@
+.git
+.github
+.vscode
+.ruff_cache
+mobile
+docs
+scripts
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+**/.venv
+**/*.db
+**/.coverage
+**/htmlcov
+**/.pytest_cache
+.env
