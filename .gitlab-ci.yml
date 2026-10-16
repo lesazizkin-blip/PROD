@@ -19,10 +19,13 @@ include:
 
 stages: [lint, test, build, deploy]
 
+# Один пайплайн на изменение: в открытом Merge Request - пайплайн MR, без него - пайплайн ветки
 workflow:
   rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
     - if: $CI_COMMIT_BRANCH
-    - if: $CI_MERGE_REQUEST_IID
 
 default:
   interruptible: true
@@ -32,9 +35,11 @@ variables:
   npm_config_cache: "$CI_PROJECT_DIR/.cache/npm"
   PG_URL: "postgresql+psycopg://app:app@postgres:5432/app"
   # --- из шаблона организаторов ---
-  # Адрес Docker Registry Spirit: без него Kaniko пушит в Docker Hub и получает 401
-  DOCKER_ARTIFACTORY_REGISTRY: registry.spirit.culab.ru
-  # Образ: registry.spirit.culab.ru/hack-led-20/prod_1:<sha коммита>
+  # Адрес Docker Registry Spirit: без него Kaniko пушит в Docker Hub и получает 401.
+  # В шаблоне l2sh-template указан registry.spirit.culab.ru, но с раннеров он не резолвится (no such host);
+  # наша платформа на домене t-education.com, раннер сам берёт образы оттуда
+  DOCKER_ARTIFACTORY_REGISTRY: registry.spirit.t-education.com
+  # Образ: registry.spirit.t-education.com/hack-led-20/prod_1:<sha коммита>
   IMAGE_NAME: ${DOCKER_ARTIFACTORY_REGISTRY}/${CI_PROJECT_ROOT_NAMESPACE}/${CI_PROJECT_NAME}:${CI_COMMIT_SHORT_SHA}
   # Наша ВМ vm1 (Spirit VMaaS) и её пользователь; не секрет. Переменные репозитория в Spirit приоритетнее
   DEPLOY_VM: 178.72.185.97
@@ -44,7 +49,7 @@ variables:
   # Адрес сайта для проверки после деплоя
   APP_URL: https://hack-led-20-vm1-12902f.vmaas-spirit.t-education.com
   # Образ для джоб, которые ходят на ВМ: в нём есть Spirit CLI (dp) и ssh
-  DEPLOY_IMG: registry.spirit.culab.ru/cicd-images/base-noble:1.1.0-rc-08d332ac-11541
+  DEPLOY_IMG: registry.spirit.t-education.com/cicd-images/base-noble:1.1.0-rc-08d332ac-11541
 
 .cache: &cache
   cache:
@@ -135,7 +140,8 @@ build:image:
     SSH: "ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=accept-new"
     SCP: "scp -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=accept-new"
     VM: "$DEPLOY_SSH_USER@$DEPLOY_VM"
-    DP_CLI_VERSION: "14.1.0"
+    # версия Spirit CLI та же, что у раннеров (dp 14.1.3 tedu)
+    DP_CLI_URL: "https://spirit.t-education.com/cli/tedu/14.1.3/linux/dp"
   before_script:
     - |
       if [ -z "${SSH_PRIVATE_KEY:-}" ]; then
@@ -154,7 +160,7 @@ setup:vm:
   script:
     - |
       $SSH $VM "command -v dp >/dev/null || (
-        curl -fL https://spirit.culab.ru/cli/cu/$DP_CLI_VERSION/linux/dp -o /tmp/dp &&
+        curl -fL $DP_CLI_URL -o /tmp/dp &&
         chmod +x /tmp/dp && sudo mv /tmp/dp /usr/local/bin/dp )"
 
 # Отличие от шаблона: на ВМ уже работает стек Caddy (HTTPS) + app. Обновляем compose-файл и Caddyfile,
