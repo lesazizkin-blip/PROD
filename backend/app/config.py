@@ -1,6 +1,10 @@
+import uuid
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Демо-проект для жюри (python -m app.seed): фиксированный id, общий для всех, кто входит в демо
+DEMO_PROJECT_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 
 
 class Settings(BaseSettings):

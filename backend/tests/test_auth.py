@@ -250,3 +250,15 @@ def test_change_password_closes_other_sessions(make_client):
     assert (
         laptop.post("/api/auth/login", json={**body, "password": "новый-пароль"}).status_code == 200
     )
+
+
+def test_demo_account_is_protected(anon_client, db_session, monkeypatch):
+    monkeypatch.setattr(seed, "SessionLocal", lambda: db_session)
+    seed.run()
+    monkeypatch.setattr(get_settings(), "seed_demo", True)
+    anon_client.post("/api/auth/demo")
+    pwd = {"current_password": get_settings().demo_password, "new_password": "чужой-пароль-1"}
+    assert anon_client.post("/api/auth/password", json=pwd).status_code == 403
+    r = anon_client.delete(f"/api/projects/{seed.DEMO_ID}?confirm=true")
+    assert r.status_code == 403 and r.json()["code"] == "forbidden"
+    assert anon_client.get(f"/api/projects/{seed.DEMO_ID}").status_code == 200

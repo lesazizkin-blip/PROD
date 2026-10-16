@@ -9,7 +9,7 @@ import sys
 import uuid
 from datetime import date, timedelta
 
-from app.config import get_settings
+from app.config import DEMO_PROJECT_ID, get_settings
 from app.db import SessionLocal
 from app.models import Project, User
 from app.reference_data import ensure_reference_data
@@ -20,7 +20,7 @@ from app.services.boxes import BoxService
 from app.services.projects import ProjectService
 from app.services.tasks import TaskService
 
-DEMO_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
+DEMO_ID = DEMO_PROJECT_ID
 LOAD_ID = uuid.UUID("00000000-0000-4000-8000-000000000002")
 
 # (комната, статус, вещи)

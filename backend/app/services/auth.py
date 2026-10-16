@@ -105,6 +105,9 @@ class AuthService:
             self.db.commit()
 
     def change_password(self, user: User, current: str, new: str) -> None:
+        if user.username == get_settings().demo_username:
+            # демо-аккаунт общий для всего жюри: один проверяющий не должен закрыть вход остальным
+            raise ForbiddenError("В демо-аккаунте пароль не меняется")
         if not verify_password(current, user.password_hash):
             raise UnauthorizedError("Текущий пароль указан неверно")
         user.password_hash = hash_password(new)

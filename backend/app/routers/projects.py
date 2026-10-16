@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.config import DEMO_PROJECT_ID
 from app.db import get_db
 from app.deps import PageParams, get_current_user, get_owned_project, get_project
+from app.errors import ForbiddenError
 from app.models import Event, Project, User
 from app.routers.common import confirm_param
 from app.schemas import (
@@ -114,6 +116,9 @@ def delete_project(
     _=Depends(confirm_param),
     db: Session = Depends(get_db),
 ):
+    if project.id == DEMO_PROJECT_ID:
+        # демо-проект общий для жюри: удаление оставило бы следующих проверяющих без данных
+        raise ForbiddenError("Демо-проект удалить нельзя")
     ProjectService(db).delete(project)
     return Response(status_code=204)
 
