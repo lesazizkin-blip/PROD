@@ -17,13 +17,13 @@
 
 | Часть | Где | Стек |
 |---|---|---|
-| Сервер | `backend/app` (роутеры → сервисы → модели), 47 эндпоинтов | FastAPI, SQLAlchemy, Alembic, SQLite (в Docker-томе) |
+| Сервер | `backend/app` (роутеры → сервисы → модели), 51 эндпоинтов | FastAPI, SQLAlchemy, Alembic, SQLite (в Docker-томе) |
 | Сайт | `frontend/src` (pages, components, state, api, ui) | React 19, Vite, TypeScript, обычный CSS, react-router |
 | Образ | `Dockerfile` в корне (сайт + сервер в одном) | `STATIC_DIR` — сервер сам отдаёт сайт |
 | ВМ-деплой | `deploy/docker-compose.yml`, `deploy/Caddyfile` | Caddy с автоматическим HTTPS + контейнер app |
 | Проверка | `scripts/preflight.sh <адрес>` | полный сценарий ТЗ на временном проекте |
 
-**Тесты:** сервер 83 (+1 пропущен: параллельность только на PostgreSQL), покрытие 98% (`cd backend && .venv/bin/python -m pytest --cov=app`); сайт 59 (`cd frontend && npm test`). Линтеры чистые.
+**Тесты:** сервер 88 (+1 пропущен: параллельность только на PostgreSQL), покрытие 98% (`cd backend && .venv/bin/python -m pytest --cov=app`); сайт 61 (`cd frontend && npm test`). Линтеры чистые.
 
 **Документы:** `docs/MoverMate_architecture.pdf` (полная архитектура, 10 страниц, исходник `.html` рядом), `docs/CASE.md` (38 пунктов минимума ТЗ со статусом и тестом), `docs/API.md` (контракт), `docs/ARCHITECTURE.md`, `docs/TEAM_PLAN.md` (роли A–E, три дня), `docs/DEPLOY_VM.md` (как выложено), `docs/GITLAB.md`, `docs/DEPLOY.md` (шаблон, часть про прежний домен устарела). В `CASE.md` ни один пункт не ✅: так отмечается только проверенное **на проде**; сейчас 🟦 (покрыто тестом) и 🟨 (вручную).
 
