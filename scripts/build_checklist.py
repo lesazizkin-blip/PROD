@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Собирает чек-листы из docs/checklist.json (единственный источник данных):
+"""Собирает чек-листы из docs/reference/checklist.json (единственный источник данных):
 
-  docs/CHECKLIST.md    - обычный Markdown с чекбоксами (GitHub, VS Code, Obsidian, любые заметки)
-  docs/checklist.html  - автономная страница: открывается двойным щелчком, без интернета и аккаунтов;
+  docs/reference/CHECKLIST.md    - обычный Markdown с чекбоксами (GitHub, VS Code, Obsidian, любые заметки)
+  docs/reference/checklist.html  - автономная страница: открывается двойным щелчком, без интернета и аккаунтов;
                          отметки хранятся в браузере, есть сохранение в файл и загрузка из файла
 
-Править задачи: отредактируйте docs/checklist.json ("done": true - отмечено по умолчанию),
+Править задачи: отредактируйте docs/reference/checklist.json ("done": true - отмечено по умолчанию),
 затем запустите:  python3 scripts/build_checklist.py
 """
 
@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = ROOT / "docs"
+DOCS = ROOT / "docs" / "reference"
 data = json.loads((DOCS / "checklist.json").read_text(encoding="utf-8"))
 
 
@@ -23,8 +23,8 @@ def build_markdown() -> str:
         f"# {data['title']}",
         "",
         f"{data['subtitle']}. Отметки: меняйте `[ ]` на `[x]` (в VS Code и Obsidian по чекбоксу можно кликнуть",
-        "в режиме просмотра). Интерактивная версия без интернета: `docs/checklist.html`.",
-        "Этот файл создаётся скриптом `scripts/build_checklist.py` из `docs/checklist.json`: правьте JSON и пересобирайте.",
+        "в режиме просмотра). Интерактивная версия без интернета: `docs/reference/checklist.html`.",
+        "Этот файл создаётся скриптом `scripts/build_checklist.py` из `docs/reference/checklist.json`: правьте JSON и пересобирайте.",
         "",
     ]
     total = len(data["items"])
@@ -291,4 +291,4 @@ if __name__ == "__main__":
     (DOCS / "CHECKLIST.md").write_text(build_markdown(), encoding="utf-8")
     (DOCS / "checklist.html").write_text(build_html(), encoding="utf-8")
     done = sum(1 for i in data["items"] if i["done"])
-    print(f"Готово: docs/CHECKLIST.md и docs/checklist.html ({done} из {len(data['items'])} отмечено)")
+    print(f"Готово: docs/reference/CHECKLIST.md и docs/reference/checklist.html ({done} из {len(data['items'])} отмечено)")

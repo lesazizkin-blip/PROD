@@ -1,8 +1,8 @@
 # Чек-лист хакатона PROD
 
 Санкт-Петербург · 16–18 октября 2026. Отметки: меняйте `[ ]` на `[x]` (в VS Code и Obsidian по чекбоксу можно кликнуть
-в режиме просмотра). Интерактивная версия без интернета: `docs/checklist.html`.
-Этот файл создаётся скриптом `scripts/build_checklist.py` из `docs/checklist.json`: правьте JSON и пересобирайте.
+в режиме просмотра). Интерактивная версия без интернета: `docs/reference/checklist.html`.
+Этот файл создаётся скриптом `scripts/build_checklist.py` из `docs/reference/checklist.json`: правьте JSON и пересобирайте.
 
 **Выполнено: 40 из 88**
 
