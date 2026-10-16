@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:8000"
     # true -> при старте создаётся демо-проект (чтобы жюри сразу видело данные)
     seed_demo: bool = False
+    # папка с собранным сайтом (frontend/dist): тогда бэкенд сам отдаёт сайт на том же порту
+    static_dir: str | None = None
     log_level: str = "INFO"
 
 

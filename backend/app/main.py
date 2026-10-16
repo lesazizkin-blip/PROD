@@ -16,6 +16,7 @@ from app.errors import AppError
 from app.logging_setup import log, setup_logging
 from app.reference_data import ensure_reference_data
 from app.routers import assistant, boxes, health, projects, reference
+from app.static_site import mount_site
 
 settings = get_settings()
 logger = setup_logging(settings.log_level)
@@ -132,3 +133,6 @@ api.include_router(projects.router)
 api.include_router(boxes.router)
 api.include_router(assistant.router)
 app.include_router(api)
+
+if settings.static_dir and not mount_site(app, settings.static_dir):
+    logger.warning("STATIC_DIR задан, но index.html там не найден: сайт не подключён")

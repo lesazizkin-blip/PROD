@@ -9,6 +9,15 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Двойной щелчок по index.html не работает: сайту нужен сервер (API и маршруты). Объясняем, что делать.
+      if (location.protocol === 'file:') {
+        document.getElementById('root').innerHTML =
+          '<div style="font-family:system-ui,sans-serif;max-width:520px;margin:15vh auto;padding:16px;line-height:1.5">' +
+          '<h2>MoverMate</h2><p>Этот файл нельзя открыть двойным щелчком: сайту нужен сервер. ' +
+          'Запустите <code>scripts/run-site.sh</code> и откройте <b>http://localhost:8000</b>.</p></div>'
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

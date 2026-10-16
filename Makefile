@@ -1,4 +1,4 @@
-.PHONY: mobile-setup ios phone android devices doctor dev tunnel preflight migration test-pg setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
+.PHONY: site mobile-setup ios phone android devices doctor dev tunnel preflight migration test-pg setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
 
 backend-setup:
 	cd backend && python3 -m venv .venv && .venv/bin/pip install -U pip && .venv/bin/pip install -r requirements-dev.txt -c constraints.txt
@@ -59,6 +59,9 @@ test-pg:  ## тесты бэкенда на настоящем PostgreSQL (вр�
 
 mobile-setup:  ## зависимости мобильного приложения
 	cd mobile && npm install
+
+site:  ## сайт одной командой: бэкенд отдаёт API и собранный сайт на :8000 (scripts/run-site.sh)
+	scripts/run-site.sh
 
 dev:  ## бэкенд для приложения: миграции, демо-данные, сервер на :8000
 	cd backend && .venv/bin/alembic upgrade head && .venv/bin/python -m app.seed && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
