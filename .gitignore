@@ -1,18 +1,19 @@
-.env
-.DS_Store
-node_modules/
-dist/
-.venv/
-__pycache__/
-*.pyc
-.pytest_cache/
-.ruff_cache/
-.coverage
-coverage.xml
-htmlcov/
-*.db
 
 # локальный запуск GitLab CI (gitlab-ci-local) и кэши заданий
-.gitlab-ci-local/
-.gitlab-ci-local-variables.yml
+*.db
+*.pyc
+.DS_Store
 .cache/
+.coverage
+.env
+.gitlab-ci-local-variables.yml
+.gitlab-ci-local/
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+coverage.xml
+deploy/.env
+dist/
+htmlcov/
+node_modules/
