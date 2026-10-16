@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { api } from '../api/endpoints'
 import { useAuth } from '../state/AuthContext'
-import { useAction } from '../state/useAction'
 import { useProjects } from '../state/ProjectContext'
+import MembersPanel from './MembersPanel'
+import PasswordModal from './PasswordModal'
 import Icon from './Icons'
 import Modal from './Modal'
 
@@ -16,36 +16,15 @@ const TABS = [
 
 /** Каркас: шапка с проектом и сканером; вкладки снизу на телефоне и слева на ноутбуке. */
 export default function Shell() {
-  const { projects, currentId, select } = useProjects()
+  const { projects, currentId, select, reload } = useProjects()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [switching, setSwitching] = useState(false)
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
-  const invite = useAction()
+  const [changingPassword, setChangingPassword] = useState(false)
   const current = projects.find((p) => p.id === currentId)
-
-  const makeInvite = () =>
-    invite.run(async () => {
-      if (!currentId) return
-      const { path } = await api.createInvite(currentId)
-      setInviteUrl(`${window.location.origin}${path}`)
-      setCopied(false)
-    })
-
-  async function copyInvite() {
-    if (!inviteUrl) return
-    try {
-      await navigator.clipboard.writeText(inviteUrl)
-      setCopied(true)
-    } catch {
-      setCopied(false) // буфер обмена недоступен: ссылку можно выделить и скопировать вручную
-    }
-  }
 
   function closeProjects() {
     setSwitching(false)
-    setInviteUrl(null)
   }
 
   return (
@@ -101,36 +80,43 @@ export default function Shell() {
             Новый проект
           </button>
 
-          {current?.role === 'owner' ? (
-            <section className="stack invite">
-              <h3>Помощники</h3>
-              <p className="muted small">Пригласите грузчика или родных: по ссылке они войдут в «{current.name}» и смогут отмечать коробки. Ссылка действует 7 дней.</p>
-              {inviteUrl ? (
-                <div className="row">
-                  <input className="grow" value={inviteUrl} readOnly aria-label="Ссылка-приглашение" onFocus={(e) => e.currentTarget.select()} />
-                  <button className="tonal" onClick={() => void copyInvite()}>{copied ? 'Скопировано' : 'Копировать'}</button>
-                </div>
-              ) : (
-                <button className="tonal" disabled={invite.busy} onClick={() => void makeInvite()}>Пригласить по ссылке</button>
-              )}
-              {invite.error ? <div className="alert" role="alert">{invite.error}</div> : null}
-            </section>
+          {current && user ? (
+            <MembersPanel
+              project={current}
+              me={user}
+              onLeft={() => {
+                closeProjects()
+                void reload().then(() => navigate('/'))
+              }}
+            />
           ) : null}
 
           <div className="row between account">
             <span className="muted small">Вы вошли как <b>{user?.username}</b></span>
-            <button
-              className="link small"
-              onClick={() => {
-                closeProjects()
-                void logout().then(() => navigate('/'))
-              }}
-            >
-              Выйти
-            </button>
+            <span className="row">
+              <button
+                className="link small"
+                onClick={() => {
+                  closeProjects()
+                  setChangingPassword(true)
+                }}
+              >
+                Сменить пароль
+              </button>
+              <button
+                className="link small"
+                onClick={() => {
+                  closeProjects()
+                  void logout().then(() => navigate('/'))
+                }}
+              >
+                Выйти
+              </button>
+            </span>
           </div>
         </Modal>
       ) : null}
+      {changingPassword ? <PasswordModal onClose={() => setChangingPassword(false)} /> : null}
     </div>
   )
 }

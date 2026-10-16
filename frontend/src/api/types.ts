@@ -35,6 +35,12 @@ export interface ProjectBrief {
   role: 'owner' | 'member'
 }
 
+export interface Member {
+  user_id: number
+  username: string
+  role: 'owner' | 'member'
+}
+
 export interface InviteOut {
   token: string
   path: string

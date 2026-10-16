@@ -1,7 +1,7 @@
 import { request } from "./client"
 import type {
   AppEvent, Box, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Health, Hint, Item,
-  Credentials, InviteInfo, InviteOut, Label, LostItem, Page, PageParams, Progress, Project, ProjectBrief, ProjectCreate, ProjectUpdate, Reminder, SearchHit, User,
+  Credentials, InviteInfo, InviteOut, Member, Label, LostItem, Page, PageParams, Progress, Project, ProjectBrief, ProjectCreate, ProjectUpdate, Reminder, SearchHit, User,
   Stage, Task, TaskCreate, TaskTemplate, TaskUpdate, Tip, TipTopic,
 } from "./types"
 
@@ -21,11 +21,17 @@ export const api = {
   login: (body: Credentials) => request<User>("POST", "/auth/login", { body }),
   demoLogin: () => request<User>("POST", "/auth/demo"),
   logout: () => request<void>("POST", "/auth/logout"),
+  changePassword: (body: { current_password: string; new_password: string }) =>
+    request<User>("POST", "/auth/password", { body }),
 
   // Приглашения
   createInvite: (pid: string) => request<InviteOut>("POST", `${p(pid)}/invites`),
   inviteInfo: (token: string) => request<InviteInfo>("GET", `/invites/${encodeURIComponent(token)}`),
   acceptInvite: (token: string) => request<Project>("POST", `/invites/${encodeURIComponent(token)}/accept`),
+  revokeInvites: (pid: string) => request<{ revoked: number }>("DELETE", `${p(pid)}/invites`),
+  members: (pid: string) => request<Member[]>("GET", `${p(pid)}/members`),
+  removeMember: (pid: string, userId: number) =>
+    request<void>("DELETE", `${p(pid)}/members/${userId}`, { query: { confirm: true } }),
 
   // Проекты
   myProjects: () => request<ProjectBrief[]>("GET", "/projects"),

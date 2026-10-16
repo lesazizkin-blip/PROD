@@ -242,3 +242,5 @@ input[type='color'] { width: 56px; height: 44px; padding: 2px; flex: none; }
 .invite { padding-top: 12px; border-top: 1px solid var(--border); }
 .invite h3 { margin: 0; font-size: 1rem; }
 .account { padding-top: 12px; border-top: 1px solid var(--border); }
+.members li { min-height: 44px; }
+.invite__revoke { justify-self: start; }
