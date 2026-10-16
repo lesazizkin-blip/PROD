@@ -197,16 +197,7 @@ class BoxService:
             project_id, number, lock=True
         )  # две отметки одной коробки идут по очереди
         old = box.status
-        check_transition(old, target.value)
-        if (
-            old == "packing"
-            and target == BoxStatus.PACKED
-            and not box.fill_later
-            and not self._count(box.id)
-        ):
-            raise ConflictError(
-                "Пустую коробку нельзя пометить собранной: добавьте вещи или «заполнить позже»"
-            )
+        self._check_move(box, target)
         box.status = target.value
         log_event(
             self.db,
@@ -356,8 +347,8 @@ class BoxService:
         return hits, total
 
     # --- этикетка и прогресс ---
-    def label(self, project: Project, number: int) -> LabelOut:
-        box = self.get_box(project.id, number)
+    @staticmethod
+    def _label_out(project: Project, box: Box) -> LabelOut:
         return LabelOut(
             number=box.number,
             room=box.room,
@@ -365,6 +356,9 @@ class BoxService:
             qr_path=f"/projects/{project.id}/boxes/{box.number}",
             items_preview=[i.name for i in box.items[:5]],
         )
+
+    def label(self, project: Project, number: int) -> LabelOut:
+        return self._label_out(project, self.get_box(project.id, number))
 
     def labels(self, project: Project, numbers: list[int] | None) -> list[LabelOut]:
         """Этикетки для печати нескольких коробок сразу. Несуществующие номера пропускаются."""
@@ -376,16 +370,7 @@ class BoxService:
         )
         if numbers is not None:
             q = q.where(Box.number.in_(numbers))
-        return [
-            LabelOut(
-                number=box.number,
-                room=box.room,
-                project_name=project.name,
-                qr_path=f"/projects/{project.id}/boxes/{box.number}",
-                items_preview=[i.name for i in box.items[:5]],
-            )
-            for box in self.db.scalars(q)
-        ]
+        return [self._label_out(project, box) for box in self.db.scalars(q)]
 
     def progress(self, project_id: uuid.UUID) -> ProgressOut:
         zero = {s: 0 for s in ORDER}

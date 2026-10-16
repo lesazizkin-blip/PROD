@@ -40,6 +40,16 @@ export default function BoxPage() {
     }
   }
 
+  async function deleteBox() {
+    if (!window.confirm(`Удалить коробку № ${number} и всё её содержимое?`)) return
+    try {
+      await api.deleteBox(pid, number)
+      navigate('/boxes')
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+
   const box = card.data
   const next = box ? nextStatus(box.status) : null
   const prev = box ? prevStatus(box.status) : null
@@ -91,20 +101,7 @@ export default function BoxPage() {
             </div>
           ) : null}
 
-          <button
-            className="danger"
-            onClick={async () => {
-              if (!window.confirm(`Удалить коробку № ${box.number} и всё её содержимое?`)) return
-              try {
-                await api.deleteBox(pid, number)
-                navigate('/boxes')
-              } catch (e) {
-                setError(errorMessage(e))
-              }
-            }}
-          >
-            Удалить коробку
-          </button>
+          <button className="danger" onClick={deleteBox}>Удалить коробку</button>
 
           {adding ? <AddItemsModal onClose={() => setAdding(false)} onSave={async (text) => { await api.createItemsBulk(pid, number, text); setAdding(false); card.reload() }} /> : null}
           {editing ? (
@@ -121,8 +118,8 @@ export default function BoxPage() {
   )
 }
 
-function AddItemsModal({ onClose, onSave }: { onClose: () => void; onSave: (text: string) => Promise<void> }) {
-  const [text, setText] = useState('')
+// Отправка формы в модалке: блокирует кнопку, показывает ошибку сервера, при успехе модалка закрывает себя сама
+function useSubmit(save: () => Promise<void>) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   async function submit(e: FormEvent) {
@@ -130,12 +127,18 @@ function AddItemsModal({ onClose, onSave }: { onClose: () => void; onSave: (text
     setBusy(true)
     setError(null)
     try {
-      await onSave(text)
+      await save()
     } catch (err) {
       setError(errorMessage(err))
       setBusy(false)
     }
   }
+  return { busy, error, submit }
+}
+
+function AddItemsModal({ onClose, onSave }: { onClose: () => void; onSave: (text: string) => Promise<void> }) {
+  const [text, setText] = useState('')
+  const { busy, error, submit } = useSubmit(() => onSave(text))
   return (
     <Modal title="Добавить вещи" onClose={onClose} dirty={text.trim() !== ''}>
       <form className="stack" onSubmit={submit}>
@@ -153,19 +156,7 @@ function AddItemsModal({ onClose, onSave }: { onClose: () => void; onSave: (text
 function EditBoxModal({ room: initialRoom, fillLater, onClose, onSave }: { room: string; fillLater: boolean; onClose: () => void; onSave: (room: string, later: boolean) => Promise<void> }) {
   const [room, setRoom] = useState(initialRoom)
   const [later, setLater] = useState(fillLater)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setBusy(true)
-    setError(null)
-    try {
-      await onSave(room.trim(), later)
-    } catch (err) {
-      setError(errorMessage(err))
-      setBusy(false)
-    }
-  }
+  const { busy, error, submit } = useSubmit(() => onSave(room.trim(), later))
   return (
     <Modal title="Изменить коробку" onClose={onClose}>
       <form className="stack" onSubmit={submit}>
