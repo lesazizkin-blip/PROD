@@ -241,3 +241,48 @@ class EventOut(ORM):
     entity_id: str
     data: dict
     created_at: datetime
+
+
+# ---------- чек-лист первого дня, потерянные вещи, напоминания ----------
+class FirstDayOut(ORM):
+    id: int
+    title: str
+    done: bool
+
+
+class FirstDayCreate(BaseModel):
+    title: Text200
+
+
+class FirstDayUpdate(BaseModel):
+    title: Text200 | None = None
+    done: bool | None = None
+
+
+class LostItemOut(BaseModel):
+    item: ItemOut
+    box_number: int
+    room: str
+    status: BoxStatus
+
+
+class HintOut(BaseModel):
+    box_number: int
+    room: str
+    status: BoxStatus
+    reason: str  # recorded | similar_content | same_room
+    score: float
+
+
+class ReminderOut(BaseModel):
+    box: BoxOut
+    overdue: bool
+
+
+class BulkTransitionIn(BaseModel):
+    numbers: list[int] = Field(min_length=1, max_length=200)
+    to: BoxStatus
+
+
+class BulkTransitionOut(BaseModel):
+    updated: list[BoxOut]

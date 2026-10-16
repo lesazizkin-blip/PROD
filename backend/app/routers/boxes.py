@@ -11,18 +11,27 @@ from app.schemas import (
     BoxOut,
     BoxStatus,
     BoxUpdate,
+    BulkTransitionIn,
+    BulkTransitionOut,
+    FirstDayCreate,
+    FirstDayOut,
+    FirstDayUpdate,
+    HintOut,
     ItemCreate,
     ItemOut,
     ItemsBulkIn,
     ItemsBulkOut,
     ItemUpdate,
     LabelOut,
+    LostItemOut,
     Page,
     ProgressOut,
+    ReminderOut,
     SearchHit,
     TransitionIn,
 )
 from app.services.boxes import BoxService, parse_lines
+from app.services.extras import FirstDayService, LostService, reminders
 
 router = APIRouter(prefix="/projects/{pid}", tags=["boxes"])
 
@@ -182,3 +191,74 @@ def search(
 )
 def progress(project: Project = Depends(get_project), db: Session = Depends(get_db)):
     return BoxService(db).progress(project.id)
+
+
+@router.post(
+    "/boxes/bulk-transitions",
+    response_model=BulkTransitionOut,
+    summary="Массовая смена статуса (погрузка комнаты), всё или ничего",
+)
+def bulk_transition(
+    body: BulkTransitionIn, project: Project = Depends(get_project), db: Session = Depends(get_db)
+):
+    return {"updated": BoxService(db).bulk_transition(project.id, body.numbers, body.to)}
+
+
+# ---------- чек-лист первого дня ----------
+@router.get("/first-day", response_model=list[FirstDayOut], summary="Чек-лист первого дня")
+def first_day(project: Project = Depends(get_project), db: Session = Depends(get_db)):
+    return FirstDayService(db).list_items(project.id)
+
+
+@router.post("/first-day", response_model=FirstDayOut, status_code=201, summary="Добавить пункт")
+def add_first_day(
+    body: FirstDayCreate, project: Project = Depends(get_project), db: Session = Depends(get_db)
+):
+    return FirstDayService(db).create(project.id, body.title)
+
+
+@router.patch(
+    "/first-day/{item_id}", response_model=FirstDayOut, summary="Отметить / переименовать пункт"
+)
+def update_first_day(
+    item_id: int,
+    body: FirstDayUpdate,
+    project: Project = Depends(get_project),
+    db: Session = Depends(get_db),
+):
+    return FirstDayService(db).update(project.id, item_id, body.model_dump(exclude_unset=True))
+
+
+@router.delete("/first-day/{item_id}", status_code=204, summary="Удалить пункт (confirm=true)")
+def delete_first_day(
+    item_id: int,
+    project: Project = Depends(get_project),
+    _=Depends(confirm_param),
+    db: Session = Depends(get_db),
+):
+    FirstDayService(db).delete(project.id, item_id)
+    return Response(status_code=204)
+
+
+# ---------- потерянные вещи и напоминания ----------
+@router.get("/items/lost", response_model=list[LostItemOut], summary="Потерянные вещи")
+def lost_items(project: Project = Depends(get_project), db: Session = Depends(get_db)):
+    return LostService(db).lost_items(project.id)
+
+
+@router.get(
+    "/items/{item_id}/hints",
+    response_model=list[HintOut],
+    summary="В каких нераспакованных коробках искать вещь",
+)
+def hints(item_id: int, project: Project = Depends(get_project), db: Session = Depends(get_db)):
+    return LostService(db).hints(project.id, item_id)
+
+
+@router.get(
+    "/reminders",
+    response_model=list[ReminderOut],
+    summary="Коробки, которые пора описать («заполнить позже»)",
+)
+def reminders_(project: Project = Depends(get_project), db: Session = Depends(get_db)):
+    return reminders(db, project.id)

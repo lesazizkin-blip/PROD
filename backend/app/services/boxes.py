@@ -219,6 +219,53 @@ class BoxService:
         self.db.commit()
         return self.box_out(box)
 
+    def bulk_transition(
+        self, project_id: uuid.UUID, numbers: list[int], target: BoxStatus
+    ) -> list[BoxOut]:
+        """Массовая отметка (погрузка комнаты): либо все коробки, либо ни одной."""
+        wanted = sorted(set(numbers))
+        boxes = self.db.scalars(
+            select(Box)
+            .where(Box.project_id == project_id, Box.number.in_(wanted))
+            .order_by(Box.number)
+            .with_for_update()
+        ).all()
+        missing = sorted(set(wanted) - {b.number for b in boxes})
+        if missing:
+            raise NotFoundError(f"Нет коробок: {', '.join(map(str, missing))}")
+        problems = []
+        for box in boxes:
+            try:
+                self._check_move(box, target)
+            except ConflictError as exc:
+                problems.append(f"№{box.number}: {exc.message}")
+        if problems:
+            raise ConflictError("Статусы не изменены. " + "; ".join(problems))
+        for box in boxes:
+            old, box.status = box.status, target.value
+            log_event(
+                self.db,
+                project_id,
+                "box.status_changed",
+                "box",
+                box.number,
+                **{"from": old, "to": target.value},
+            )
+        self.db.commit()
+        return [self.box_out(b) for b in boxes]
+
+    def _check_move(self, box: Box, target: BoxStatus) -> None:
+        check_transition(box.status, target.value)
+        if (
+            box.status == "packing"
+            and target == BoxStatus.PACKED
+            and not box.fill_later
+            and not self._count(box.id)
+        ):
+            raise ConflictError(
+                "Пустую коробку нельзя пометить собранной: добавьте вещи или «заполнить позже»"
+            )
+
     # --- вещи ---
     def add_items(self, project_id: uuid.UUID, number: int, names: list[str]) -> list[ItemOut]:
         box = self.get_box(project_id, number)
