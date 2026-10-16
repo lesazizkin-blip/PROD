@@ -1,4 +1,4 @@
-.PHONY: tunnel preflight migration test-pg setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
+.PHONY: mobile-setup mobile ios dev tunnel preflight migration test-pg setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
 
 backend-setup:
 	cd backend && python3 -m venv .venv && .venv/bin/pip install -U pip && .venv/bin/pip install -r requirements-dev.txt -c constraints.txt
@@ -56,3 +56,12 @@ test-pg:  ## тесты бэкенда на настоящем PostgreSQL (вр�
 	docker run -d --name pgtest -e POSTGRES_USER=app -e POSTGRES_PASSWORD=app -e POSTGRES_DB=app -p 55432:5432 postgres:16-alpine >/dev/null
 	@for i in $$(seq 1 30); do docker exec pgtest pg_isready -U app >/dev/null 2>&1 && break; sleep 1; done; sleep 2
 	cd backend && TEST_DATABASE_URL=postgresql+psycopg://app:app@localhost:55432/app .venv/bin/pytest -rs; code=$$?; docker rm -f pgtest >/dev/null; exit $$code
+
+mobile-setup:  ## зависимости мобильного приложения
+	cd mobile && npm install
+
+dev:  ## бэкенд для приложения: миграции, демо-данные, сервер на :8000
+	cd backend && .venv/bin/alembic upgrade head && .venv/bin/python -m app.seed && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+ios:  ## приложение в iOS-симуляторе (бэкенд должен работать: make dev)
+	cd mobile && EXPO_PUBLIC_API_URL=http://localhost:8000 npx expo start --ios

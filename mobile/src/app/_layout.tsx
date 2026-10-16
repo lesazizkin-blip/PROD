@@ -15,7 +15,8 @@ export default function RootLayout() {
           <StatusBar style={scheme === "dark" ? "light" : "dark"} />
           <Stack screenOptions={{ headerStyle: { backgroundColor: theme.colors.surface }, headerTintColor: theme.colors.onSurface }}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="projects/[pid]/boxes/[n]" options={{ title: "Коробка" }} />
+            <Stack.Screen name="projects/[pid]/boxes/[n]/index" options={{ title: "Коробка" }} />
+            <Stack.Screen name="projects/[pid]/boxes/[n]/label" options={{ title: "Этикетка" }} />
           </Stack>
         </ProjectProvider>
       </PaperProvider>

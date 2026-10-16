@@ -3,6 +3,18 @@
 React Native + Expo (SDK 58, TypeScript), навигация `expo-router`, UI — React Native Paper (Material 3).
 Контракт API — `../docs/API.md`; типы — `src/api/types.ts`, клиент — `src/api/client.ts` и `src/api/endpoints.ts`.
 
+## Быстрый старт в iOS-симуляторе
+
+Нужны Xcode (с принятой лицензией и установленной iOS-платформой), Node и Python-окружение бэкенда (`make backend-setup`).
+
+```bash
+make mobile-setup   # один раз: зависимости приложения
+make dev            # терминал 1: миграции, демо-данные и бэкенд на :8000
+make ios            # терминал 2: Expo и симулятор iPhone (Expo Go ставится сам)
+```
+
+Симулятор видит бэкенд по `http://localhost:8000`. В приложении нажмите «Открыть демо-проект» (готовые задачи и 14 коробок) или создайте свой.
+
 ## Запуск
 
 ```bash

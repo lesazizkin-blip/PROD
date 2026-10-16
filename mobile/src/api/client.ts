@@ -2,7 +2,7 @@ import type { ApiErrorBody } from "./types";
 
 // Адрес сервера задаётся при сборке: EXPO_PUBLIC_API_URL=https://example.ru
 // Эмулятор Android видит хост-машину как 10.0.2.2, физический телефон — по IP в локальной сети.
-const BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/+$/, "");
+const BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 const TIMEOUT_MS = 15000;
 
 export class ApiError extends Error {

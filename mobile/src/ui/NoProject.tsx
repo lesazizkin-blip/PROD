@@ -6,6 +6,8 @@ import { ApiError, errorMessage } from "../api/client";
 import { useProjects } from "../state/ProjectContext";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// Демо-проект из `python -m app.seed` (фиксированный id): позволяет открыть приложение с готовыми данными
+const DEMO_PROJECT_ID = process.env.EXPO_PUBLIC_DEMO_PROJECT_ID ?? "00000000-0000-4000-8000-000000000001";
 
 /** Форма создания проекта: показывается на экранах, пока ни одного проекта нет (сценарий 1). */
 export function NoProject() {
@@ -14,6 +16,19 @@ export function NoProject() {
   const [date, setDate] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function openDemo() {
+    setBusy(true);
+    setError(null);
+    try {
+      const project = await api.getProject(DEMO_PROJECT_ID);
+      add({ id: project.id, name: project.name });
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const nameError = name.trim().length === 0 || name.length > 120;
   const dateError = !DATE_RE.test(date) || Number.isNaN(Date.parse(date));
@@ -51,6 +66,9 @@ export function NoProject() {
         </HelperText>
         <Button mode="contained" onPress={submit} loading={busy} disabled={busy || nameError || dateError}>
           Создать проект
+        </Button>
+        <Button mode="text" onPress={openDemo} disabled={busy}>
+          Открыть демо-проект
         </Button>
       </ScrollView>
     </KeyboardAvoidingView>
