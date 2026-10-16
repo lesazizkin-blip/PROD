@@ -1,119 +1,243 @@
-"""Контракт API (pydantic). Примеры значений попадают в Swagger."""
+"""Контракт API (pydantic), по docs/API.md. Примеры значений попадают в Swagger."""
 
-from datetime import datetime
+import uuid
+from datetime import date, datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
-
-class Status(StrEnum):
-    DRAFT = "draft"
-    IN_REVIEW = "in_review"
-    CHANGES_REQUESTED = "changes_requested"
-    APPROVED = "approved"
-    REJECTED = "rejected"
+T = TypeVar("T")
 
 
-class Action(StrEnum):
-    SUBMIT = "submit"
-    APPROVE = "approve"
-    REJECT = "reject"
-    REQUEST_CHANGES = "request_changes"
+class Stage(StrEnum):
+    BEFORE = "before"
+    MOVING_DAY = "moving_day"
+    AFTER = "after"
 
 
-# Пробелы по краям срезаются ДО проверки длины: строка из пробелов не проходит
-PersonName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=100)]
-Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=120)]
+class BoxStatus(StrEnum):
+    PACKING = "packing"
+    PACKED = "packed"
+    LOADED = "loaded"
+    DELIVERED = "delivered"
+    UNPACKED = "unpacked"
+
+
+class TipTopic(StrEnum):
+    FRAGILE = "fragile"
+    CARRY_WITH_YOU = "carry_with_you"
+    PACK_LAST = "pack_last"
+
+
+def _opt_text(v: str | None) -> str | None:
+    """Пустая строка и пробелы = «не заполнено»."""
+    if v is None:
+        return None
+    v = v.strip()
+    return v or None
+
+
+Text120 = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+Text200 = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+Text60 = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
 
 
 class ORM(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ---------- auth ----------
-class RegisterIn(BaseModel):
-    email: EmailStr = Field(examples=["ivan@example.com"])
-    full_name: PersonName = Field(examples=["Иван Петров"])
-    password: str = Field(min_length=8, max_length=128, examples=["qwerty123"])
+class Page(BaseModel, Generic[T]):
+    items: list[T]
+    total: int
+    page: int
+    page_size: int
 
 
-class LoginIn(BaseModel):
-    email: EmailStr = Field(examples=["ivan@example.com"])
-    password: str = Field(min_length=1, max_length=128, examples=["qwerty123"])
+class HealthOut(BaseModel):
+    status: str
+    db: str
+    version: str
 
 
-class UserOut(ORM):
-    id: int
-    email: str
-    full_name: str
-    role: str
+# ---------- проекты ----------
+class ProjectCreate(BaseModel):
+    name: Text120 = Field(examples=["Переезд на Лесную"])
+    move_date: date = Field(examples=["2026-11-01"])
+    address_from: str | None = Field(default=None, max_length=300)
+    address_to: str | None = Field(default=None, max_length=300)
+
+    _clean = field_validator("address_from", "address_to")(_opt_text)
+
+
+class ProjectUpdate(BaseModel):
+    name: Text120 | None = None
+    move_date: date | None = None
+    address_from: str | None = Field(default=None, max_length=300)
+    address_to: str | None = Field(default=None, max_length=300)
+
+    _clean = field_validator("address_from", "address_to")(_opt_text)
+
+
+class ProjectOut(ORM):
+    id: uuid.UUID
+    name: str
+    move_date: date
+    address_from: str | None
+    address_to: str | None
     created_at: datetime
 
 
-class TokenOut(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: UserOut
+# ---------- задачи ----------
+class TaskCreate(BaseModel):
+    stage: Stage
+    title: Text200
+    due_date: date | None = None
+    assignee: str | None = Field(default=None, max_length=80)
+
+    _clean = field_validator("assignee")(_opt_text)
 
 
-# ---------- items ----------
-class ItemCreate(BaseModel):
-    title: Title = Field(examples=["Кэшбэк 10% на кофе"])
-    description: str = Field(default="", max_length=2000, examples=["Для всех кофеен-партнёров"])
-    amount: int = Field(default=0, ge=0, le=1_000_000_000, examples=[50000])
+class TaskUpdate(BaseModel):
+    stage: Stage | None = None
+    title: Text200 | None = None
+    due_date: date | None = None
+    assignee: str | None = Field(default=None, max_length=80)
+    done: bool | None = None
+
+    _clean = field_validator("assignee")(_opt_text)
 
 
-class ItemUpdate(BaseModel):
-    title: Title | None = None
-    description: str | None = Field(default=None, max_length=2000)
-    amount: int | None = Field(default=None, ge=0, le=1_000_000_000)
-
-
-class ItemOut(ORM):
+class TaskOut(ORM):
     id: int
+    project_id: uuid.UUID
+    stage: Stage
     title: str
-    description: str
-    amount: int
-    status: Status
-    owner_id: int
-    owner_name: str
+    due_date: date | None
+    assignee: str | None
+    done: bool
+    done_at: datetime | None
+    template_id: int | None
+
+
+class TaskTemplateOut(ORM):
+    id: int
+    stage: Stage
+    title: str
+    default_offset_days: int
+
+
+class TipOut(ORM):
+    id: int
+    topic: TipTopic
+    title: str
+    body: str
+
+
+class AppliedTemplates(BaseModel):
+    added: int
+
+
+# ---------- коробки и вещи ----------
+class BoxCreate(BaseModel):
+    room: Text60 = Field(examples=["Кухня"])
+    fill_later: bool = False
+    remind_at: datetime | None = None
+    items_text: str | None = Field(default=None, max_length=20000)
+
+
+class BoxUpdate(BaseModel):
+    room: Text60 | None = None
+    fill_later: bool | None = None
+    remind_at: datetime | None = None
+
+
+class BoxOut(BaseModel):
+    number: int
+    project_id: uuid.UUID
+    room: str
+    status: BoxStatus
+    fill_later: bool
+    remind_at: datetime | None
+    items_count: int
     created_at: datetime
     updated_at: datetime
 
 
-class ItemList(BaseModel):
-    items: list[ItemOut]
-    total: int
-    limit: int
-    offset: int
-
-
-class TransitionIn(BaseModel):
-    action: Action = Field(examples=["submit"])
-    comment: str | None = Field(default=None, max_length=500, examples=["Поправьте описание"])
-
-
-class EventOut(ORM):
+class ItemOut(BaseModel):
     id: int
-    item_id: int
-    actor_id: int
-    actor_name: str
-    action: str
-    from_status: str | None
-    to_status: str
-    comment: str | None
+    box_number: int
+    name: str
+    lost: bool
     created_at: datetime
 
 
-# ---------- служебные ----------
-class HealthOut(BaseModel):
-    status: Literal["ok"]
+class BoxCardOut(BoxOut):
+    items: list[ItemOut]
 
 
-class StatsOut(BaseModel):
+class TransitionIn(BaseModel):
+    to: BoxStatus
+
+
+class ItemCreate(BaseModel):
+    name: Text120 = Field(examples=["Чайник"])
+
+
+class ItemsBulkIn(BaseModel):
+    text: str = Field(max_length=20000, examples=["Чайник\nКружки (4 шт)\nТостер"])
+
+
+class ItemsBulkOut(BaseModel):
+    created: list[ItemOut]
+
+
+class ItemUpdate(BaseModel):
+    name: Text120 | None = None
+    lost: bool | None = None
+
+
+class SearchHit(BaseModel):
+    item_id: int
+    name: str
+    lost: bool
+    box_number: int
+    room: str
+    status: BoxStatus
+
+
+class LabelOut(BaseModel):
+    number: int
+    room: str
+    project_name: str
+    qr_path: str
+    items_preview: list[str]
+
+
+# ---------- прогресс ----------
+class RoomProgress(BaseModel):
+    room: str
     total: int
     by_status: dict[str, int]
-    amount_by_status: dict[str, int]
-    approval_rate: float | None = Field(description="Доля согласованных среди решённых (0..1)")
-    pending: int = Field(description="Сколько записей ждут решения")
+    loaded: int
+    loaded_percent: float
+    unpacked: int
+    unpacked_percent: float
+
+
+class ProgressOut(BaseModel):
+    boxes_total: int
+    by_status: dict[str, int]
+    unpacked_percent: float
+    rooms: list[RoomProgress]
+    coverage: float
+
+
+# ---------- события ----------
+class EventOut(ORM):
+    id: int
+    type: str
+    entity: str
+    entity_id: str
+    data: dict
+    created_at: datetime

@@ -1,96 +1,98 @@
 """Демо-данные: python -m app.seed (или SEED_DEMO=true при старте). Идемпотентно.
 
-Жюри оценивает «полный набор данных» для проверки: здесь 12 записей во всех статусах,
-с историей и комментариями, два пользователя и администратор.
+Демо-проект с фиксированным id: задачи из шаблонов (часть выполнена), коробки во всех статусах,
+вещи, потерянная вещь. Нагрузочный проект на 300 коробок и 3000 вещей: python -m app.seed --load.
 """
 
-from app.config import DEFAULT_ADMIN_PASSWORD, get_settings
+import sys
+import uuid
+from datetime import date, timedelta
+
 from app.db import SessionLocal
-from app.errors import AppError
-from app.schemas import Action, ItemCreate, RegisterIn
-from app.services.auth import AuthService
-from app.services.items import ItemService
+from app.models import Project
+from app.reference_data import ensure_reference_data
+from app.schemas import BoxCreate, BoxStatus, ProjectCreate, TaskUpdate
+from app.services.boxes import BoxService
+from app.services.projects import ProjectService
+from app.services.tasks import TaskService
 
-USERS = [
-    ("user@example.com", "user12345", "Иван Петров"),
-    ("anna@example.com", "anna12345", "Анна Смирнова"),
+DEMO_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
+LOAD_ID = uuid.UUID("00000000-0000-4000-8000-000000000002")
+
+# (комната, статус, вещи)
+DEMO_BOXES = [
+    ("Кухня", "unpacked", "Чайник\nКружки (4 шт)\nТостер"),
+    ("Кухня", "delivered", "Тарелки\nСковородки\nСпеции"),
+    ("Кухня", "loaded", "Кофемашина\nМикроволновка"),
+    ("Кухня", "packed", "Ножи\nДоска разделочная"),
+    ("Кухня", "packing", "Полотенца кухонные"),
+    ("Гостиная", "delivered", "Книги\nНастольные игры\nПульт от телевизора"),
+    ("Гостиная", "loaded", "Плед\nПодушки"),
+    ("Гостиная", "packed", "Зарядка для ноутбука\nУдлинитель"),
+    ("Спальня", "unpacked", "Постельное бельё\nПодушка"),
+    ("Спальня", "delivered", "Зимняя одежда\nОбувь"),
+    ("Спальня", "packing", "Будильник\nЗарядки для телефонов"),
+    ("Ванная", "packed", "Зубные щётки\nПолотенца\nШампунь"),
+    ("Кабинет", "loaded", "Документы\nПринтер"),
+    ("Детская", "packing", "Игрушки\nКонструктор"),
 ]
 
-# (название, сумма, цепочка действий: (action, кто, комментарий))
-ITEMS = [
-    ("Кэшбэк 10% на кофе", 50000, [("submit", 0, None), ("approve", "admin", None)]),
-    ("Скидка 20% на такси", 120000, [("submit", 0, None)]),
-    ("Бонусы за подписку", 8000, []),
-    (
-        "Кэшбэк 5% на АЗС",
-        200000,
-        [("submit", 0, None), ("request_changes", "admin", "Уточните лимит выплат")],
-    ),
-    ("Двойные баллы в выходные", 30000, [("submit", 1, None), ("approve", "admin", None)]),
-    (
-        "Скидка на онлайн-кино",
-        15000,
-        [("submit", 1, None), ("reject", "admin", "Пересекается с другим оффером")],
-    ),
-    ("Кэшбэк 3% на аптеки", 90000, [("submit", 1, None)]),
-    ("Подарок за первую покупку", 5000, []),
-    ("Кэшбэк 7% на книги", 40000, [("submit", 0, None), ("approve", "admin", None)]),
-    (
-        "Акция «Приведи друга»",
-        70000,
-        [
-            ("submit", 1, None),
-            ("request_changes", "admin", "Добавьте срок действия"),
-            ("submit", 1, None),
-        ],
-    ),
-    (
-        "Кэшбэк 12% на путешествия",
-        300000,
-        [("submit", 0, None), ("reject", "admin", "Слишком высокий процент")],
-    ),
-    ("Скидка 15% на доставку еды", 60000, [("submit", 1, None), ("approve", "admin", None)]),
-]
+STATUS_PATH = ["packed", "loaded", "delivered", "unpacked"]
 
 
-def _admin() -> tuple[str, str, str]:
-    """Админ демо-данных - тот же, что создаёт старт приложения (ADMIN_EMAIL / ADMIN_PASSWORD).
-    Жёстко прописанного пароля на сервере не появляется."""
-    s = get_settings()
-    return (
-        s.admin_email or "admin@example.com",
-        s.admin_password or DEFAULT_ADMIN_PASSWORD,
-        s.admin_full_name,
-    )
+def _advance(svc: BoxService, pid: uuid.UUID, number: int, target: str) -> None:
+    for step in STATUS_PATH:
+        if target == "packing":
+            return
+        svc.transition(pid, number, BoxStatus(step))
+        if step == target:
+            return
 
 
-def run() -> None:
-    admin_email, admin_password, admin_name = _admin()
+def run(load: bool = False) -> None:
     with SessionLocal() as db:
-        auth = AuthService(db)
-        auth.ensure_admin(admin_email, admin_password, admin_name)
-        if auth.users.get_by_email(USERS[0][0]):
-            return  # уже заполнено
-        users = [
-            auth.register(RegisterIn(email=e, password=p, full_name=n))[0] for e, p, n in USERS
-        ]
-        admin = auth.users.get_by_email(admin_email)
-        svc = ItemService(db)
-        for title, amount, chain in ITEMS:
-            owner = users[0] if not chain or chain[0][1] in (0, "admin") else users[chain[0][1]]
-            item = svc.create(
-                ItemCreate(title=title, description=f"Демо-запись: {title}", amount=amount), owner
+        ensure_reference_data(db)
+        projects = ProjectService(db)
+        if db.get(Project, DEMO_ID) is None:
+            project = projects.create(
+                ProjectCreate(
+                    name="Переезд на Лесную", move_date=date.today() + timedelta(days=14)
+                ),
+                DEMO_ID,
             )
-            for action, who, comment in chain:
-                actor = admin if who == "admin" else users[who]
-                try:
-                    svc.transition(item.id, Action(action), comment, actor)
-                except AppError as exc:  # демо-данные не должны ронять старт
-                    print(f"seed: {title}: {exc.message}")
-    print(
-        "Демо-данные: admin@example.com / admin12345, user@example.com / user12345, anna@example.com / anna12345"
-    )
+            tasks = TaskService(db).list_tasks(project.id, None, None)
+            for t in tasks[:4]:
+                TaskService(db).update(project.id, t.id, TaskUpdate(done=True))
+            svc = BoxService(db)
+            for room, status, items in DEMO_BOXES:
+                box = svc.create(project.id, BoxCreate(room=room, items_text=items))
+                _advance(svc, project.id, box.number, status)
+            lost = svc.search(project.id, "Зарядки", 0, 1)[0][0]
+            svc.update_item(project.id, lost.item_id, None, True)
+            print(f"Демо-проект: {DEMO_ID}")
+        if load and db.get(Project, LOAD_ID) is None:
+            project = projects.create(
+                ProjectCreate(
+                    name="Нагрузочный проект", move_date=date.today() + timedelta(days=30)
+                ),
+                LOAD_ID,
+            )
+            svc = BoxService(db)
+            rooms = [
+                "Кухня",
+                "Гостиная",
+                "Спальня",
+                "Ванная",
+                "Кабинет",
+                "Детская",
+                "Коридор",
+                "Балкон",
+            ]
+            for i in range(300):
+                names = "\n".join(f"Вещь {i}-{j}" for j in range(10))
+                svc.create(project.id, BoxCreate(room=rooms[i % len(rooms)], items_text=names))
+            print(f"Нагрузочный проект: {LOAD_ID} (300 коробок, 3000 вещей)")
 
 
 if __name__ == "__main__":
-    run()
+    run(load="--load" in sys.argv)

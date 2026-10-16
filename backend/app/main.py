@@ -14,8 +14,8 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.errors import AppError
 from app.logging_setup import log, setup_logging
-from app.routers import auth, health, items, stats
-from app.services.auth import AuthService
+from app.reference_data import ensure_reference_data
+from app.routers import boxes, health, projects, reference
 
 settings = get_settings()
 logger = setup_logging(settings.log_level)
@@ -23,11 +23,8 @@ logger = setup_logging(settings.log_level)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if settings.admin_email and settings.admin_password:
-        with SessionLocal() as db:
-            AuthService(db).ensure_admin(
-                settings.admin_email, settings.admin_password, settings.admin_full_name
-            )
+    with SessionLocal() as db:
+        ensure_reference_data(db)
     if settings.seed_demo:
         from app.seed import run as seed_demo
 
@@ -37,9 +34,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="PROD Hackathon API",
+    title="MoverMate API",
     version="1.0.0",
-    description="Шаблон бэкенда: авторизация (JWT), сущность с процессом согласования, история изменений.",
+    description="Переезд без хаоса: проекты и задачи, коробки и вещи, поиск, этикетки, прогресс. Доступ по UUID проекта, без авторизации.",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
     redoc_url=None,
@@ -130,7 +127,7 @@ async def unhandled_handler(request: Request, exc: Exception):
 
 api = APIRouter(prefix="/api")
 api.include_router(health.router)
-api.include_router(auth.router)
-api.include_router(items.router)
-api.include_router(stats.router)
+api.include_router(reference.router)
+api.include_router(projects.router)
+api.include_router(boxes.router)
 app.include_router(api)
