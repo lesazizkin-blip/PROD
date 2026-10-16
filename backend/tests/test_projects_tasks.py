@@ -142,3 +142,44 @@ def test_events_pagination_and_filter(client, base):
     only = client.get(f"{base}/events?type=task.created").json()
     assert only["total"] == 5
     assert client.get(f"{base}/events?page_size=500").status_code == 422
+
+
+def test_task_time_and_category_with_color(client, base):
+    r = client.post(
+        f"{base}/tasks",
+        json={
+            "stage": "moving_day",
+            "title": "Погрузка",
+            "due_date": "2026-10-30",
+            "start_time": "09:00",
+            "end_time": "12:30",
+            "category": " Грузчики ",
+            "category_color": "#F0A04B",
+        },
+    )
+    assert r.status_code == 201
+    task = r.json()
+    assert task["start_time"] == "09:00:00" and task["end_time"] == "12:30:00"
+    assert task["category"] == "Грузчики" and task["category_color"] == "#F0A04B"
+
+    # меняется только конец: он проверяется против сохранённого начала
+    bad = client.patch(f"{base}/tasks/{task['id']}", json={"end_time": "08:00"})
+    assert bad.status_code == 422
+    ok = client.patch(f"{base}/tasks/{task['id']}", json={"end_time": "13:00"})
+    assert ok.status_code == 200 and ok.json()["end_time"] == "13:00:00"
+
+    # без категории цвета нет
+    cleared = client.patch(f"{base}/tasks/{task['id']}", json={"category": None})
+    assert cleared.json()["category"] is None and cleared.json()["category_color"] is None
+
+
+def test_task_time_and_color_validation(client, base):
+    body = {"stage": "before", "title": "Задача"}
+    r = client.post(f"{base}/tasks", json={**body, "start_time": "10:00", "end_time": "10:00"})
+    assert r.status_code == 422
+    r = client.post(f"{base}/tasks", json={**body, "category": "Дела", "category_color": "red"})
+    assert r.status_code == 422
+    r = client.post(f"{base}/tasks", json={**body, "category_color": "#112233"})
+    assert (
+        r.status_code == 201 and r.json()["category_color"] is None
+    )  # цвет без категории не хранится

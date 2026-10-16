@@ -209,3 +209,7 @@ dialog.modal::backdrop { background: rgba(0, 0, 0, .45); }
 /* плавающая кнопка не должна закрывать последний пункт списка */
 .container { padding-bottom: 88px; }
 .list-row.overdue .sub { color: var(--danger); }
+
+.category-chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; padding: 2px 10px; border: 1px solid var(--border); border-radius: 999px; font-size: .8rem; }
+.category-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+input[type='color'] { width: 56px; height: 44px; padding: 2px; flex: none; }

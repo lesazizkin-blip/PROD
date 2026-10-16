@@ -44,6 +44,10 @@ class TaskService:
             stage=data.stage.value,
             title=data.title,
             due_date=data.due_date,
+            start_time=data.start_time,
+            end_time=data.end_time,
+            category=data.category,
+            category_color=data.category_color if data.category else None,
             assignee=data.assignee,
         )
         self.db.add(task)
@@ -61,6 +65,11 @@ class TaskService:
         done = changes.pop("done", None)
         for field, value in changes.items():
             setattr(task, field, value.value if isinstance(value, Stage) else value)
+        # время проверяем по итоговым значениям: в запросе мог прийти только один из двух концов
+        if task.start_time and task.end_time and task.end_time <= task.start_time:
+            raise ValidationFailed("Время окончания должно быть позже времени начала")
+        if not task.category:  # цвет принадлежит категории: без неё цвета нет
+            task.category_color = None
         if done is not None and done != task.done:
             task.done = done
             task.done_at = datetime.now(UTC) if done else None

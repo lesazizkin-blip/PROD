@@ -2,12 +2,12 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/endpoints'
 import { errorMessage } from '../api/client'
-import type { Stage, Task } from '../api/types'
+import type { Stage, Task, TaskCreate } from '../api/types'
 import ChecklistModal from '../components/ChecklistModal'
 import Modal from '../components/Modal'
 import RequireProject from '../components/RequireProject'
 import { useAsync } from '../state/useAsync'
-import { STAGES, STAGE_LABELS, formatDate } from '../ui/format'
+import { STAGES, STAGE_LABELS, formatDate, formatTimeRange } from '../ui/format'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 
@@ -81,8 +81,14 @@ function Plan({ pid }: { pid: string }) {
                   <span className="grow">
                     <span className="title">{t.title}</span>
                     <span className="sub" style={{ display: 'block' }}>
-                      {[t.due_date ? `${isOverdue(t) ? 'просрочено, ' : ''}до ${formatDate(t.due_date)}` : null, t.assignee].filter(Boolean).join(' · ')}
+                      {[t.due_date ? `${isOverdue(t) ? 'просрочено, ' : ''}до ${formatDate(t.due_date)}` : null, formatTimeRange(t.start_time, t.end_time), t.assignee].filter(Boolean).join(' · ')}
                     </span>
+                    {t.category ? (
+                      <span className="category-chip">
+                        <span className="category-dot" style={{ background: t.category_color ?? 'var(--primary)' }} aria-hidden="true" />
+                        {t.category}
+                      </span>
+                    ) : null}
                   </span>
                   <button type="button" className="link small" aria-label={`Удалить «${t.title}»`} onClick={(e) => { e.preventDefault(); removeTask(t) }}>✕</button>
                 </label>
@@ -111,8 +117,9 @@ function Plan({ pid }: { pid: string }) {
       {adding ? (
         <AddTaskModal
           onClose={() => setAdding(false)}
-          onSave={async (stage, title, assignee) => {
-            await api.createTask(pid, { stage, title, assignee: assignee || null })
+          categories={[...new Set([...DEFAULT_CATEGORIES, ...list.map((t) => t.category).filter((c): c is string => !!c)])]}
+          onSave={async (body) => {
+            await api.createTask(pid, body)
             setAdding(false)
             reloadAll()
           }}
@@ -122,19 +129,39 @@ function Plan({ pid }: { pid: string }) {
   )
 }
 
-function AddTaskModal({ onClose, onSave }: { onClose: () => void; onSave: (stage: Stage, title: string, assignee: string) => Promise<void> }) {
+const DEFAULT_CATEGORIES = ['Документы', 'Коробки', 'Грузчики', 'Быт']
+
+function AddTaskModal({ onClose, onSave, categories }: { onClose: () => void; onSave: (body: TaskCreate) => Promise<void>; categories: string[] }) {
   const [title, setTitle] = useState('')
   const [assignee, setAssignee] = useState('')
   const [stage, setStage] = useState<Stage>('before')
+  const [dueDate, setDueDate] = useState('')
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
+  const [category, setCategory] = useState('')
+  const [color, setColor] = useState('#1f8f7a')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
+    if (startTime && endTime && endTime <= startTime) {
+      setError('Время окончания должно быть позже времени начала')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
-      await onSave(stage, title.trim(), assignee.trim())
+      await onSave({
+        stage,
+        title: title.trim(),
+        assignee: assignee.trim() || null,
+        due_date: dueDate || null,
+        start_time: startTime || null,
+        end_time: endTime || null,
+        category: category.trim() || null,
+        category_color: category.trim() ? color : null,
+      })
     } catch (err) {
       setError(errorMessage(err))
       setBusy(false)
@@ -158,6 +185,31 @@ function AddTaskModal({ onClose, onSave }: { onClose: () => void; onSave: (stage
             {STAGES.map((s) => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
           </select>
         </label>
+        <label>
+          Дата (необязательно)
+          <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        </label>
+        <div className="row wrap">
+          <label className="grow">
+            Начало
+            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          </label>
+          <label className="grow">
+            Конец
+            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          </label>
+        </div>
+        <div className="row wrap">
+          <label className="grow">
+            Категория (необязательно)
+            <input list="task-categories" value={category} onChange={(e) => setCategory(e.target.value)} maxLength={40} />
+            <datalist id="task-categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>
+          </label>
+          <label>
+            Цвет
+            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} disabled={!category.trim()} aria-label="Цвет категории" />
+          </label>
+        </div>
         {error ? <div className="alert" role="alert">{error}</div> : null}
         <button className="primary" type="submit" disabled={busy || !title.trim()}>Добавить</button>
       </form>

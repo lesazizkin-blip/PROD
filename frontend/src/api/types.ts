@@ -32,6 +32,10 @@ export interface Task {
   stage: Stage
   title: string
   due_date: string | null
+  start_time: string | null
+  end_time: string | null
+  category: string | null
+  category_color: string | null
   assignee: string | null
   done: boolean
   done_at: string | null
@@ -169,6 +173,10 @@ export interface TaskCreate {
   stage: Stage
   title: string
   due_date?: string | null
+  start_time?: string | null
+  end_time?: string | null
+  category?: string | null
+  category_color?: string | null
   assignee?: string | null
 }
 

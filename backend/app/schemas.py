@@ -1,11 +1,18 @@
 """Контракт API (pydantic), по docs/API.md. Примеры значений попадают в Swagger."""
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 from enum import StrEnum
 from typing import Annotated, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 T = TypeVar("T")
 
@@ -89,23 +96,49 @@ class ProjectOut(ORM):
 
 
 # ---------- задачи ----------
+HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
+
+
+def _check_times(start: time | None, end: time | None) -> None:
+    if start is not None and end is not None and end <= start:
+        raise ValueError("Время окончания должно быть позже времени начала")
+
+
 class TaskCreate(BaseModel):
     stage: Stage
     title: Text200
     due_date: date | None = None
+    start_time: time | None = None
+    end_time: time | None = None
+    category: str | None = Field(default=None, max_length=40)
+    category_color: HexColor | None = None
     assignee: str | None = Field(default=None, max_length=80)
 
-    _clean = field_validator("assignee")(_opt_text)
+    _clean = field_validator("assignee", "category")(_opt_text)
+
+    @model_validator(mode="after")
+    def _times(self):
+        _check_times(self.start_time, self.end_time)
+        return self
 
 
 class TaskUpdate(BaseModel):
     stage: Stage | None = None
     title: Text200 | None = None
     due_date: date | None = None
+    start_time: time | None = None
+    end_time: time | None = None
+    category: str | None = Field(default=None, max_length=40)
+    category_color: HexColor | None = None
     assignee: str | None = Field(default=None, max_length=80)
     done: bool | None = None
 
-    _clean = field_validator("assignee")(_opt_text)
+    _clean = field_validator("assignee", "category")(_opt_text)
+
+    @model_validator(mode="after")
+    def _times(self):
+        _check_times(self.start_time, self.end_time)
+        return self
 
 
 class TaskOut(ORM):
@@ -114,6 +147,10 @@ class TaskOut(ORM):
     stage: Stage
     title: str
     due_date: date | None
+    start_time: time | None
+    end_time: time | None
+    category: str | None
+    category_color: str | None
     assignee: str | None
     done: bool
     done_at: datetime | None

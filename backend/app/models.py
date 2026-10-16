@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 
 from sqlalchemy import (
     JSON,
@@ -11,6 +11,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Time,
     UniqueConstraint,
     Uuid,
 )
@@ -68,6 +69,10 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(200))
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     assignee: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    start_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    end_time: Mapped[time | None] = mapped_column(Time, nullable=True)
+    category: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    category_color: Mapped[str | None] = mapped_column(String(7), nullable=True)
     done: Mapped[bool] = mapped_column(Boolean, default=False)
     done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     template_id: Mapped[int | None] = mapped_column(

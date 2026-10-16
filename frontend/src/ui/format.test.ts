@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boxPath, boxUrl, formatDate, nextStatus, parseBoxLink, plural, prevStatus } from './format'
+import { boxPath, boxUrl, formatDate, formatTimeRange, nextStatus, parseBoxLink, plural, prevStatus } from './format'
 
 const PID = '00000000-0000-4000-8000-000000000001'
 
@@ -54,4 +54,13 @@ describe('форматы', () => {
     [100, 'вещей'],
     [0, 'вещей'],
   ])('склонение: %i -> %s', (n, word) => expect(plural(n, ['вещь', 'вещи', 'вещей'])).toBe(word))
+})
+
+describe('formatTimeRange', () => {
+  it('показывает диапазон, одно значение или пустую строку', () => {
+    expect(formatTimeRange('09:00:00', '12:30:00')).toBe('09:00–12:30')
+    expect(formatTimeRange('09:00:00', null)).toBe('с 09:00')
+    expect(formatTimeRange(null, '12:30:00')).toBe('до 12:30')
+    expect(formatTimeRange(null, null)).toBe('')
+  })
 })

@@ -59,3 +59,13 @@ export function plural(n: number, forms: [string, string, string]): string {
   if (mod10 >= 2 && mod10 <= 4) return forms[1]
   return forms[2]
 }
+
+/** Время задачи для показа: «09:00–12:30», «с 09:00», «до 12:30» (сервер отдаёт ЧЧ:ММ:СС). */
+export function formatTimeRange(start: string | null, end: string | null): string {
+  const a = start?.slice(0, 5)
+  const b = end?.slice(0, 5)
+  if (a && b) return `${a}–${b}`
+  if (a) return `с ${a}`
+  if (b) return `до ${b}`
+  return ''
+}
