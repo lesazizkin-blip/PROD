@@ -1,15 +1,16 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/endpoints'
-import { errorMessage } from '../api/client'
 import type { Box } from '../api/types'
 import Modal from '../components/Modal'
 import RequireProject from '../components/RequireProject'
+import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import { useDebounced } from '../state/useDebounced'
-import { STATUS_LABELS, boxPath, plural } from '../ui/format'
+import ErrorAlert from '../ui/ErrorAlert'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
+import { STATUS_LABELS, boxPath, plural } from '../ui/format'
 
 export default function BoxesPage() {
   return <RequireProject>{(pid) => <Boxes pid={pid} />}</RequireProject>
@@ -120,24 +121,11 @@ function AddBoxModal({ rooms, onClose, onSave }: { rooms: string[]; onClose: () 
   const [room, setRoom] = useState('')
   const [text, setText] = useState('')
   const [later, setLater] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setBusy(true)
-    setError(null)
-    try {
-      await onSave(room.trim(), text, later)
-    } catch (err) {
-      setError(errorMessage(err))
-      setBusy(false)
-    }
-  }
+  const { busy, error, submit } = useAction()
 
   return (
     <Modal title="Новая коробка" onClose={onClose} dirty={room.trim() !== '' || text.trim() !== ''}>
-      <form className="stack" onSubmit={submit}>
+      <form className="stack" onSubmit={submit(() => onSave(room.trim(), text, later))}>
         <label>
           Комната назначения
           <input value={room} onChange={(e) => setRoom(e.target.value)} maxLength={60} list="rooms" placeholder="Кухня" data-autofocus />
@@ -151,7 +139,7 @@ function AddBoxModal({ rooms, onClose, onSave }: { rooms: string[]; onClose: () 
           <input type="checkbox" checked={later} onChange={(e) => setLater(e.target.checked)} />
           Заполнить позже
         </label>
-        {error ? <div className="alert" role="alert">{error}</div> : null}
+        <ErrorAlert message={error} />
         <button className="primary" type="submit" disabled={busy || !room.trim()}>Создать</button>
       </form>
     </Modal>

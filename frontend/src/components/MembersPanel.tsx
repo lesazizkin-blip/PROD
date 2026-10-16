@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { api } from '../api/endpoints'
 import type { User } from '../api/types'
+import type { SavedProject } from '../state/projects'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
-import type { SavedProject } from '../state/projects'
+import ErrorAlert from '../ui/ErrorAlert'
 
 /** «Помощники» в окне проектов: кто в проекте, приглашение по ссылке, отзыв ссылок, выход из проекта. */
 export default function MembersPanel({ project, me, onLeft }: { project: SavedProject; me: User; onLeft: () => void }) {
@@ -67,7 +68,7 @@ export default function MembersPanel({ project, me, onLeft }: { project: SavedPr
             </li>
           ))}
         </ul>
-      ) : members.error ? <div className="alert" role="alert">{members.error}</div> : <span className="muted small">Загрузка…</span>}
+      ) : members.error ? <ErrorAlert message={members.error} /> : <span className="muted small">Загрузка…</span>}
 
       {isOwner ? (
         <>
@@ -84,7 +85,7 @@ export default function MembersPanel({ project, me, onLeft }: { project: SavedPr
         </>
       ) : null}
       {note ? <p className="muted small" role="status">{note}</p> : null}
-      {action.error ? <div className="alert" role="alert">{action.error}</div> : null}
+      <ErrorAlert message={action.error} />
     </section>
   )
 }

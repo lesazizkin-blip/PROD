@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { errorMessage } from '../api/client'
 
 /**
- * Действие по кнопке (отметить, перевести статус, удалить): пока запрос идёт, второй клик игнорируется,
+ * Действие по кнопке или отправка формы: пока запрос идёт, второй клик игнорируется,
  * `busy` блокирует кнопки, ошибка сервера попадает в `error`. После успеха вызывается `onDone` (обычно перезагрузка).
+ * `submit(action)` - готовый обработчик `onSubmit` для формы.
  */
 export function useAction(onDone?: () => void) {
   const [busy, setBusy] = useState(false)
@@ -30,5 +31,13 @@ export function useAction(onDone?: () => void) {
     }
   }, [])
 
-  return { busy, error, setError, run }
+  const submit = useCallback(
+    (action: () => Promise<unknown>) => (e: FormEvent) => {
+      e.preventDefault()
+      void run(action)
+    },
+    [run],
+  )
+
+  return { busy, error, setError, run, submit }
 }

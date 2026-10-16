@@ -196,17 +196,8 @@ class BoxService:
         box = self.get_box(
             project_id, number, lock=True
         )  # две отметки одной коробки идут по очереди
-        old = box.status
         self._check_move(box, target)
-        box.status = target.value
-        log_event(
-            self.db,
-            project_id,
-            "box.status_changed",
-            "box",
-            box.number,
-            **{"from": old, "to": target.value},
-        )
+        self._set_status(box, target)
         self.db.commit()
         return self.box_out(box)
 
@@ -233,17 +224,21 @@ class BoxService:
         if problems:
             raise ConflictError("Статусы не изменены. " + "; ".join(problems))
         for box in boxes:
-            old, box.status = box.status, target.value
-            log_event(
-                self.db,
-                project_id,
-                "box.status_changed",
-                "box",
-                box.number,
-                **{"from": old, "to": target.value},
-            )
+            self._set_status(box, target)
         self.db.commit()
         return [self.box_out(b) for b in boxes]
+
+    def _set_status(self, box: Box, target: BoxStatus) -> None:
+        """Смена статуса и запись в журнал - всегда вместе, в одной транзакции с вызывающим кодом."""
+        old, box.status = box.status, target.value
+        log_event(
+            self.db,
+            box.project_id,
+            "box.status_changed",
+            "box",
+            box.number,
+            **{"from": old, "to": target.value},
+        )
 
     def _check_move(self, box: Box, target: BoxStatus) -> None:
         check_transition(box.status, target.value)

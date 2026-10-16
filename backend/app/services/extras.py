@@ -3,13 +3,13 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from app.errors import NotFoundError, ValidationFailed
 from app.models import Box, FirstDayItem, Item
 from app.schemas import BoxStatus, HintOut, LostItemOut, ReminderOut
-from app.services.boxes import BoxService, _item_out, normalize
+from app.services.boxes import BoxService, _box_out, _item_out, normalize
 
 MAX_HINTS = 10
 
@@ -82,8 +82,11 @@ class LostService:
         """В каких НЕраспакованных коробках искать вещь: где записана, где лежит похожее, в той же комнате."""
         item, own = self.boxes.get_item(project_id, item_id)
         mine = _words(item.name)
+        # вещи всех коробок подгружаются одним запросом, а не отдельным запросом на каждую коробку
         candidates = self.db.scalars(
-            select(Box).where(Box.project_id == project_id, Box.status != BoxStatus.UNPACKED.value)
+            select(Box)
+            .where(Box.project_id == project_id, Box.status != BoxStatus.UNPACKED.value)
+            .options(selectinload(Box.items))
         ).all()
         hints = []
         for box in candidates:
@@ -113,21 +116,22 @@ class LostService:
 def reminders(db: Session, project_id: uuid.UUID) -> list[ReminderOut]:
     """Коробки «заполнить позже»: вещей нет, срок не задан или уже наступил."""
     now = datetime.now(UTC)
-    service = BoxService(db)
     result = []
-    boxes = db.scalars(
+    empty_boxes = db.scalars(
         select(Box)
-        .where(Box.project_id == project_id, Box.fill_later.is_(True))
+        .where(
+            Box.project_id == project_id,
+            Box.fill_later.is_(True),
+            ~select(Item.id).where(Item.box_id == Box.id).exists(),  # вещей нет: один запрос на всё
+        )
         .order_by(Box.number)
     ).all()
-    for box in boxes:
-        if db.scalar(select(func.count(Item.id)).where(Item.box_id == box.id)):
-            continue
+    for box in empty_boxes:
         remind_at = (
             box.remind_at.replace(tzinfo=UTC)
             if box.remind_at and box.remind_at.tzinfo is None
             else box.remind_at
         )
         if remind_at is None or remind_at <= now:
-            result.append(ReminderOut(box=service.box_out(box), overdue=remind_at is not None))
+            result.append(ReminderOut(box=_box_out(box, 0), overdue=remind_at is not None))
     return result

@@ -21,15 +21,17 @@ if [ -z "$SITE" ]; then
 fi
 
 cd "$ROOT/backend"
-if [ ! -x .venv/bin/uvicorn ]; then
+# окружение есть и в нём стоят зависимости (проверка импортом переживает перенос папки)
+if ! .venv/bin/python -c 'import uvicorn' 2>/dev/null; then
   echo "Готовлю окружение бэкенда (один раз)…"
-  python3 -m venv .venv
+  python3 -m venv --clear .venv
   .venv/bin/pip install -q -r requirements.txt -c constraints.txt
 fi
-.venv/bin/alembic upgrade head
+.venv/bin/python -m alembic upgrade head
 .venv/bin/python -m app.seed   # демо-проект «Переезд на Лесную»; повторный запуск ничего не дублирует
 
 echo
 echo "Сайт: http://localhost:$PORT   (Swagger: http://localhost:$PORT/api/docs)"
-echo "На главной нажмите «Открыть демо-проект». Остановить: Ctrl+C."
-STATIC_DIR="$SITE" exec .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port "$PORT"
+echo "На экране входа нажмите «Посмотреть демо без регистрации». Остановить: Ctrl+C."
+# SEED_DEMO=true включает вход в демо-аккаунт кнопкой на экране входа
+SEED_DEMO=true STATIC_DIR="$SITE" exec .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port "$PORT"

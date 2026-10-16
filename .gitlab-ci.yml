@@ -48,8 +48,10 @@ variables:
   DEPLOY_DIR: /opt/movermate/deploy
   # Адрес сайта для проверки после деплоя
   APP_URL: https://hack-led-20-vm1-12902f.vmaas-spirit.t-education.com
-  # Образ для джоб, которые ходят на ВМ: в нём есть Spirit CLI (dp) и ssh
-  DEPLOY_IMG: registry.spirit.t-education.com/cicd-images/base-noble:1.1.0-rc-08d332ac-11541
+  # Образ для джоб, которые ходят на ВМ: нужны только ssh и scp (Spirit CLI запускается на самой ВМ).
+  # Тот же образ, что в общих заданиях организаторов (pipelines/pipelines, jobs/docker.yaml);
+  # base-noble из шаблона l2sh-template в реестре t-education.com не найден
+  DEPLOY_IMG: kroniak/ssh-client:3.19
 
 .cache: &cache
   cache:
@@ -147,7 +149,7 @@ build:image:
       if [ -z "${SSH_PRIVATE_KEY:-}" ]; then
         echo "Нет SSH_PRIVATE_KEY: заведите её в Spirit (Код → Репозитории → prod_1 → CI-переменные), тип «Файл»"; exit 1
       fi
-    - command -v ssh >/dev/null || (apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client)
+    - command -v ssh >/dev/null || (apk add --no-cache openssh-client 2>/dev/null || (apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client))
     - chmod 600 "$SSH_PRIVATE_KEY"
 
 # Spirit CLI (dp) на ВМ нужен, чтобы войти в registry ключом сервис-аккаунта

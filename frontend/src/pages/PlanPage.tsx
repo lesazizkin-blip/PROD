@@ -1,17 +1,17 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/endpoints'
-import { errorMessage } from '../api/client'
 import type { Stage, Task, TaskCreate } from '../api/types'
 import ChecklistModal from '../components/ChecklistModal'
 import Modal from '../components/Modal'
 import RequireProject from '../components/RequireProject'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
-import { STAGES, STAGE_LABELS, formatDate, formatTimeRange } from '../ui/format'
+import ErrorAlert from '../ui/ErrorAlert'
 import ProgressBar from '../ui/ProgressBar'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
+import { STAGES, STAGE_LABELS, formatDate, formatTimeRange } from '../ui/format'
 
 // Срок прошёл, а задача не выполнена (сравниваем даты в формате ГГГГ-ММ-ДД)
 const isOverdue = (t: Task) => !t.done && !!t.due_date && t.due_date.slice(0, 10) < new Date().toLocaleDateString('sv-SE')
@@ -56,7 +56,7 @@ function Plan({ pid }: { pid: string }) {
           </span>
         </div>
       </div>
-      {error ? <div className="alert" role="alert">{error}</div> : null}
+      <ErrorAlert message={error} />
 
       {STAGES.map((stage) => {
         const items = list.filter((t) => t.stage === stage)
@@ -145,8 +145,7 @@ export function TaskModal({ initial, onClose, onSave, onDelete, categories }: { 
   const [endTime, setEndTime] = useState(initial?.end_time?.slice(0, 5) ?? '')
   const [category, setCategory] = useState(initial?.category ?? '')
   const [color, setColor] = useState(initial?.category_color ?? DEFAULT_COLOR)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { busy, error, setError, run, submit } = useAction()
   const timeInvalid = !!startTime && !!endTime && endTime <= startTime
   const dirty = initial === null
     ? [title, assignee, dueDate, startTime, endTime, category].some((v) => v.trim() !== '')
@@ -161,46 +160,29 @@ export function TaskModal({ initial, onClose, onSave, onDelete, categories }: { 
   }
 
   // Удаление живёт в форме правки: в строке списка остаётся одна кнопка, и название не сжимается на телефоне
-  async function remove() {
+  function remove() {
     if (!onDelete || !initial || !window.confirm(`Удалить задачу «${initial.title}»?`)) return
-    setBusy(true)
-    setError(null)
-    try {
-      await onDelete()
-    } catch (err) {
-      setError(errorMessage(err))
-      setBusy(false)
-    }
+    void run(onDelete)
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    if (timeInvalid) {
-      setError('Время окончания должно быть позже времени начала')
-      return
-    }
-    setBusy(true)
-    setError(null)
-    try {
-      await onSave({
-        stage,
-        title: title.trim(),
-        assignee: assignee.trim() || null,
-        due_date: dueDate || null,
-        start_time: startTime || null,
-        end_time: endTime || null,
-        category: category.trim() || null,
-        category_color: category.trim() ? color : null,
-      })
-    } catch (err) {
-      setError(errorMessage(err))
-      setBusy(false)
-    }
+  const save = async () => {
+    // та же граница, что на сервере: ошибка видна сразу, без запроса
+    if (timeInvalid) throw new Error('Время окончания должно быть позже времени начала')
+    await onSave({
+      stage,
+      title: title.trim(),
+      assignee: assignee.trim() || null,
+      due_date: dueDate || null,
+      start_time: startTime || null,
+      end_time: endTime || null,
+      category: category.trim() || null,
+      category_color: category.trim() ? color : null,
+    })
   }
 
   return (
     <Modal title={initial ? 'Изменить задачу' : 'Новая задача'} onClose={onClose} dirty={dirty}>
-      <form className="stack" onSubmit={submit}>
+      <form className="stack" onSubmit={submit(save)}>
         <label>
           Что сделать
           <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} data-autofocus />
@@ -240,7 +222,7 @@ export function TaskModal({ initial, onClose, onSave, onDelete, categories }: { 
             <input type="color" value={color} onChange={(e) => setColor(e.target.value)} disabled={!category.trim()} title={category.trim() ? undefined : 'Сначала укажите категорию'} />
           </label>
         </div>
-        {error ? <div className="alert" role="alert">{error}</div> : null}
+        <ErrorAlert message={error} />
         <button className="primary" type="submit" disabled={busy || !title.trim()}>{initial ? 'Сохранить' : 'Добавить'}</button>
         {onDelete ? <button type="button" className="danger" disabled={busy} onClick={remove}>Удалить задачу</button> : null}
       </form>

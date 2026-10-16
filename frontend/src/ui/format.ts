@@ -29,6 +29,9 @@ export function formatDate(iso: string): string {
 /** Путь карточки коробки в приложении: его же кодирует QR (с адресом сайта впереди). */
 export const boxPath = (pid: string, n: number) => `/projects/${pid}/boxes/${n}`
 
+/** Путь этикетки коробки (крупный номер и QR на экране телефона). */
+export const labelPath = (pid: string, n: number) => `${boxPath(pid, n)}/label`
+
 /** Ссылка, которую кодирует QR на этикетке: обычный URL сайта, её открывает любая камера. */
 export const boxUrl = (qrPath: string, origin: string = window.location.origin) => `${origin}${qrPath}`
 

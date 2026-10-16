@@ -1,15 +1,15 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/endpoints'
-import { errorMessage } from '../api/client'
 import Modal from '../components/Modal'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
-import { STATUS_LABELS, boxPath, nextStatus, prevStatus } from '../ui/format'
+import ErrorAlert from '../ui/ErrorAlert'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
+import { STATUS_LABELS, labelPath, nextStatus, prevStatus } from '../ui/format'
 
 // Карточка коробки. Сюда ведёт QR: /projects/{pid}/boxes/{n} (открытие только читает, дублей не создаёт).
 export default function BoxPage() {
@@ -61,9 +61,9 @@ export default function BoxPage() {
               {prev ? <button disabled={busy} onClick={() => run(() => api.transition(pid, number, prev))}>↩ {STATUS_LABELS[prev]}</button> : null}
               {next ? <button className="primary" disabled={busy} onClick={() => run(() => api.transition(pid, number, next))}>{STATUS_LABELS[next]} →</button> : null}
             </div>
-            {error ? <div className="alert" role="alert">{error}</div> : null}
+            <ErrorAlert message={error} />
             <div className="row wrap">
-              <Link to={`${boxPath(pid, number)}/label`}><button className="tonal">Этикетка</button></Link>
+              <Link to={labelPath(pid, number)} className="button tonal">Этикетка</Link>
               <button className="tonal" onClick={() => setAdding(true)}>+ Вещи</button>
               <button onClick={() => setEditing(true)}>Изменить</button>
             </div>
@@ -105,35 +105,17 @@ export default function BoxPage() {
   )
 }
 
-// Отправка формы в модалке: блокирует кнопку, показывает ошибку сервера, при успехе модалка закрывает себя сама
-function useSubmit(save: () => Promise<void>) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setBusy(true)
-    setError(null)
-    try {
-      await save()
-    } catch (err) {
-      setError(errorMessage(err))
-      setBusy(false)
-    }
-  }
-  return { busy, error, submit }
-}
-
 function AddItemsModal({ onClose, onSave }: { onClose: () => void; onSave: (text: string) => Promise<void> }) {
   const [text, setText] = useState('')
-  const { busy, error, submit } = useSubmit(() => onSave(text))
+  const { busy, error, submit } = useAction()
   return (
     <Modal title="Добавить вещи" onClose={onClose} dirty={text.trim() !== ''}>
-      <form className="stack" onSubmit={submit}>
+      <form className="stack" onSubmit={submit(() => onSave(text))}>
         <label>
           Каждая вещь с новой строки
           <textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} data-autofocus />
         </label>
-        {error ? <div className="alert" role="alert">{error}</div> : null}
+        <ErrorAlert message={error} />
         <button className="primary" type="submit" disabled={busy || !text.trim()}>Добавить</button>
       </form>
     </Modal>
@@ -143,10 +125,10 @@ function AddItemsModal({ onClose, onSave }: { onClose: () => void; onSave: (text
 function EditBoxModal({ room: initialRoom, fillLater, onClose, onSave }: { room: string; fillLater: boolean; onClose: () => void; onSave: (room: string, later: boolean) => Promise<void> }) {
   const [room, setRoom] = useState(initialRoom)
   const [later, setLater] = useState(fillLater)
-  const { busy, error, submit } = useSubmit(() => onSave(room.trim(), later))
+  const { busy, error, submit } = useAction()
   return (
     <Modal title="Изменить коробку" onClose={onClose}>
-      <form className="stack" onSubmit={submit}>
+      <form className="stack" onSubmit={submit(() => onSave(room.trim(), later))}>
         <label>
           Комната назначения
           <input value={room} onChange={(e) => setRoom(e.target.value)} maxLength={60} data-autofocus />
@@ -155,7 +137,7 @@ function EditBoxModal({ room: initialRoom, fillLater, onClose, onSave }: { room:
           <input type="checkbox" checked={later} onChange={(e) => setLater(e.target.checked)} />
           Заполнить позже
         </label>
-        {error ? <div className="alert" role="alert">{error}</div> : null}
+        <ErrorAlert message={error} />
         <button className="primary" type="submit" disabled={busy || !room.trim()}>Сохранить</button>
       </form>
     </Modal>

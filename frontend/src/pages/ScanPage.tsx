@@ -2,6 +2,7 @@ import { Html5Qrcode } from 'html5-qrcode'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjects } from '../state/ProjectContext'
+import ErrorAlert from '../ui/ErrorAlert'
 import { boxPath, parseBoxLink } from '../ui/format'
 
 // Проект не нужен: QR сам содержит ссылку на проект, поэтому сканер работает и на новом устройстве (у помощника).
@@ -52,7 +53,7 @@ function Scanner({ pid }: { pid: string | null }) {
       <h2>Сканер QR</h2>
       <p className="muted">Наведите камеру на QR-код на коробке: откроется её карточка.</p>
       <div id={READER_ID} className="scanner" />
-      {error ? <div className="alert" role="alert">{error}</div> : null}
+      <ErrorAlert message={error} />
       {pid ? (
       <form className="card stack" onSubmit={openNumber}>
         <label>

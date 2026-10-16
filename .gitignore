@@ -17,3 +17,9 @@ deploy/.env
 dist/
 htmlcov/
 node_modules/
+
+# собранный сайт для запуска без Node (scripts/run-site.sh), пересобирается из frontend/dist
+готовый-сайт/
+
+# local notes for Claude, not part of the project
+CLAUDE.md

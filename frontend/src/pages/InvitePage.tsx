@@ -1,10 +1,11 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/endpoints'
+import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
-import { useProjects } from '../state/ProjectContext'
-import { formatDate } from '../ui/format'
+import ErrorAlert from '../ui/ErrorAlert'
 import StateView from '../ui/StateView'
+import { formatDate } from '../ui/format'
 
 /** Приглашение в проект: человек уже вошёл (иначе App показал бы экран входа), осталось присоединиться. */
 export default function InvitePage() {
@@ -29,7 +30,7 @@ export default function InvitePage() {
           <h2>Приглашение в проект</h2>
           <p>Вас пригласили в проект <b>«{info.data.project_name}»</b>. Вы увидите план, коробки и сможете отмечать статусы.</p>
           <p className="muted small">Ссылка действует до {formatDate(info.data.expires_at)}.</p>
-          {error ? <div className="alert" role="alert">{error}</div> : null}
+          <ErrorAlert message={error} />
           <button className="primary" disabled={busy} onClick={join}>Присоединиться</button>
         </div>
       ) : null}
