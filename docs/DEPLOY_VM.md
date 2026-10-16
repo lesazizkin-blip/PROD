@@ -15,7 +15,7 @@ HTTPS: сертификат Let's Encrypt получает и продлевае
 
 ```bash
 rsync -az --delete -e "ssh -i ~/.ssh/vm1.pem" \
-  --exclude=.git --exclude=mobile --exclude=docs --exclude=node_modules --exclude=dist \
+  --exclude=.git --exclude=docs --exclude=node_modules --exclude=dist \
   --exclude=.venv --exclude='*.db' --exclude=.env --exclude=__pycache__ \
   ./ root@178.72.185.97:/opt/movermate/
 ssh -i ~/.ssh/vm1.pem root@178.72.185.97 'cd /opt/movermate/deploy && docker compose up -d --build'
