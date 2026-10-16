@@ -1,4 +1,4 @@
-.PHONY: mobile-setup mobile ios dev tunnel preflight migration test-pg setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
+.PHONY: mobile-setup ios phone android devices doctor dev tunnel preflight migration test-pg setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
 
 backend-setup:
 	cd backend && python3 -m venv .venv && .venv/bin/pip install -U pip && .venv/bin/pip install -r requirements-dev.txt -c constraints.txt
@@ -63,5 +63,17 @@ mobile-setup:  ## зависимости мобильного приложени
 dev:  ## бэкенд для приложения: миграции, демо-данные, сервер на :8000
 	cd backend && .venv/bin/alembic upgrade head && .venv/bin/python -m app.seed && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-ios:  ## приложение в iOS-симуляторе (бэкенд должен работать: make dev)
-	cd mobile && EXPO_PUBLIC_API_URL=http://localhost:8000 npx expo start --ios
+ios:  ## приложение в iOS-симуляторе (выбирает устройство сам; своё: make ios DEVICE="iPhone 17 Pro")
+	scripts/mobile.sh ios "$(DEVICE)"
+
+phone:  ## приложение на реальном телефоне через Expo Go по Wi-Fi (QR в терминале)
+	scripts/mobile.sh phone
+
+android:  ## приложение в Android-эмуляторе или на устройстве по USB
+	scripts/mobile.sh android
+
+devices:  ## на чём можно запустить: симуляторы, IP для телефона
+	scripts/mobile.sh devices
+
+doctor:  ## проверить окружение для запуска (Xcode, симуляторы, Android, бэкенд, сеть)
+	scripts/mobile.sh doctor
