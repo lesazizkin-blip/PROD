@@ -6,7 +6,7 @@ from app.db import get_db
 from app.deps import SESSION_COOKIE, get_current_user
 from app.errors import NotFoundError
 from app.models import User
-from app.schemas import Credentials, InviteInfo, ProjectOut, UserOut
+from app.schemas import Credentials, InviteInfo, PasswordChange, ProjectOut, UserOut
 from app.services.auth import AuthService
 
 router = APIRouter(tags=["auth"])
@@ -66,6 +66,21 @@ def logout(request: Request, db: Session = Depends(get_db)):
     response = Response(status_code=204)
     response.delete_cookie(SESSION_COOKIE, path="/")
     return response
+
+
+@router.post(
+    "/auth/password", response_model=UserOut, summary="Сменить пароль (закрывает все входы)"
+)
+def change_password(
+    body: PasswordChange,
+    response: Response,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = AuthService(db)
+    service.change_password(user, body.current_password, body.new_password)
+    _set_session(response, service.start_session(user))  # на этом устройстве остаёмся в системе
+    return user
 
 
 @router.get("/auth/me", response_model=UserOut, summary="Кто вошёл")

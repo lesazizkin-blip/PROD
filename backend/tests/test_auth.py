@@ -186,3 +186,67 @@ def test_demo_login_opens_demo_project(anon_client, db_session, monkeypatch):
 def test_demo_login_is_off_without_seed(anon_client, monkeypatch):
     monkeypatch.setattr(get_settings(), "seed_demo", False)
     assert anon_client.post("/api/auth/demo").status_code == 404
+
+
+# ---------- участники, отзыв ссылок, смена пароля ----------
+def _project_with_member(make_client):
+    anna, boris = make_client("anna"), make_client("boris")
+    pid = anna.post("/api/projects", json=NEW).json()["id"]
+    token = anna.post(f"/api/projects/{pid}/invites").json()["token"]
+    boris.post(f"/api/invites/{token}/accept")
+    boris_id = boris.get("/api/auth/me").json()["id"]
+    return anna, boris, pid, token, boris_id
+
+
+def test_members_list_and_owner_removes_member(make_client):
+    anna, boris, pid, _, boris_id = _project_with_member(make_client)
+    members = anna.get(f"/api/projects/{pid}/members").json()
+    assert [(m["username"], m["role"]) for m in members] == [("anna", "owner"), ("boris", "member")]
+    assert (
+        anna.delete(f"/api/projects/{pid}/members/{boris_id}").status_code == 422
+    )  # нужно confirm
+    assert anna.delete(f"/api/projects/{pid}/members/{boris_id}?confirm=true").status_code == 204
+    assert boris.get(f"/api/projects/{pid}").status_code == 404  # доступ пропал сразу
+
+
+def test_member_can_leave_but_not_remove_others(make_client):
+    anna, boris, pid, token, boris_id = _project_with_member(make_client)
+    carl = make_client("carl")
+    carl.post(f"/api/invites/{token}/accept")
+    carl_id = carl.get("/api/auth/me").json()["id"]
+    anna_id = anna.get("/api/auth/me").json()["id"]
+    assert boris.delete(f"/api/projects/{pid}/members/{carl_id}?confirm=true").status_code == 403
+    r = boris.delete(f"/api/projects/{pid}/members/{anna_id}?confirm=true")
+    assert r.status_code == 409  # владельца не убрать
+    assert boris.delete(f"/api/projects/{pid}/members/{boris_id}?confirm=true").status_code == 204
+    assert anna.delete(f"/api/projects/{pid}/members/999?confirm=true").status_code == 404
+
+
+def test_revoke_invites(make_client):
+    anna, boris, pid, token, _ = _project_with_member(make_client)
+    assert boris.delete(f"/api/projects/{pid}/invites").status_code == 403
+    r = anna.delete(f"/api/projects/{pid}/invites")
+    assert r.status_code == 200 and r.json() == {"revoked": 1}
+    assert make_client("carl").post(f"/api/invites/{token}/accept").status_code == 404
+
+
+def test_change_password_closes_other_sessions(make_client):
+    phone, laptop = make_client(), make_client()
+    body = {"username": "anna", "password": "старый-пароль"}
+    phone.post("/api/auth/register", json=body)
+    laptop.post("/api/auth/login", json=body)
+    bad = phone.post(
+        "/api/auth/password", json={"current_password": "не-тот", "new_password": "новый-пароль"}
+    )
+    assert bad.status_code == 401
+    r = phone.post(
+        "/api/auth/password",
+        json={"current_password": "старый-пароль", "new_password": "новый-пароль"},
+    )
+    assert r.status_code == 200
+    assert phone.get("/api/auth/me").status_code == 200  # здесь остались в системе
+    assert laptop.get("/api/auth/me").status_code == 401  # другой вход закрыт
+    assert laptop.post("/api/auth/login", json=body).status_code == 401
+    assert (
+        laptop.post("/api/auth/login", json={**body, "password": "новый-пароль"}).status_code == 200
+    )

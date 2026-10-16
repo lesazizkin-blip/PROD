@@ -10,11 +10,13 @@ from app.schemas import (
     AppliedTemplates,
     EventOut,
     InviteOut,
+    MemberOut,
     Page,
     ProjectBrief,
     ProjectCreate,
     ProjectOut,
     ProjectUpdate,
+    RevokedInvites,
     Stage,
     TaskCreate,
     TaskOut,
@@ -57,6 +59,39 @@ def create_invite(
 ):
     token, invite = AuthService(db).create_invite(project.id, user.id)
     return InviteOut(token=token, path=f"/invite/{token}", expires_at=invite.expires_at)
+
+
+@router.delete(
+    "/{pid}/invites",
+    response_model=RevokedInvites,
+    summary="Отозвать все ссылки-приглашения (только владелец)",
+)
+def revoke_invites(project: Project = Depends(get_owned_project), db: Session = Depends(get_db)):
+    return RevokedInvites(revoked=AuthService(db).revoke_invites(project.id))
+
+
+@router.get("/{pid}/members", response_model=list[MemberOut], summary="Участники проекта")
+def members(project: Project = Depends(get_project), db: Session = Depends(get_db)):
+    return [
+        MemberOut(user_id=u.id, username=u.username, role=role)
+        for u, role in AuthService(db).members(project.id)
+    ]
+
+
+@router.delete(
+    "/{pid}/members/{user_id}",
+    status_code=204,
+    summary="Убрать участника (владелец) или выйти из проекта (сам участник), confirm=true",
+)
+def remove_member(
+    user_id: int,
+    project: Project = Depends(get_project),
+    user: User = Depends(get_current_user),
+    _=Depends(confirm_param),
+    db: Session = Depends(get_db),
+):
+    AuthService(db).remove_member(project.id, user, user_id)
+    return Response(status_code=204)
 
 
 @router.get("/{pid}", response_model=ProjectOut, summary="Получить проект")

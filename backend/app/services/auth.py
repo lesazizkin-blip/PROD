@@ -5,12 +5,18 @@ import uuid
 from collections import defaultdict, deque
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.errors import ConflictError, NotFoundError, TooManyRequestsError, UnauthorizedError
+from app.errors import (
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    TooManyRequestsError,
+    UnauthorizedError,
+)
 from app.models import AuthSession, Invite, Project, ProjectMember, User
 from app.security import hash_password, new_token, token_hash, verify_password
 
@@ -98,6 +104,14 @@ class AuthService:
             self.db.delete(session)
             self.db.commit()
 
+    def change_password(self, user: User, current: str, new: str) -> None:
+        if not verify_password(current, user.password_hash):
+            raise UnauthorizedError("Текущий пароль указан неверно")
+        user.password_hash = hash_password(new)
+        # все прежние входы (в том числе на потерянном телефоне) закрываются
+        self.db.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
+        self.db.commit()
+
     # --- участники ---
     def role(self, project_id: uuid.UUID, user_id: int) -> str | None:
         return self.db.scalar(
@@ -109,6 +123,37 @@ class AuthService:
     def add_member(self, project_id: uuid.UUID, user_id: int, role: str) -> None:
         if self.role(project_id, user_id) is None:
             self.db.add(ProjectMember(project_id=project_id, user_id=user_id, role=role))
+
+    def members(self, project_id: uuid.UUID) -> list[tuple[User, str]]:
+        rows = self.db.execute(
+            select(User, ProjectMember.role)
+            .join(ProjectMember, ProjectMember.user_id == User.id)
+            .where(ProjectMember.project_id == project_id)
+            .order_by(ProjectMember.role.desc(), User.username)  # владелец первым
+        ).all()
+        return [(u, r) for u, r in rows]
+
+    def remove_member(self, project_id: uuid.UUID, actor: User, user_id: int) -> None:
+        """Владелец убирает участника; участник может выйти сам. Владельца убрать нельзя."""
+        actor_role = self.role(project_id, actor.id)
+        target_role = self.role(project_id, user_id)
+        if target_role is None:
+            raise NotFoundError("Участник не найден")
+        if target_role == "owner":
+            raise ConflictError("Владельца нельзя убрать из проекта")
+        if actor_role != "owner" and actor.id != user_id:
+            raise ForbiddenError("Убрать другого участника может только владелец")
+        self.db.execute(
+            delete(ProjectMember).where(
+                ProjectMember.project_id == project_id, ProjectMember.user_id == user_id
+            )
+        )
+        self.db.commit()
+
+    def revoke_invites(self, project_id: uuid.UUID) -> int:
+        result = self.db.execute(delete(Invite).where(Invite.project_id == project_id))
+        self.db.commit()
+        return result.rowcount or 0
 
     def projects_of(self, user_id: int) -> list[tuple[Project, str]]:
         rows = self.db.execute(
