@@ -9,6 +9,7 @@ import RequireProject from '../components/RequireProject'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import { STAGES, STAGE_LABELS, formatDate, formatTimeRange } from '../ui/format'
+import ProgressBar from '../ui/ProgressBar'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 
@@ -38,7 +39,6 @@ function Plan({ pid }: { pid: string }) {
   const done = list.filter((t) => t.done).length
   const first = firstDay.data ?? []
   const toggleTask = (t: Task) => act(() => api.updateTask(pid, t.id, { done: !t.done }))
-  const removeTask = (t: Task) => window.confirm(`Удалить задачу «${t.title}»?`) && act(() => api.deleteTask(pid, t.id))
 
   return (
     <StateView loading={tasks.loading && !tasks.data} error={tasks.error} onRetry={reloadAll}>
@@ -47,9 +47,7 @@ function Plan({ pid }: { pid: string }) {
           <h2>{project.data?.name ?? '…'}</h2>
           <div className="muted">{project.data ? `Переезд ${formatDate(project.data.move_date)}` : ' '}</div>
         </div>
-        <div className="progress" role="progressbar" aria-valuenow={done} aria-valuemax={list.length}>
-          <span style={{ width: `${list.length ? (100 * done) / list.length : 0}%` }} />
-        </div>
+        <ProgressBar value={done} max={list.length} label="Выполнено задач" />
         <div className="row between">
           <span className="small">Выполнено {done} из {list.length}</span>
           <span className="row">
@@ -72,7 +70,7 @@ function Plan({ pid }: { pid: string }) {
                   <input type="checkbox" checked={t.done} disabled={busy} onChange={() => toggleTask(t)} />
                   <span className="grow">
                     <span className="title">{t.title}</span>
-                    <span className="sub" style={{ display: 'block' }}>
+                    <span className="sub">
                       {[t.due_date ? `${isOverdue(t) ? 'просрочено, ' : ''}до ${formatDate(t.due_date)}` : null, formatTimeRange(t.start_time, t.end_time), t.assignee].filter(Boolean).join(' · ')}
                     </span>
                     {t.category ? (
@@ -83,7 +81,6 @@ function Plan({ pid }: { pid: string }) {
                     ) : null}
                   </span>
                   <button type="button" className="link small" disabled={busy} aria-label={`Изменить «${t.title}»`} onClick={(e) => { e.preventDefault(); setForm(t) }}>✎</button>
-                  <button type="button" className="link small" disabled={busy} aria-label={`Удалить «${t.title}»`} onClick={(e) => { e.preventDefault(); removeTask(t) }}>✕</button>
                 </label>
               ))}
             </div>
@@ -112,6 +109,11 @@ function Plan({ pid }: { pid: string }) {
           initial={form === 'new' ? null : form}
           onClose={() => setForm(null)}
           categories={categoryColors(list)}
+          onDelete={form === 'new' ? undefined : async () => {
+            await api.deleteTask(pid, form.id)
+            setForm(null)
+            reloadAll()
+          }}
           onSave={async (body) => {
             if (form === 'new') await api.createTask(pid, body)
             else await api.updateTask(pid, form.id, body)
@@ -134,7 +136,7 @@ function categoryColors(tasks: Task[]): Map<string, string> {
   return map
 }
 
-export function TaskModal({ initial, onClose, onSave, categories }: { initial: Task | null; onClose: () => void; onSave: (body: TaskCreate) => Promise<void>; categories: Map<string, string> }) {
+export function TaskModal({ initial, onClose, onSave, onDelete, categories }: { initial: Task | null; onClose: () => void; onSave: (body: TaskCreate) => Promise<void>; onDelete?: () => Promise<void>; categories: Map<string, string> }) {
   const [title, setTitle] = useState(initial?.title ?? '')
   const [assignee, setAssignee] = useState(initial?.assignee ?? '')
   const [stage, setStage] = useState<Stage>(initial?.stage ?? 'before')
@@ -156,6 +158,19 @@ export function TaskModal({ initial, onClose, onSave, categories }: { initial: T
     setCategory(value)
     const known = categories.get(value.trim())
     if (known) setColor(known)
+  }
+
+  // Удаление живёт в форме правки: в строке списка остаётся одна кнопка, и название не сжимается на телефоне
+  async function remove() {
+    if (!onDelete || !initial || !window.confirm(`Удалить задачу «${initial.title}»?`)) return
+    setBusy(true)
+    setError(null)
+    try {
+      await onDelete()
+    } catch (err) {
+      setError(errorMessage(err))
+      setBusy(false)
+    }
   }
 
   async function submit(e: FormEvent) {
@@ -227,6 +242,7 @@ export function TaskModal({ initial, onClose, onSave, categories }: { initial: T
         </div>
         {error ? <div className="alert" role="alert">{error}</div> : null}
         <button className="primary" type="submit" disabled={busy || !title.trim()}>{initial ? 'Сохранить' : 'Добавить'}</button>
+        {onDelete ? <button type="button" className="danger" disabled={busy} onClick={remove}>Удалить задачу</button> : null}
       </form>
     </Modal>
   )

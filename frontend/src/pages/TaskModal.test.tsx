@@ -40,3 +40,17 @@ describe('форма задачи', () => {
     expect(onSave.mock.calls[0][0]).toMatchObject({ category: 'Документы', category_color: '#123456' })
   })
 })
+
+describe('удаление задачи', () => {
+  it('кнопка есть только в правке и спрашивает подтверждение', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined)
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<TaskModal initial={task} onClose={vi.fn()} onSave={vi.fn()} onDelete={onDelete} categories={new Map()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Удалить задачу' }))
+    expect(window.confirm).toHaveBeenCalled()
+    expect(onDelete).toHaveBeenCalledTimes(1)
+    cleanup()
+    render(<TaskModal initial={null} onClose={vi.fn()} onSave={vi.fn()} categories={new Map()} />)
+    expect(screen.queryByRole('button', { name: 'Удалить задачу' })).toBeNull()
+  })
+})

@@ -79,7 +79,7 @@ export default function BoxPage() {
                 <div key={item.id} className="list-row">
                   <span className="grow">
                     <b>{item.name}</b>
-                    {item.lost ? <span className="sub" style={{ display: 'block' }}>Потеряна: ищите в нераспакованных коробках</span> : null}
+                    {item.lost ? <span className="sub">Потеряна: ищите в нераспакованных коробках</span> : null}
                   </span>
                   <button className="small" disabled={busy} onClick={() => run(() => api.updateItem(pid, item.id, { lost: !item.lost }))}>
                     {item.lost ? 'Нашлась' : 'Потеряна'}

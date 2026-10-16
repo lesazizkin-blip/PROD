@@ -21,7 +21,7 @@ function BoxRow({ pid, box }: { pid: string; box: Box }) {
       <span aria-hidden>📦</span>
       <span className="grow">
         <b>№ {box.number} · {box.room}</b>
-        <span className="sub" style={{ display: 'block' }}>
+        <span className="sub">
           {box.items_count} {plural(box.items_count, ['вещь', 'вещи', 'вещей'])}{box.fill_later && box.items_count === 0 ? ' · заполнить позже' : ''}
         </span>
       </span>
@@ -71,7 +71,7 @@ function Boxes({ pid }: { pid: string }) {
                     <span aria-hidden>{h.lost ? '⚠️' : '🔎'}</span>
                     <span className="grow">
                       <b>{h.name}</b>
-                      <span className="sub" style={{ display: 'block' }}>Коробка № {h.box_number} · {h.room}</span>
+                      <span className="sub">Коробка № {h.box_number} · {h.room}</span>
                     </span>
                     <StatusBadge status={h.status} />
                   </Link>

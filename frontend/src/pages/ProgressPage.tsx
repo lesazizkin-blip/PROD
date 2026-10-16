@@ -8,6 +8,7 @@ import RequireProject from '../components/RequireProject'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import { STATUS_LABELS, boxPath } from '../ui/format'
+import ProgressBar from '../ui/ProgressBar'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
@@ -61,7 +62,7 @@ function ProgressView({ pid }: { pid: string }) {
           <div className="card hero stack">
             <div style={{ fontSize: '2.4rem', fontWeight: 700, lineHeight: 1 }}>{p.boxes_total}</div>
             <div>коробок · распаковано {Math.round(p.unpacked_percent)}%</div>
-            <div className="progress"><span style={{ width: `${p.unpacked_percent}%` }} /></div>
+            <ProgressBar value={p.unpacked_percent} label="Распаковано коробок" />
           </div>
           {error ? <div className="alert" role="alert">{error}</div> : null}
 
@@ -79,9 +80,9 @@ function ProgressView({ pid }: { pid: string }) {
             <div key={r.room} className="card stack">
               <b>{r.room} · {r.total} кор.</b>
               <div className="small muted">Погружено {r.loaded} из {r.total}</div>
-              <div className="progress"><span style={{ width: `${r.loaded_percent}%`, background: 'var(--st-loaded)' }} /></div>
+              <ProgressBar value={r.loaded_percent} label={`${r.room}: погружено`} color="var(--st-loaded)" />
               <div className="small muted">Распаковано {r.unpacked} из {r.total}</div>
-              <div className="progress"><span style={{ width: `${r.unpacked_percent}%`, background: 'var(--st-unpacked)' }} /></div>
+              <ProgressBar value={r.unpacked_percent} label={`${r.room}: распаковано`} color="var(--st-unpacked)" />
               <div className="row wrap">
                 {ROOM_STEPS.filter((s) => r.by_status[s.from] > 0).map((s) => (
                   <button key={s.to} className="tonal small" disabled={busy} onClick={() => moveRoom(r.room, s.from, s.to)}>
@@ -100,7 +101,7 @@ function ProgressView({ pid }: { pid: string }) {
                 <span aria-hidden>⚠️</span>
                 <span className="grow">
                   <b>{entry.item.name}</b>
-                  <span className="sub" style={{ display: 'block' }}>Коробка № {entry.box_number} · {entry.room}</span>
+                  <span className="sub">Коробка № {entry.box_number} · {entry.room}</span>
                 </span>
                 <button className="small" disabled={busy} onClick={() => showHints(entry)}>Где искать</button>
               </div>
@@ -118,7 +119,7 @@ function ProgressView({ pid }: { pid: string }) {
               <button key={h.box_number} className="list-row" onClick={() => navigate(boxPath(pid, h.box_number))}>
                 <span className="grow">
                   <b>Коробка № {h.box_number} · {h.room}</b>
-                  <span className="sub" style={{ display: 'block' }}>{REASONS[h.reason] ?? h.reason}</span>
+                  <span className="sub">{REASONS[h.reason] ?? h.reason}</span>
                 </span>
                 <StatusBadge status={h.status} />
               </button>
