@@ -16,9 +16,17 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T
   const [tick, setTick] = useState(0)
   const fnRef = useRef(fn)
   fnRef.current = fn
+  // Другие параметры (другой проект, другой запрос) - старые данные больше не верны и прячутся сразу;
+  // обычный reload() данные оставляет, чтобы экран не мигал
+  const key = JSON.stringify(deps)
+  const keyRef = useRef(key)
 
   useEffect(() => {
     let cancelled = false
+    if (keyRef.current !== key) {
+      keyRef.current = key
+      setData(null)
+    }
     setLoading(true)
     setError(null)
     fnRef
