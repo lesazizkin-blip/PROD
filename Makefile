@@ -46,7 +46,7 @@ logs:  ## общие логи всех сервисов
 	docker compose logs -f --tail=100
 
 preflight:  ## проверка стенда: make preflight URL=http://1.2.3.4
-	scripts/preflight.sh $(or $(URL),http://localhost:8080)
+	scripts/preflight.sh $(or $(URL),http://localhost:8000)
 
 tunnel:  ## аварийная публичная ссылка на локальный стек (:8080) через Docker (Mac и Linux); Ctrl+C - остановить
 	docker run --rm -it --add-host=host.docker.internal:host-gateway cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://host.docker.internal:8080
