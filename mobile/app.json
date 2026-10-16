@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "MoverMate",
+    "slug": "movermate",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ru.prod.movermate"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "ru.prod.movermate"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sharing",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Камера нужна, чтобы сканировать QR-коды на коробках."
+        }
+      ],
+      "expo-font"
+    ],
+    "scheme": "movermate"
+  }
+}
