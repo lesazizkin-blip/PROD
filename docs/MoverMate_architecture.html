@@ -142,7 +142,7 @@ pre { font-family: Menlo, Consolas, monospace; font-size: 8pt; background: #F6F8
 
 <section class=""><h2>8. Ключевые решения</h2>
 <table><tr><th>Решение</th><th>Почему</th></tr>
-<tr><td>Сайт вместо мобильного приложения</td><td>Симулятор и сборка APK съедали время при сроке в три дня; сайт проще проверять, а QR открывается любой камерой. Заготовка приложения лежит в <code>mobile/</code> и не развивается</td></tr>
+<tr><td>Сайт вместо мобильного приложения</td><td>Симулятор и сборка APK съедали время при сроке в три дня; сайт проще проверять, а QR открывается любой камерой.</td></tr>
 <tr><td>Без авторизации, доступ по UUID проекта</td><td>ТЗ не требует аккаунтов и просит минимум персональных данных. Минус: ссылку нельзя отозвать</td></tr>
 <tr><td>Три слоя: роутер, сервис, модель</td><td>Правила не размазаны по контроллерам; сервисы тестируются без HTTP</td></tr>
 <tr><td>Таблица переходов статусов</td><td>Новый статус или правило это одна строка плюс тест</td></tr>
@@ -180,7 +180,6 @@ pre { font-family: Menlo, Consolas, monospace; font-size: 8pt; background: #F6F8
 <li><b>Доступ по ссылке нельзя отозвать;</b> при утечке ссылки данные проекта открыты. Персональные данные в системе необязательны.</li>
 <li><b>База на одной ВМ</b> (SQLite в томе), резервных копий нет. Параллельные запросы на PostgreSQL проверены только тестом, который в обычном прогоне пропускается.</li>
 <li><b>Камера в браузере</b> требует HTTPS: на ВМ он включён, на локальном запуске работает только на <code>localhost</code>. Саму камеру на телефоне ещё не проверяли.</li>
-<li><b>Папка <code>mobile/</code></b> (React Native) осталась заготовкой и в систему не входит.</li>
 </ul></div>
 </section>
 
@@ -190,7 +189,6 @@ frontend/           сайт: src/ (код), Dockerfile и nginx.conf (запу�
 deploy/             docker-compose.yml, Caddyfile, .env.example для ВМ
 Dockerfile          образ: сайт + сервер
 docs/               CASE.md (минимум ТЗ), API.md, ARCHITECTURE.md, TEAM_PLAN.md, DEPLOY_VM.md
-scripts/            preflight.sh, run-site.sh, push-to-gitlab.sh, gitlab-login.sh
-mobile/             заготовка приложения (не развивается)</pre>
+scripts/            preflight.sh, run-site.sh, push-to-gitlab.sh, gitlab-login.sh</pre>
 </section>
 </body></html>

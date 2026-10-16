@@ -166,7 +166,7 @@ erDiagram
  QR, печать, сканер работают в браузере                                  router → service → repository
 ```
 
-Компоненты: `db` (PostgreSQL 16), `backend` (FastAPI, SQLAlchemy, Alembic), `frontend` (React + TypeScript, раздаётся nginx). Всё поднимается одной командой `docker compose up`, демо-данные подгружает seed. Мобильное приложение (`mobile/`) осталось заготовкой и в архитектуру не входит.
+Компоненты: `db` (PostgreSQL 16), `backend` (FastAPI, SQLAlchemy, Alembic), `frontend` (React + TypeScript, раздаётся nginx). Всё поднимается одной командой `docker compose up`, демо-данные подгружает seed.
 
 | Решение | Почему |
 |---|---|
