@@ -6,6 +6,7 @@ from enum import StrEnum
 from typing import Annotated, Generic, TypeVar
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
@@ -99,6 +100,16 @@ class ProjectOut(ORM):
 HexColor = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 
 
+def _naive_time(v: time) -> time:
+    """Время задачи - местное время дня; с часовым поясом его нельзя сравнить и сохранить в SQLite."""
+    if v.tzinfo is not None:
+        raise ValueError("Укажите время без часового пояса, например 09:30")
+    return v
+
+
+NaiveTime = Annotated[time, AfterValidator(_naive_time)]
+
+
 def _check_times(start: time | None, end: time | None) -> None:
     if start is not None and end is not None and end <= start:
         raise ValueError("Время окончания должно быть позже времени начала")
@@ -108,8 +119,8 @@ class TaskCreate(BaseModel):
     stage: Stage
     title: Text200
     due_date: date | None = None
-    start_time: time | None = None
-    end_time: time | None = None
+    start_time: NaiveTime | None = None
+    end_time: NaiveTime | None = None
     category: str | None = Field(default=None, max_length=40)
     category_color: HexColor | None = None
     assignee: str | None = Field(default=None, max_length=80)
@@ -126,8 +137,8 @@ class TaskUpdate(BaseModel):
     stage: Stage | None = None
     title: Text200 | None = None
     due_date: date | None = None
-    start_time: time | None = None
-    end_time: time | None = None
+    start_time: NaiveTime | None = None
+    end_time: NaiveTime | None = None
     category: str | None = Field(default=None, max_length=40)
     category_color: HexColor | None = None
     assignee: str | None = Field(default=None, max_length=80)

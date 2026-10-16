@@ -183,3 +183,16 @@ def test_task_time_and_color_validation(client, base):
     assert (
         r.status_code == 201 and r.json()["category_color"] is None
     )  # цвет без категории не хранится
+
+
+def test_task_time_with_timezone_is_rejected_not_500(client, base):
+    body = {"stage": "before", "title": "Задача"}
+    r = client.post(
+        f"{base}/tasks", json={**body, "start_time": "10:00", "end_time": "11:00+03:00"}
+    )
+    assert r.status_code == 422
+    assert "часового пояса" in r.json()["errors"][0]["message"]
+
+    task = client.post(f"{base}/tasks", json={**body, "start_time": "10:00"}).json()
+    r = client.patch(f"{base}/tasks/{task['id']}", json={"end_time": "13:00+03:00"})
+    assert r.status_code == 422
