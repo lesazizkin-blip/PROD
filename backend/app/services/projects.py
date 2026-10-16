@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.errors import ValidationFailed
-from app.models import FirstDayItem, Project, Task, TaskTemplate
+from app.models import FirstDayItem, Project, ProjectMember, Task, TaskTemplate
 from app.reference_data import FIRST_DAY
 from app.schemas import ProjectCreate, ProjectUpdate
 from app.services.events import log_event
@@ -15,7 +15,9 @@ class ProjectService:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def create(self, data: ProjectCreate, project_id: uuid.UUID | None = None) -> Project:
+    def create(
+        self, data: ProjectCreate, project_id: uuid.UUID | None = None, owner_id: int | None = None
+    ) -> Project:
         project = Project(
             name=data.name,
             move_date=data.move_date,
@@ -38,6 +40,8 @@ class ProjectService:
             )
         for title in FIRST_DAY:
             self.db.add(FirstDayItem(project_id=project.id, title=title))
+        if owner_id is not None:  # владелец добавляется в той же транзакции, что и проект
+            self.db.add(ProjectMember(project_id=project.id, user_id=owner_id, role="owner"))
         log_event(self.db, project.id, "project.created", "project", project.id, name=project.name)
         self.db.commit()
         return project

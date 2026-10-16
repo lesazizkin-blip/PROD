@@ -28,6 +28,55 @@ def _fk(target: str, **kw):
     return mapped_column(ForeignKey(target, ondelete="CASCADE"), index=True, **kw)
 
 
+class User(Base):
+    """Учётная запись: только логин и хэш пароля, никаких персональных данных."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(40), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class AuthSession(Base):
+    """Сессия входа. В базе лежит только SHA-256 токена: утечка базы не даёт войти."""
+
+    __tablename__ = "sessions"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ProjectMember(Base):
+    """Кто видит проект: владелец (создал) и участники (пришли по приглашению)."""
+
+    __tablename__ = "project_members"
+    __table_args__ = (UniqueConstraint("project_id", "user_id", name="uq_project_members"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[uuid.UUID] = _fk("projects.id")
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(10))  # owner | member
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Invite(Base):
+    """Приглашение в проект по ссылке. Как и у сессии, хранится только хэш токена."""
+
+    __tablename__ = "invites"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[uuid.UUID] = _fk("projects.id")
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Project(Base):
     __tablename__ = "projects"
 

@@ -15,7 +15,7 @@ from app.db import SessionLocal
 from app.errors import AppError
 from app.logging_setup import log, setup_logging
 from app.reference_data import ensure_reference_data
-from app.routers import assistant, boxes, health, projects, reference
+from app.routers import assistant, auth, boxes, health, projects, reference
 from app.static_site import mount_site
 
 settings = get_settings()
@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="MoverMate API",
     version="1.0.0",
-    description="Переезд без хаоса: проекты и задачи, коробки и вещи, поиск, этикетки, прогресс. Доступ по UUID проекта, без авторизации.",
+    description="Переезд без хаоса: проекты и задачи, коробки и вещи, поиск, этикетки, прогресс. Вход по логину и паролю (cookie-сессия), проект видят только его участники.",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
     redoc_url=None,
@@ -128,6 +128,7 @@ async def unhandled_handler(request: Request, exc: Exception):
 
 api = APIRouter(prefix="/api")
 api.include_router(health.router)
+api.include_router(auth.router)
 api.include_router(reference.router)
 api.include_router(projects.router)
 api.include_router(boxes.router)

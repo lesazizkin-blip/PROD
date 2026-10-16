@@ -26,10 +26,47 @@ def db_session():
 
 
 @pytest.fixture()
-def client(db_session):
+def anon_client(db_session):
+    """Клиент без входа."""
     app.dependency_overrides[get_db] = lambda: db_session
     with TestClient(app) as c:
         yield c
+    app.dependency_overrides.clear()
+
+
+def login_as(client, username: str, password: str = "пароль-для-тестов") -> dict:
+    """Регистрирует пользователя (или входит, если он уже есть); cookie сессии остаётся в клиенте."""
+    r = client.post("/api/auth/register", json={"username": username, "password": password})
+    if r.status_code == 409:
+        r = client.post("/api/auth/login", json={"username": username, "password": password})
+    assert r.status_code in (200, 201), r.text
+    return r.json()
+
+
+@pytest.fixture()
+def client(anon_client):
+    """Клиент, который уже вошёл как пользователь tester (почти все тесты работают от него)."""
+    login_as(anon_client, "tester")
+    return anon_client
+
+
+@pytest.fixture()
+def make_client(db_session):
+    """Фабрика отдельных клиентов: у каждого своя cookie, как у разных людей с разными телефонами."""
+    clients = []
+
+    def factory(username: str | None = None):
+        c = TestClient(app)
+        c.__enter__()
+        clients.append(c)
+        if username:
+            login_as(c, username)
+        return c
+
+    app.dependency_overrides[get_db] = lambda: db_session
+    yield factory
+    for c in clients:
+        c.__exit__(None, None, None)
     app.dependency_overrides.clear()
 
 

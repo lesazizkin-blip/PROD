@@ -3,13 +3,15 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import PageParams, get_project
-from app.models import Event, Project
+from app.deps import PageParams, get_current_user, get_owned_project, get_project
+from app.models import Event, Project, User
 from app.routers.common import confirm_param
 from app.schemas import (
     AppliedTemplates,
     EventOut,
+    InviteOut,
     Page,
+    ProjectBrief,
     ProjectCreate,
     ProjectOut,
     ProjectUpdate,
@@ -18,6 +20,7 @@ from app.schemas import (
     TaskOut,
     TaskUpdate,
 )
+from app.services.auth import AuthService
 from app.services.projects import ProjectService
 from app.services.tasks import TaskService
 
@@ -27,8 +30,33 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 @router.post(
     "", response_model=ProjectOut, status_code=201, summary="Создать проект (с шаблонами задач)"
 )
-def create_project(body: ProjectCreate, db: Session = Depends(get_db)):
-    return ProjectService(db).create(body)
+def create_project(
+    body: ProjectCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    return ProjectService(db).create(body, owner_id=user.id)
+
+
+@router.get("", response_model=list[ProjectBrief], summary="Мои проекты (владелец и участник)")
+def my_projects(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return [
+        ProjectBrief(id=p.id, name=p.name, move_date=p.move_date, role=role)
+        for p, role in AuthService(db).projects_of(user.id)
+    ]
+
+
+@router.post(
+    "/{pid}/invites",
+    response_model=InviteOut,
+    status_code=201,
+    summary="Ссылка-приглашение в проект (только владелец)",
+)
+def create_invite(
+    project: Project = Depends(get_owned_project),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    token, invite = AuthService(db).create_invite(project.id, user.id)
+    return InviteOut(token=token, path=f"/invite/{token}", expires_at=invite.expires_at)
 
 
 @router.get("/{pid}", response_model=ProjectOut, summary="Получить проект")
@@ -47,7 +75,9 @@ def update_project(
     "/{pid}", status_code=204, summary="Удалить проект со всем содержимым (confirm=true)"
 )
 def delete_project(
-    project: Project = Depends(get_project), _=Depends(confirm_param), db: Session = Depends(get_db)
+    project: Project = Depends(get_owned_project),
+    _=Depends(confirm_param),
+    db: Session = Depends(get_db),
 ):
     ProjectService(db).delete(project)
     return Response(status_code=204)

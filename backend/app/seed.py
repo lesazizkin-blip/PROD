@@ -1,5 +1,6 @@
 """Демо-данные: python -m app.seed (или SEED_DEMO=true при старте). Идемпотентно.
 
+Демо-аккаунт (логин и пароль из настроек DEMO_USERNAME / DEMO_PASSWORD) - владелец демо-проекта.
 Демо-проект с фиксированным id: задачи из шаблонов (часть выполнена), коробки во всех статусах,
 вещи, потерянная вещь. Нагрузочный проект на 300 коробок и 3000 вещей: python -m app.seed --load.
 """
@@ -8,10 +9,13 @@ import sys
 import uuid
 from datetime import date, timedelta
 
+from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Project
+from app.models import Project, User
 from app.reference_data import ensure_reference_data
 from app.schemas import BoxCreate, BoxStatus, ProjectCreate, TaskUpdate
+from app.security import hash_password
+from app.services.auth import AuthService
 from app.services.boxes import BoxService
 from app.services.projects import ProjectService
 from app.services.tasks import TaskService
@@ -53,6 +57,12 @@ def run(load: bool = False) -> None:
     with SessionLocal() as db:
         ensure_reference_data(db)
         projects = ProjectService(db)
+        s = get_settings()
+        demo = db.query(User).filter_by(username=s.demo_username).first()
+        if demo is None:
+            demo = User(username=s.demo_username, password_hash=hash_password(s.demo_password))
+            db.add(demo)
+            db.commit()
         if db.get(Project, DEMO_ID) is None:
             project = projects.create(
                 ProjectCreate(
@@ -73,6 +83,9 @@ def run(load: bool = False) -> None:
             lost = svc.search(project.id, "Зарядки", 0, 1)[0][0]
             svc.update_item(project.id, lost.item_id, None, True)
             print(f"Демо-проект: {DEMO_ID}")
+        # демо-проект мог появиться раньше аккаунтов: отдаём его демо-аккаунту
+        AuthService(db).add_member(DEMO_ID, demo.id, "owner")
+        db.commit()
         if load and db.get(Project, LOAD_ID) is None:
             project = projects.create(
                 ProjectCreate(
@@ -95,6 +108,9 @@ def run(load: bool = False) -> None:
                 names = "\n".join(f"Вещь {i}-{j}" for j in range(10))
                 svc.create(project.id, BoxCreate(room=rooms[i % len(rooms)], items_text=names))
             print(f"Нагрузочный проект: {LOAD_ID} (300 коробок, 3000 вещей)")
+        if load and db.get(Project, LOAD_ID) is not None:
+            AuthService(db).add_member(LOAD_ID, demo.id, "owner")
+            db.commit()
 
 
 if __name__ == "__main__":

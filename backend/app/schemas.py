@@ -1,5 +1,6 @@
 """Контракт API (pydantic), по docs/API.md. Примеры значений попадают в Swagger."""
 
+import re
 import uuid
 from datetime import date, datetime, time
 from enum import StrEnum
@@ -85,6 +86,48 @@ class ProjectUpdate(BaseModel):
     address_to: str | None = Field(default=None, max_length=300)
 
     _clean = field_validator("address_from", "address_to")(_opt_text)
+
+
+# ---------- вход и участники ----------
+def _username(v: str) -> str:
+    """Логин без регистра и пробелов по краям: «Anna » и «anna» - один пользователь."""
+    v = v.strip().lower()
+    if not re.fullmatch(r"[a-z0-9_.-]{3,40}", v):
+        raise ValueError("Логин: 3–40 символов, латиница, цифры, точка, дефис или подчёркивание")
+    return v
+
+
+Username = Annotated[str, AfterValidator(_username)]
+
+
+class Credentials(BaseModel):
+    username: Username = Field(
+        examples=["anna"], description="3–40 символов: латиница, цифры, точка, дефис, подчёркивание"
+    )
+    password: str = Field(min_length=8, max_length=128, examples=["пароль-подлиннее"])
+
+
+class UserOut(ORM):
+    id: int
+    username: str
+
+
+class ProjectBrief(BaseModel):
+    id: uuid.UUID
+    name: str
+    move_date: date
+    role: str  # owner | member
+
+
+class InviteOut(BaseModel):
+    token: str
+    path: str = Field(description="Путь на сайте: /invite/{token}")
+    expires_at: datetime
+
+
+class InviteInfo(BaseModel):
+    project_name: str
+    expires_at: datetime
 
 
 class ProjectOut(ORM):

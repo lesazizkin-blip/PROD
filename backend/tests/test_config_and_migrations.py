@@ -16,6 +16,10 @@ TABLES = {
     "first_day_items",
     "events",
     "tips",
+    "users",
+    "sessions",
+    "project_members",
+    "invites",
 }
 
 
