@@ -11,6 +11,9 @@ import { STAGES, STAGE_LABELS, formatDate } from '../ui/format'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 
+// Срок прошёл, а задача не выполнена (сравниваем даты в формате ГГГГ-ММ-ДД)
+const isOverdue = (t: Task) => !t.done && !!t.due_date && t.due_date.slice(0, 10) < new Date().toLocaleDateString('sv-SE')
+
 export default function PlanPage() {
   return <RequireProject>{(pid) => <Plan pid={pid} />}</RequireProject>
 }
@@ -73,12 +76,12 @@ function Plan({ pid }: { pid: string }) {
             <SectionTitle>{STAGE_LABELS[stage]}</SectionTitle>
             <div className="card flush">
               {items.map((t) => (
-                <label key={t.id} className={t.done ? 'list-row done' : 'list-row'}>
+                <label key={t.id} className={`list-row${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
                   <input type="checkbox" checked={t.done} onChange={() => toggleTask(t)} />
                   <span className="grow">
                     <span className="title">{t.title}</span>
                     <span className="sub" style={{ display: 'block' }}>
-                      {[t.due_date ? `до ${formatDate(t.due_date)}` : null, t.assignee].filter(Boolean).join(' · ')}
+                      {[t.due_date ? `${isOverdue(t) ? 'просрочено, ' : ''}до ${formatDate(t.due_date)}` : null, t.assignee].filter(Boolean).join(' · ')}
                     </span>
                   </span>
                   <button type="button" className="link small" aria-label={`Удалить «${t.title}»`} onClick={(e) => { e.preventDefault(); removeTask(t) }}>✕</button>
