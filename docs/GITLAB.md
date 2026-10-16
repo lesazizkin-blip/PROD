@@ -2,10 +2,11 @@
 
 По Положению (п. 4.9) решения команд размещаются на GitLab организаторов: https://gitlab.t-education.com, проект команды **`hack-led-20/prod_1`**, ветка `master`. В проекте уже лежат два файла организаторов: `.gitlab-ci.yml` (заглушка `test: echo ok`) и `policy.yml` (fast-forward для MR).
 
-## Текущее состояние
-- Код в GitLab ещё **не отправлен**.
-- SSH до GitLab с компьютера не проходит (порт 22 сбрасывает соединение), работает только HTTPS с токеном доступа.
-- Прежний токен утёк и отозван: использовать только новый.
+## Текущее состояние (16.10, вечер)
+- **Источник истины — GitLab `hack-led-20/prod_1`**, ветка `master`. GitHub `MOVERMATE` — запасная копия.
+- `master` защищён: push только у Maintainer, сливать Merge Request могут Developer и Maintainer. Поэтому изменения идут так: push в ветку `dev` с открытием MR (`git push -o merge_request.create -o merge_request.target=master gitlab HEAD:refs/heads/dev`) → зелёный пайплайн MR → Merge → пайплайн `master` с деплоем.
+- Код отправлен и слит (MR №1). Линтеры, тесты и сборка образа на раннерах организаторов проходят; шаги деплоя проверяются после MR №2.
+- SSH до GitLab с компьютера не проходит (порт 22 сбрасывает соединение), работает HTTPS с токеном; токен лежит в связке ключей macOS (`scripts/gitlab-login.sh`).
 
 ## Как отправить код
 1. `scripts/gitlab-login.sh` — токен вводится тихо, ложится в связку ключей macOS (scope `write_repository`).
