@@ -49,3 +49,13 @@ export function parseBoxLink(text: string): { pid: string; n: number } | null {
   const n = Number(m[2])
   return n >= 1 ? { pid: m[1].toLowerCase(), n } : null
 }
+
+/** Склонение по числу: plural(1, ['вещь', 'вещи', 'вещей']) -> «вещь», 2 -> «вещи», 5 -> «вещей». */
+export function plural(n: number, forms: [string, string, string]): string {
+  const mod100 = n % 100
+  const mod10 = n % 10
+  if (mod100 >= 11 && mod100 <= 14) return forms[2]
+  if (mod10 === 1) return forms[0]
+  if (mod10 >= 2 && mod10 <= 4) return forms[1]
+  return forms[2]
+}

@@ -1,23 +1,38 @@
 import { Route, Routes, useNavigate } from 'react-router-dom'
 import NewProjectForm from './components/NewProjectForm'
 import Shell from './components/Shell'
-import Placeholder from './pages/Placeholder'
+import BoxesPage from './pages/BoxesPage'
+import BoxPage from './pages/BoxPage'
+import LabelPage from './pages/LabelPage'
+import LabelsPage from './pages/LabelsPage'
+import PlanPage from './pages/PlanPage'
+import ProgressPage from './pages/ProgressPage'
+import ScanPage from './pages/ScanPage'
+import TipsPage from './pages/TipsPage'
 
 function NewProjectPage() {
   const navigate = useNavigate()
   return <NewProjectForm onDone={() => navigate('/')} />
 }
 
+function NotFound() {
+  return <div className="state"><div className="state-icon">🧭</div><p>Страница не найдена</p></div>
+}
+
 export default function App() {
   return (
     <Routes>
       <Route element={<Shell />}>
-        <Route index element={<Placeholder title="План" />} />
-        <Route path="boxes" element={<Placeholder title="Коробки" />} />
-        <Route path="labels" element={<Placeholder title="Этикетки" />} />
-        <Route path="progress" element={<Placeholder title="Прогресс" />} />
+        <Route index element={<PlanPage />} />
+        <Route path="boxes" element={<BoxesPage />} />
+        <Route path="labels" element={<LabelsPage />} />
+        <Route path="progress" element={<ProgressPage />} />
+        <Route path="tips" element={<TipsPage />} />
+        <Route path="scan" element={<ScanPage />} />
         <Route path="new" element={<NewProjectPage />} />
-        <Route path="*" element={<Placeholder title="Страница не найдена" />} />
+        <Route path="projects/:pid/boxes/:n" element={<BoxPage />} />
+        <Route path="projects/:pid/boxes/:n/label" element={<LabelPage />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   )
