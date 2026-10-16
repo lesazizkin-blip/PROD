@@ -208,3 +208,20 @@ export interface ApiErrorBody {
   request_id?: string
   errors?: { field: string; message: string }[]
 }
+
+// Умный чек-лист
+export interface ChecklistFlags {
+  with_children: boolean
+  with_pets: boolean
+  other_city: boolean
+}
+
+export interface ChecklistSuggestion {
+  suggested_tasks: { stage: Stage; title: string; reason: keyof ChecklistFlags }[]
+  suggested_first_day: string[]
+}
+
+export interface ChecklistApplied {
+  added_tasks: number
+  added_first_day: number
+}

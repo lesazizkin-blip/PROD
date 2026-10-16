@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/endpoints'
 import { errorMessage } from '../api/client'
 import type { Stage, Task } from '../api/types'
+import ChecklistModal from '../components/ChecklistModal'
 import Modal from '../components/Modal'
 import RequireProject from '../components/RequireProject'
 import { useAsync } from '../state/useAsync'
@@ -19,6 +20,7 @@ function Plan({ pid }: { pid: string }) {
   const tasks = useAsync(() => api.tasks(pid), [pid])
   const firstDay = useAsync(() => api.firstDay(pid), [pid])
   const [adding, setAdding] = useState(false)
+  const [smart, setSmart] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const reloadAll = () => {
@@ -55,7 +57,10 @@ function Plan({ pid }: { pid: string }) {
         </div>
         <div className="row between">
           <span className="small">Выполнено {done} из {list.length}</span>
-          <Link to="/tips" className="small" style={{ color: 'inherit' }}>Памятки →</Link>
+          <span className="row">
+            <button className="link small" style={{ color: 'inherit' }} onClick={() => setSmart(true)}>Умный чек-лист</button>
+            <Link to="/tips" className="small" style={{ color: 'inherit' }}>Памятки →</Link>
+          </span>
         </div>
       </div>
       {error ? <div className="alert" role="alert">{error}</div> : null}
@@ -99,6 +104,7 @@ function Plan({ pid }: { pid: string }) {
       </section>
 
       <button className="primary fab" onClick={() => setAdding(true)}>+ Задача</button>
+      {smart ? <ChecklistModal pid={pid} onClose={() => setSmart(false)} onApplied={reloadAll} /> : null}
       {adding ? (
         <AddTaskModal
           onClose={() => setAdding(false)}

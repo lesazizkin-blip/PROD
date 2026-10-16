@@ -6,6 +6,7 @@ import BoxPage from './pages/BoxPage'
 import LabelPage from './pages/LabelPage'
 import LabelsPage from './pages/LabelsPage'
 import PlanPage from './pages/PlanPage'
+import PrintAllPage from './pages/PrintAllPage'
 import ProgressPage from './pages/ProgressPage'
 import ScanPage from './pages/ScanPage'
 import TipsPage from './pages/TipsPage'
@@ -26,6 +27,7 @@ export default function App() {
         <Route index element={<PlanPage />} />
         <Route path="boxes" element={<BoxesPage />} />
         <Route path="labels" element={<LabelsPage />} />
+        <Route path="labels/print" element={<PrintAllPage />} />
         <Route path="progress" element={<ProgressPage />} />
         <Route path="tips" element={<TipsPage />} />
         <Route path="scan" element={<ScanPage />} />

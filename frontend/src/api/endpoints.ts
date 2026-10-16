@@ -1,6 +1,6 @@
 import { request } from "./client"
 import type {
-  AppEvent, Box, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Health, Hint, Item,
+  AppEvent, Box, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Health, Hint, Item,
   Label, LostItem, Page, PageParams, Progress, Project, ProjectCreate, ProjectUpdate, Reminder, SearchHit,
   Stage, Task, TaskCreate, TaskTemplate, TaskUpdate, Tip, TipTopic,
 } from "./types"
@@ -78,4 +78,10 @@ export const api = {
     request<void>("DELETE", `${p(pid)}/first-day/${id}`, { query: { confirm: true } }),
   events: (pid: string, params: PageParams & { type?: string } = {}) =>
     request<Page<AppEvent>>("GET", `${p(pid)}/events`, { query: { ...params } }),
+
+  // Умный чек-лист (локальные правила)
+  suggestChecklist: (pid: string, flags: ChecklistFlags) =>
+    request<ChecklistSuggestion>('POST', `${p(pid)}/assistant/checklist`, { body: flags }),
+  applyChecklist: (pid: string, flags: ChecklistFlags) =>
+    request<ChecklistApplied>('POST', `${p(pid)}/assistant/checklist/apply`, { body: flags }),
 }
