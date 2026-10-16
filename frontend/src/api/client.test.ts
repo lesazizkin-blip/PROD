@@ -10,6 +10,15 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 afterEach(() => vi.unstubAllGlobals())
 
+// Ждёт отказ запроса и возвращает ошибку (тест падает, если запрос неожиданно удался)
+const failure = (p: Promise<unknown>) =>
+  p.then(
+    () => {
+      throw new Error('ожидалась ошибка запроса')
+    },
+    (e: ApiError) => e,
+  )
+
 describe('request', () => {
   it('ходит на /api того же origin и разбирает JSON', async () => {
     const fetchMock = mockFetch(async () => json({ ok: 1 }))
@@ -39,28 +48,28 @@ describe('request', () => {
 
   it('409 и 422: сообщение, код и ошибки полей из формата бэкенда', async () => {
     mockFetch(async () => json({ detail: 'Некорректные данные', code: 'validation_failed', request_id: 'r1', errors: [{ field: 'name', message: 'пусто' }] }, 422))
-    const e = await request('POST', '/projects').catch((x) => x)
+    const e = await failure(request('POST', '/projects'))
     expect(e).toBeInstanceOf(ApiError)
     expect(e).toMatchObject({ status: 422, code: 'validation_failed', message: 'Некорректные данные', requestId: 'r1', fieldErrors: { name: 'пусто' } })
   })
 
   it('502 с HTML от nginx: понятный текст вместо «Ошибка 502»', async () => {
     mockFetch(async () => new Response('<html>Bad gateway</html>', { status: 502 }))
-    const e = await request('GET', '/x').catch((x) => x)
+    const e = await failure(request('GET', '/x'))
     expect(e.message).toBe('Сервер временно недоступен. Попробуйте через минуту.')
     expect(e.status).toBe(502)
   })
 
   it('прочие ошибки без тела: «Ошибка N»', async () => {
     mockFetch(async () => new Response('', { status: 500 }))
-    expect((await request('GET', '/x').catch((x) => x)).message).toBe('Ошибка 500')
+    expect((await failure(request('GET', '/x'))).message).toBe('Ошибка 500')
   })
 
   it('нет сети: код network и понятное сообщение', async () => {
     mockFetch(async () => {
       throw new TypeError('Failed to fetch')
     })
-    const e = await request('GET', '/x').catch((x) => x)
+    const e = await failure(request('GET', '/x'))
     expect(e).toMatchObject({ status: 0, code: 'network' })
     expect(e.message).toContain('Нет связи с сервером')
   })

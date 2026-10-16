@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Route, Routes, useNavigate } from 'react-router-dom'
 import NewProjectForm from './components/NewProjectForm'
 import Shell from './components/Shell'
@@ -8,8 +9,10 @@ import LabelsPage from './pages/LabelsPage'
 import PlanPage from './pages/PlanPage'
 import PrintAllPage from './pages/PrintAllPage'
 import ProgressPage from './pages/ProgressPage'
-import ScanPage from './pages/ScanPage'
 import TipsPage from './pages/TipsPage'
+
+// Сканер (библиотека камеры тяжёлая) грузится только при открытии экрана
+const ScanPage = lazy(() => import('./pages/ScanPage'))
 
 function NewProjectPage() {
   const navigate = useNavigate()
@@ -30,7 +33,7 @@ export default function App() {
         <Route path="labels/print" element={<PrintAllPage />} />
         <Route path="progress" element={<ProgressPage />} />
         <Route path="tips" element={<TipsPage />} />
-        <Route path="scan" element={<ScanPage />} />
+        <Route path="scan" element={<Suspense fallback={<div className="state" role="status">Загрузка…</div>}><ScanPage /></Suspense>} />
         <Route path="new" element={<NewProjectPage />} />
         <Route path="projects/:pid/boxes/:n" element={<BoxPage />} />
         <Route path="projects/:pid/boxes/:n/label" element={<LabelPage />} />
