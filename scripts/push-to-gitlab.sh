@@ -6,7 +6,8 @@
 #   1. подключает remote `gitlab` (адрес без пароля);
 #   2. забирает master организаторов (там policy.yml и стартовый .gitlab-ci.yml);
 #   3. вливает его в вашу ветку, историю не перезаписывает (никакого force-push);
-#      при конфликте .gitlab-ci.yml берётся версия организаторов, ваша сохраняется в docs/;
+#      при конфликте .gitlab-ci.yml остаётся наш: он построен по шаблону организаторов (l2sh-template),
+#      а у них в master лишь заглушка `test: echo ok`;
 #   4. пушит текущую ветку в master.
 # Пароль: при первом запросе логин - любое имя, пароль - токен доступа GitLab (scope write_repository).
 # macOS запомнит его в связке ключей, дальше спрашивать не будет. Токен нигде не сохраняется скриптом.
@@ -33,19 +34,13 @@ if git merge-base --is-ancestor "$REMOTE/$TARGET" HEAD; then
   say "2/4 Файлы организаторов уже в вашей истории: сливать нечего"
 else
   say "2/4 Вливаю историю организаторов (policy.yml и стартовый CI)"
-  # Наш .gitlab-ci.yml (тесты, покрытие, сборка образа) сохраняем: его можно вернуть или влить в шаблон организаторов
-  if git show "$REMOTE/$TARGET:.gitlab-ci.yml" >/dev/null 2>&1 && [ -f .gitlab-ci.yml ] && [ ! -f docs/gitlab-ci.own.yml ]; then
-    cp .gitlab-ci.yml docs/gitlab-ci.own.yml
-    git add docs/gitlab-ci.own.yml
-    git commit -q -m "docs: keep our own CI config before taking the organizers' one"
-  fi
   if ! git merge "$REMOTE/$TARGET" --allow-unrelated-histories --no-edit -m "Merge organizers' $TARGET (policy.yml, default CI)"; then
     conflicted="$(git diff --name-only --diff-filter=U)"
     if [ "$conflicted" = ".gitlab-ci.yml" ]; then
-      git checkout --theirs .gitlab-ci.yml
+      git checkout --ours .gitlab-ci.yml
       git add .gitlab-ci.yml
       git commit -q --no-edit
-      say "   конфликт .gitlab-ci.yml решён в пользу организаторов (ваш вариант: docs/gitlab-ci.own.yml)"
+      say "   конфликт .gitlab-ci.yml решён в пользу нашего пайплайна (заглушка организаторов: git show $REMOTE/$TARGET:.gitlab-ci.yml)"
     else
       git merge --abort || true
       die "Конфликты в файлах: $conflicted. Слияние отменено, ничего не отправлено."

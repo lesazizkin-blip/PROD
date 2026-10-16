@@ -30,5 +30,5 @@ scripts/preflight.sh https://hack-led-20-vm1-12902f.vmaas-spirit.t-education.com
 ssh -i ~/.ssh/vm1.pem root@178.72.185.97 'docker ps; docker logs --tail 50 deploy-app-1'
 ```
 
-## Что ещё не сделано
-Деплой выполнен вручную, а не из пайплайна GitLab. Для автодеплоя по шаблону организаторов (`templates/l2sh-template`) нужны: `.gitlab-ci.yml` с шагами `build:image` → `test` → `deploy:vm` и CI-переменные `SSH_PRIVATE_KEY` (ключ ВМ, тип «Файл»), `DEPLOY_VM`; сервис-аккаунт `sa-hack-led-20-spirit-docker-ci` в тенанте уже есть.
+## Автодеплой из GitLab
+Пайплайн `.gitlab-ci.yml` (шаблон организаторов) на каждый пуш в `master` собирает образ в Spirit Registry и обновляет на этой ВМ только контейнер `app` (`docs/GITLAB.md`). Ручной передеплой выше остаётся запасным путём. Включится после первой отправки кода в GitLab и переменной `SSH_PRIVATE_KEY`.

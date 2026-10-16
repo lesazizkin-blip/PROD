@@ -1,11 +1,28 @@
-# GitLab CI MoverMate: стиль кода, тесты с покрытием, сборка продового образа и проверка сценария ТЗ.
-# Деплой на ВМ пока вручную (docs/DEPLOY_VM.md); автодеплой по шаблону организаторов - docs/GITLAB.md.
+# GitLab CI MoverMate по шаблону организаторов (templates/l2sh-template), подробности - docs/GITLAB.md.
+#
+#   lint ──► test ──► build:image ──► setup:vm ──► deploy:vm ──► preflight:prod
+#   (стиль)  (тесты,   (Kaniko →      (Spirit CLI   (ssh + docker   (сценарий ТЗ
+#            покрытие)  Spirit Registry) на ВМ)       compose)        на живом сайте)
+#
+# На любой ветке идут lint и test; сборка образа - на master и в Merge Request; деплой - только из master.
+# Секреты задаются в Spirit (Код → Репозитории → prod_1 → CI-переменные), не в этом файле:
+#   SSH_PRIVATE_KEY (тип «Файл», приватный ключ ВМ, с переводом строки в конце, «Защищённая»);
+#   SPIRIT_DOCKER_SA_KEY уже заведена организаторами на уровне тенанта.
 
-stages: [lint, test, build]
+include:
+  - project: pipelines/pipelines
+    ref: master
+    file:
+      - /jobs/spirit.yaml
+      - /jobs/build.yaml
+      - /jobs/rules.yaml
+
+stages: [lint, test, build, deploy]
 
 workflow:
   rules:
     - if: $CI_COMMIT_BRANCH
+    - if: $CI_MERGE_REQUEST_IID
 
 default:
   interruptible: true
@@ -14,13 +31,27 @@ variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   npm_config_cache: "$CI_PROJECT_DIR/.cache/npm"
   PG_URL: "postgresql+psycopg://app:app@postgres:5432/app"
+  # --- из шаблона организаторов ---
+  # Адрес Docker Registry Spirit: без него Kaniko пушит в Docker Hub и получает 401
+  DOCKER_ARTIFACTORY_REGISTRY: registry.spirit.culab.ru
+  # Образ: registry.spirit.culab.ru/hack-led-20/prod_1:<sha коммита>
+  IMAGE_NAME: ${DOCKER_ARTIFACTORY_REGISTRY}/${CI_PROJECT_ROOT_NAMESPACE}/${CI_PROJECT_NAME}:${CI_COMMIT_SHORT_SHA}
+  # Наша ВМ vm1 (Spirit VMaaS) и её пользователь; не секрет. Переменные репозитория в Spirit приоритетнее
+  DEPLOY_VM: 178.72.185.97
+  DEPLOY_SSH_USER: root
+  # Где на ВМ лежит стек (Caddy + app, deploy/docker-compose.yml) и его deploy/.env с SITE_ADDRESS
+  DEPLOY_DIR: /opt/movermate/deploy
+  # Адрес сайта для проверки после деплоя
+  APP_URL: https://hack-led-20-vm1-12902f.vmaas-spirit.t-education.com
+  # Образ для джоб, которые ходят на ВМ: в нём есть Spirit CLI (dp) и ssh
+  DEPLOY_IMG: registry.spirit.culab.ru/cicd-images/base-noble:1.1.0-rc-08d332ac-11541
 
 .cache: &cache
   cache:
     key: "$CI_JOB_NAME"
     paths: [.cache/]
 
-# ---------------------------------------------------------------- lint (деплой НЕ блокирует)
+# ---------------------------------------------------------------- lint (деплой не блокирует)
 lint-backend:
   stage: lint
   image: python:3.11-slim
@@ -43,7 +74,7 @@ lint-frontend:
     - npm run lint
     - npx tsc -b
 
-# ---------------------------------------------------------------- тесты (docker-раннер)
+# ---------------------------------------------------------------- тесты (деплой ждёт их)
 test-backend:
   stage: test
   image: python:3.11-slim
@@ -58,9 +89,9 @@ test-backend:
   script:
     - pip install -r backend/requirements-dev.txt -c backend/constraints.txt
     - cd backend
-    # 1) SQLite + покрытие; результаты видны в интерфейсе GitLab (вкладка «Tests» и процент покрытия в пайплайне)
+    # 1) SQLite + покрытие; результаты видны в GitLab (вкладка «Tests» и процент покрытия пайплайна)
     - pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-report=html --junitxml=report.xml
-    # 2) те же тесты на PostgreSQL, включая гонку параллельных переходов статуса
+    # 2) те же тесты на PostgreSQL, включая параллельную выдачу номеров коробок
     - TEST_DATABASE_URL="$PG_URL" pytest -rs
     # 3) миграции применяются и откатываются
     - DATABASE_URL="$PG_URL" alembic upgrade head
@@ -88,24 +119,78 @@ test-frontend:
     - npm test
     - npm run build
 
-# ---------------------------------------------------------------- продовый образ
-# Тот же Dockerfile, что на ВМ: собрать, запустить, прогнать сценарий ТЗ (scripts/preflight.sh).
-# Нужен раннер с Docker-in-Docker; если его нет, задание падает и остальное не блокирует.
-image-smoke:
+# ---------------------------------------------------------------- сборка образа (шаблон .dp_build)
+# Kaniko собирает корневой Dockerfile (сайт + сервер в одном образе) и публикует его в Spirit Registry.
+build:image:
   stage: build
-  image: docker:27
-  services:
-    - name: docker:27-dind
-      alias: docker
+  extends:
+    - .dp_build
+    - .rules-merge-or-master-or-parent
+  needs: [test-backend, test-frontend]
+
+# ---------------------------------------------------------------- деплой на ВМ (только master)
+.ssh_vm:
+  image: $DEPLOY_IMG
   variables:
-    DOCKER_TLS_CERTDIR: ""
-    DOCKER_HOST: tcp://docker:2375
-  allow_failure: true
+    SSH: "ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=accept-new"
+    SCP: "scp -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=accept-new"
+    VM: "$DEPLOY_SSH_USER@$DEPLOY_VM"
+    DP_CLI_VERSION: "14.1.0"
+  before_script:
+    - |
+      if [ -z "${SSH_PRIVATE_KEY:-}" ]; then
+        echo "Нет SSH_PRIVATE_KEY: заведите её в Spirit (Код → Репозитории → prod_1 → CI-переменные), тип «Файл»"; exit 1
+      fi
+    - command -v ssh >/dev/null || (apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client)
+    - chmod 600 "$SSH_PRIVATE_KEY"
+
+# Spirit CLI (dp) на ВМ нужен, чтобы войти в registry ключом сервис-аккаунта
+setup:vm:
+  stage: deploy
+  extends:
+    - .ssh_vm
+    - .rules-master
+  needs: [build:image]
   script:
-    - apk add --no-cache bash curl python3
-    - docker build -t movermate:ci .
-    - docker run -d --name app -p 8000:8000 -e SEED_DEMO=true movermate:ci
-    - for i in $(seq 1 40); do curl -fs http://docker:8000/api/health && break || sleep 2; done
-    - scripts/preflight.sh http://docker:8000
-  after_script:
-    - docker logs app || true
+    - |
+      $SSH $VM "command -v dp >/dev/null || (
+        curl -fL https://spirit.culab.ru/cli/cu/$DP_CLI_VERSION/linux/dp -o /tmp/dp &&
+        chmod +x /tmp/dp && sudo mv /tmp/dp /usr/local/bin/dp )"
+
+# Отличие от шаблона: на ВМ уже работает стек Caddy (HTTPS) + app. Обновляем compose-файл и Caddyfile,
+# меняем образ app на собранный (APP_IMAGE) и перезапускаем только app. deploy/.env на ВМ не трогаем,
+# том с базой и том с сертификатами сохраняются. Перед перезапуском - копия базы в /root/backups.
+deploy:vm:
+  stage: deploy
+  extends:
+    - .ssh_vm
+    - .rules-master
+  needs: [build:image, setup:vm]
+  resource_group: production
+  script:
+    - $SSH $VM "mkdir -p $DEPLOY_DIR /root/backups"
+    - $SCP deploy/docker-compose.yml deploy/Caddyfile $VM:$DEPLOY_DIR/
+    - $SCP "$SPIRIT_DOCKER_SA_KEY" $VM:$DEPLOY_DIR/spirit-sa-key.json
+    - |
+      $SSH $VM "set -e; cd $DEPLOY_DIR &&
+        (docker cp deploy-app-1:/data/app.db /root/backups/app-\$(date +%Y%m%d-%H%M%S)-ci.db 2>/dev/null || true) &&
+        sudo dp auth service-acc --key-file spirit-sa-key.json &&
+        sudo dp auth configure-docker &&
+        rm -f spirit-sa-key.json &&
+        sudo APP_IMAGE=$IMAGE_NAME docker compose pull app &&
+        sudo APP_IMAGE=$IMAGE_NAME docker compose up -d --no-build &&
+        docker image prune -f >/dev/null"
+  environment:
+    name: production
+    url: $APP_URL
+
+# Полный сценарий ТЗ на живом сайте (тот же scripts/preflight.sh, что запускается вручную)
+preflight:prod:
+  stage: deploy
+  extends: .rules-master
+  image: python:3.12-slim
+  needs: [deploy:vm]
+  script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends curl >/dev/null
+    - for i in $(seq 1 30); do curl -fsS "$APP_URL/api/health" && break || sleep 4; done
+    - bash scripts/preflight.sh "$APP_URL"
