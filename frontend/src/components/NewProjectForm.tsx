@@ -1,39 +1,26 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { api } from '../api/endpoints'
-import { errorMessage } from '../api/client'
 import { useProjects } from '../state/ProjectContext'
+import { useAction } from '../state/useAction'
+import ErrorAlert from '../ui/ErrorAlert'
 
 /** Создание проекта (сценарий 1). Показывается, пока проектов нет, и на странице /new. */
 export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
   const { add } = useProjects()
   const [name, setName] = useState('')
   const [date, setDate] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { busy, error, submit } = useAction()
 
   const invalid = name.trim().length === 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date)
 
-  async function run(action: () => Promise<{ id: string; name: string }>) {
-    setBusy(true)
-    setError(null)
-    try {
-      const project = await action()
-      add({ id: project.id, name: project.name, role: 'owner' })
-      onDone?.()
-    } catch (e) {
-      setError(errorMessage(e))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  function submit(e: FormEvent) {
-    e.preventDefault()
-    if (!invalid) void run(() => api.createProject({ name: name.trim(), move_date: date }))
+  const create = async () => {
+    const project = await api.createProject({ name: name.trim(), move_date: date })
+    add({ id: project.id, name: project.name, role: 'owner' })
+    onDone?.()
   }
 
   return (
-    <form className="card stack narrow" onSubmit={submit}>
+    <form className="card stack narrow" onSubmit={submit(create)}>
       <h2>Новый переезд</h2>
       <p className="muted">Создайте проект: после этого появится готовый план задач.</p>
       <label>
@@ -44,7 +31,7 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
         Дата переезда
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </label>
-      {error ? <div className="alert" role="alert">{error}</div> : null}
+      <ErrorAlert message={error} />
       <button className="primary" type="submit" disabled={busy || invalid}>Создать проект</button>
     </form>
   )

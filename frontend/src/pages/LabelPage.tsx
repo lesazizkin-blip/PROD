@@ -2,8 +2,8 @@ import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/endpoints'
 import LabelSheet from '../components/LabelSheet'
 import { useAsync } from '../state/useAsync'
-import { boxPath } from '../ui/format'
 import StateView from '../ui/StateView'
+import { boxPath } from '../ui/format'
 
 // Этикетка одной коробки: «Печать / PDF» открывает системный диалог (печать или «Сохранить как PDF»).
 export default function LabelPage() {
@@ -17,7 +17,7 @@ export default function LabelPage() {
           <div className="card"><LabelSheet label={label.data} /></div>
           <div className="row wrap no-print">
             <button className="primary" onClick={() => window.print()}>Печать / PDF</button>
-            <Link to={boxPath(pid, number)}><button>К коробке</button></Link>
+            <Link to={boxPath(pid, number)} className="button">К коробке</Link>
           </div>
         </>
       ) : null}

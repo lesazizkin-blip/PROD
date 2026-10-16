@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { api } from '../api/endpoints'
-import { errorMessage } from '../api/client'
 import type { ChecklistFlags, ChecklistSuggestion } from '../api/types'
+import { useAction } from '../state/useAction'
+import ErrorAlert from '../ui/ErrorAlert'
 import { STAGE_LABELS } from '../ui/format'
 import Modal from './Modal'
 
@@ -15,24 +16,11 @@ const OPTIONS: { key: keyof ChecklistFlags; label: string }[] = [
 export default function ChecklistModal({ pid, onClose, onApplied }: { pid: string; onClose: () => void; onApplied: () => void }) {
   const [flags, setFlags] = useState<ChecklistFlags>({ with_children: false, with_pets: false, other_city: false })
   const [suggestion, setSuggestion] = useState<ChecklistSuggestion | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  const { busy, error, run } = useAction()
 
   const anyFlag = flags.with_children || flags.with_pets || flags.other_city
   const total = (suggestion?.suggested_tasks.length ?? 0) + (suggestion?.suggested_first_day.length ?? 0)
-
-  async function run<T>(action: () => Promise<T>, after: (r: T) => void) {
-    setBusy(true)
-    setError(null)
-    try {
-      after(await action())
-    } catch (e) {
-      setError(errorMessage(e))
-    } finally {
-      setBusy(false)
-    }
-  }
 
   return (
     <Modal title="Умный чек-лист" onClose={onClose}>
@@ -57,7 +45,7 @@ export default function ChecklistModal({ pid, onClose, onApplied }: { pid: strin
               {o.label}
             </label>
           ))}
-          {error ? <div className="alert" role="alert">{error}</div> : null}
+          <ErrorAlert message={error} />
 
           {suggestion ? (
             <div className="stack">
@@ -78,7 +66,8 @@ export default function ChecklistModal({ pid, onClose, onApplied }: { pid: strin
                 className="primary"
                 disabled={busy || total === 0}
                 onClick={() =>
-                  run(() => api.applyChecklist(pid, flags), (r) => {
+                  run(async () => {
+                    const r = await api.applyChecklist(pid, flags)
                     setDone(`Добавлено: задач ${r.added_tasks}, пунктов для первого дня ${r.added_first_day}.`)
                     onApplied()
                   })
@@ -88,7 +77,7 @@ export default function ChecklistModal({ pid, onClose, onApplied }: { pid: strin
               </button>
             </div>
           ) : (
-            <button className="primary" disabled={busy || !anyFlag} onClick={() => run(() => api.suggestChecklist(pid, flags), setSuggestion)}>
+            <button className="primary" disabled={busy || !anyFlag} onClick={() => run(async () => setSuggestion(await api.suggestChecklist(pid, flags)))}>
               Показать, что добавим
             </button>
           )}

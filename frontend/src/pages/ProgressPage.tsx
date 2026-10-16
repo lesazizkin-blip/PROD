@@ -7,11 +7,12 @@ import Modal from '../components/Modal'
 import RequireProject from '../components/RequireProject'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
-import { STATUS_LABELS, boxPath } from '../ui/format'
+import ErrorAlert from '../ui/ErrorAlert'
 import ProgressBar from '../ui/ProgressBar'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
+import { STATUS_LABELS, boxPath } from '../ui/format'
 
 // Для комнаты: какие коробки можно сдвинуть дальше одной кнопкой (погрузка, доставка, распаковка)
 const ROOM_STEPS: { from: BoxStatus; to: BoxStatus; label: string }[] = [
@@ -64,7 +65,7 @@ function ProgressView({ pid }: { pid: string }) {
             <div>коробок · распаковано {Math.round(p.unpacked_percent)}%</div>
             <ProgressBar value={p.unpacked_percent} label="Распаковано коробок" />
           </div>
-          {error ? <div className="alert" role="alert">{error}</div> : null}
+          <ErrorAlert message={error} />
 
           <div className="stat-grid">
             {BOX_STATUSES.map((s) => (
