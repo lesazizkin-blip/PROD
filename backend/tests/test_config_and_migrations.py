@@ -23,7 +23,10 @@ TABLES = {
 }
 
 
-def test_settings_defaults_work_without_env():
+def test_settings_defaults_work_without_env(monkeypatch):
+    # тесты сами задают DATABASE_URL (в CI это PostgreSQL), а проверяем значения по умолчанию
+    for name in ("DATABASE_URL", "SEED_DEMO", "APP_ENV"):
+        monkeypatch.delenv(name, raising=False)
     s = Settings(_env_file=None)
     assert s.database_url.startswith("sqlite")
     assert s.seed_demo is False
