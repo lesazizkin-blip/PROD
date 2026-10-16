@@ -9,29 +9,29 @@ frontend-setup:
 setup: backend-setup frontend-setup  ## окружение для бэкенда и фронтенда
 
 db:  ## применить миграции (SQLite по умолчанию)
-	cd backend && .venv/bin/alembic upgrade head
+	cd backend && .venv/bin/python -m alembic upgrade head
 
 seed:  ## демо-пользователи и записи
 	cd backend && .venv/bin/python -m app.seed
 
 api:  ## бэкенд на :8000, Swagger: /api/docs
-	cd backend && .venv/bin/uvicorn app.main:app --reload
+	cd backend && .venv/bin/python -m uvicorn app.main:app --reload
 
 web:  ## фронтенд на :5173 (проксирует /api на :8000)
 	cd frontend && npm run dev
 
 test:  ## тесты бэкенда + покрытие
-	cd backend && .venv/bin/pytest --cov=app --cov-report=term-missing
+	cd backend && .venv/bin/python -m pytest --cov=app --cov-report=term-missing
 
 lint:
-	cd backend && .venv/bin/ruff check . && .venv/bin/ruff format --check .
+	cd backend && .venv/bin/python -m ruff check . && .venv/bin/python -m ruff format --check .
 	cd frontend && npm run lint && npx tsc -b
 
 fmt:
-	cd backend && .venv/bin/ruff check . --fix && .venv/bin/ruff format .
+	cd backend && .venv/bin/python -m ruff check . --fix && .venv/bin/python -m ruff format .
 
 migration:  ## новая миграция: make migration m="add field"
-	cd backend && .venv/bin/alembic revision --autogenerate -m "$(m)"
+	cd backend && .venv/bin/python -m alembic revision --autogenerate -m "$(m)"
 
 build:
 	cd frontend && npm run build
@@ -55,11 +55,11 @@ test-pg:  ## тесты бэкенда на настоящем PostgreSQL (вр�
 	-docker rm -f pgtest >/dev/null 2>&1
 	docker run -d --name pgtest -e POSTGRES_USER=app -e POSTGRES_PASSWORD=app -e POSTGRES_DB=app -p 55432:5432 postgres:16-alpine >/dev/null
 	@for i in $$(seq 1 30); do docker exec pgtest pg_isready -U app >/dev/null 2>&1 && break; sleep 1; done; sleep 2
-	cd backend && TEST_DATABASE_URL=postgresql+psycopg://app:app@localhost:55432/app .venv/bin/pytest -rs; code=$$?; docker rm -f pgtest >/dev/null; exit $$code
+	cd backend && TEST_DATABASE_URL=postgresql+psycopg://app:app@localhost:55432/app .venv/bin/python -m pytest -rs; code=$$?; docker rm -f pgtest >/dev/null; exit $$code
 
 site:  ## сайт одной командой: бэкенд отдаёт API и собранный сайт на :8000 (scripts/run-site.sh)
 	scripts/run-site.sh
 
 dev:  ## бэкенд для приложения: миграции, демо-данные, сервер на :8000
-	cd backend && .venv/bin/alembic upgrade head && .venv/bin/python -m app.seed && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+	cd backend && .venv/bin/python -m alembic upgrade head && .venv/bin/python -m app.seed && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
