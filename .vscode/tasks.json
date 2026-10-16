@@ -1,0 +1,224 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "migrationName",
+      "type": "promptString",
+      "description": "Название миграции (например: add offer table)"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "Бэкенд: запустить",
+      "type": "shell",
+      "command": ".venv/bin/uvicorn app.main:app --reload",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "(Application startup complete|Local:)"
+        }
+      },
+      "detail": "http://localhost:8000/api/docs",
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Фронтенд: запустить",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "(Application startup complete|Local:)"
+        }
+      },
+      "detail": "http://localhost:5173",
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Запустить всё (бэкенд + фронтенд)",
+      "type": "shell",
+      "problemMatcher": [],
+      "dependsOn": [
+        "Бэкенд: запустить",
+        "Фронтенд: запустить"
+      ],
+      "dependsOrder": "parallel",
+      "detail": "для разработки без Docker",
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Тесты бэкенда",
+      "type": "shell",
+      "command": "make test",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Тесты бэкенда на PostgreSQL",
+      "type": "shell",
+      "command": "make test-pg",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "detail": "нужен Docker",
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Тесты фронтенда",
+      "type": "shell",
+      "command": "npm test",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Линтеры",
+      "type": "shell",
+      "command": "make lint",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Форматировать код",
+      "type": "shell",
+      "command": "make fmt",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "detail": "чинит стиль бэкенда",
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Новая миграция",
+      "type": "shell",
+      "command": "make migration m=\"${input:migrationName}\"",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Docker: поднять всё",
+      "type": "shell",
+      "command": "docker compose up -d --build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "detail": "http://localhost:8080",
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Docker: логи",
+      "type": "shell",
+      "command": "docker compose logs -f --tail=100",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "(Application startup complete|Local:)"
+        }
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Docker: остановить",
+      "type": "shell",
+      "command": "docker compose down",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    },
+    {
+      "label": "Проверка стенда (preflight)",
+      "type": "shell",
+      "command": "scripts/preflight.sh http://localhost:8080",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "detail": "10 проверок; другой адрес: make preflight URL=...",
+      "presentation": {
+        "panel": "dedicated",
+        "clear": false
+      }
+    }
+  ]
+}
