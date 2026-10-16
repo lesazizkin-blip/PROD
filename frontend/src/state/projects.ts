@@ -1,9 +1,11 @@
-// Список «моих проектов» хранится только в браузере: на сервере списка проектов нет (приватность).
+// Список «моих проектов» приходит с сервера после входа; здесь его копия и выбранный проект,
+// чтобы после обновления страницы открылся тот же проект.
 const KEY = 'movermate.projects.v1'
 
 export interface SavedProject {
   id: string
   name: string
+  role?: 'owner' | 'member'
 }
 
 export interface ProjectsState {

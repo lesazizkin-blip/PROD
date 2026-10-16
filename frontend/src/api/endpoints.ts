@@ -1,7 +1,7 @@
 import { request } from "./client"
 import type {
   AppEvent, Box, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Health, Hint, Item,
-  Label, LostItem, Page, PageParams, Progress, Project, ProjectCreate, ProjectUpdate, Reminder, SearchHit,
+  Credentials, InviteInfo, InviteOut, Label, LostItem, Page, PageParams, Progress, Project, ProjectBrief, ProjectCreate, ProjectUpdate, Reminder, SearchHit, User,
   Stage, Task, TaskCreate, TaskTemplate, TaskUpdate, Tip, TipTopic,
 } from "./types"
 
@@ -15,7 +15,20 @@ export const api = {
   taskTemplates: () => request<TaskTemplate[]>("GET", "/task-templates"),
   tips: (topic?: TipTopic) => request<Tip[]>("GET", "/tips", { query: { topic } }),
 
+  // Вход: сессия в httpOnly-cookie, браузер отправляет её сам
+  me: () => request<User>("GET", "/auth/me"),
+  register: (body: Credentials) => request<User>("POST", "/auth/register", { body }),
+  login: (body: Credentials) => request<User>("POST", "/auth/login", { body }),
+  demoLogin: () => request<User>("POST", "/auth/demo"),
+  logout: () => request<void>("POST", "/auth/logout"),
+
+  // Приглашения
+  createInvite: (pid: string) => request<InviteOut>("POST", `${p(pid)}/invites`),
+  inviteInfo: (token: string) => request<InviteInfo>("GET", `/invites/${encodeURIComponent(token)}`),
+  acceptInvite: (token: string) => request<Project>("POST", `/invites/${encodeURIComponent(token)}/accept`),
+
   // Проекты
+  myProjects: () => request<ProjectBrief[]>("GET", "/projects"),
   createProject: (body: ProjectCreate) => request<Project>("POST", "/projects", { body }),
   getProject: (pid: string) => request<Project>("GET", p(pid)),
   updateProject: (pid: string, body: ProjectUpdate) => request<Project>("PATCH", p(pid), { body }),

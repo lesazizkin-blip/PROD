@@ -3,9 +3,6 @@ import { api } from '../api/endpoints'
 import { errorMessage } from '../api/client'
 import { useProjects } from '../state/ProjectContext'
 
-// Демо-проект из `python -m app.seed` (фиксированный id): сайт открывается с готовыми данными
-const DEMO_PROJECT_ID = '00000000-0000-4000-8000-000000000001'
-
 /** Создание проекта (сценарий 1). Показывается, пока проектов нет, и на странице /new. */
 export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
   const { add } = useProjects()
@@ -21,7 +18,7 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
     setError(null)
     try {
       const project = await action()
-      add({ id: project.id, name: project.name })
+      add({ id: project.id, name: project.name, role: 'owner' })
       onDone?.()
     } catch (e) {
       setError(errorMessage(e))
@@ -49,9 +46,6 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
       </label>
       {error ? <div className="alert" role="alert">{error}</div> : null}
       <button className="primary" type="submit" disabled={busy || invalid}>Создать проект</button>
-      <button className="link" type="button" disabled={busy} onClick={() => void run(() => api.getProject(DEMO_PROJECT_ID))}>
-        Открыть демо-проект
-      </button>
     </form>
   )
 }

@@ -17,6 +17,35 @@ export interface Page<T> {
   page_size: number
 }
 
+export interface User {
+  id: number
+  username: string
+}
+
+export interface Credentials {
+  username: string
+  password: string
+}
+
+/** Проект в списке «Мои проекты»: роль показывает, можно ли приглашать и удалять */
+export interface ProjectBrief {
+  id: string
+  name: string
+  move_date: string
+  role: 'owner' | 'member'
+}
+
+export interface InviteOut {
+  token: string
+  path: string
+  expires_at: string
+}
+
+export interface InviteInfo {
+  project_name: string
+  expires_at: string
+}
+
 export interface Project {
   id: string
   name: string

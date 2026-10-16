@@ -229,3 +229,16 @@ dialog.modal::backdrop { background: rgba(0, 0, 0, .45); }
 }
 
 input[type='color'] { width: 56px; height: 44px; padding: 2px; flex: none; }
+
+/* ---------- вход ---------- */
+.auth { max-width: 420px; margin: 0 auto; padding: 48px 16px; display: grid; gap: 16px; }
+.auth__brand { font-size: 1.75rem; font-weight: 700; color: var(--primary); letter-spacing: -0.02em; text-align: center; }
+.auth__tagline { text-align: center; margin-top: -8px; }
+.auth__demo { justify-self: center; }
+.auth__privacy { text-align: center; }
+.segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--bg); border-radius: var(--radius-sm); }
+.segmented button { border: 0; background: none; min-height: 40px; font-weight: 500; color: var(--muted); }
+.segmented button.on { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow); }
+.invite { padding-top: 12px; border-top: 1px solid var(--border); }
+.invite h3 { margin: 0; font-size: 1rem; }
+.account { padding-top: 12px; border-top: 1px solid var(--border); }

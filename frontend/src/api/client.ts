@@ -1,6 +1,7 @@
 import type { ApiErrorBody } from './types'
 
 const TIMEOUT_MS = 20_000
+export const UNAUTHORIZED_EVENT = 'movermate:unauthorized'
 const GATEWAY_ERRORS = new Set([502, 503, 504])
 
 export class ApiError extends Error {
@@ -65,6 +66,10 @@ export async function request<T>(
     clearTimeout(timer)
   }
 
+  if (res.status === 401 && !path.startsWith('/auth/')) {
+    // Сессия кончилась или её нет: экран входа покажет AuthProvider, адрес страницы сохранится
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+  }
   if (!res.ok) {
     // Прокси может отдать HTML вместо JSON (502 от nginx): показываем понятный текст, а не «Ошибка 502»
     const body: Partial<ApiErrorBody> = await res.json().catch(() => ({}))

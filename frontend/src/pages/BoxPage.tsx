@@ -16,20 +16,18 @@ export default function BoxPage() {
   const { pid = '', n = '' } = useParams()
   const number = Number(n)
   const navigate = useNavigate()
-  const { projects, add } = useProjects()
+  const { projects, currentId, select } = useProjects()
   const valid = pid !== '' && Number.isInteger(number) && number >= 1
   const card = useAsync(() => (valid ? api.getBox(pid, number) : Promise.reject(new Error('Некорректная ссылка на коробку'))), [pid, number])
   const { busy, error, run } = useAction(() => card.reload())
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
 
-  // Открыли ссылку из QR на чужом устройстве: запоминаем проект, чтобы вкладки работали с ним
+  // Открыли коробку по QR из другого проекта: переключаем вкладки на него, чтобы «Коробки» и «План» были про ту же коробку
   useEffect(() => {
-    if (valid && !projects.some((p) => p.id === pid)) {
-      api.getProject(pid).then((p) => add({ id: p.id, name: p.name })).catch(() => {})
-    }
+    if (valid && pid !== currentId && projects.some((p) => p.id === pid)) select(pid)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pid])
+  }, [pid, projects])
 
   function deleteBox() {
     if (!window.confirm(`Удалить коробку № ${number} и всё её содержимое?`)) return
