@@ -25,7 +25,7 @@
 | `APP_PORT` | порт приложения | команда |
 | `SPIRIT_DOCKER_SA_KEY` | ключ сервис-аккаунта `sa-hack-led-20-spirit-docker-ci` (Registry Publisher) | Project lead |
 
-Что делаем: переписать `.gitlab-ci.yml` по шаблону, в задании `test` запускать тесты сервера с отчётом покрытия и тесты сайта, затем деплой на ВМ и `scripts/preflight.sh` после него. План по людям: `docs/TEAM_PLAN.md` (Бэкенд 1).
+Наш `.gitlab-ci.yml` уже запускает линтеры, тесты сервера с отчётом покрытия (SQLite и PostgreSQL), тесты и сборку сайта, сборку продового образа и `scripts/preflight.sh` по нему. Осталось добавить шаги шаблона `build:image` → `setup:vm` → `deploy:vm` для автодеплоя на ВМ. План по людям: `docs/TEAM_PLAN.md` (Бэкенд 1).
 
 ## Что не проверено
 Ни одно задание на настоящем GitLab ещё не запускалось.

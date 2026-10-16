@@ -23,7 +23,7 @@
 | ВМ-деплой | `deploy/docker-compose.yml`, `deploy/Caddyfile` | Caddy с автоматическим HTTPS + контейнер app |
 | Проверка | `scripts/preflight.sh <адрес>` | полный сценарий ТЗ на временном проекте |
 
-**Тесты:** сервер 67 (+1 пропущен: параллельность только на PostgreSQL), покрытие 98% (`cd backend && .venv/bin/python -m pytest --cov=app`); сайт 47 (`cd frontend && npm test`). Линтеры чистые.
+**Тесты:** сервер 70 (+1 пропущен: параллельность только на PostgreSQL), покрытие 98% (`cd backend && .venv/bin/python -m pytest --cov=app`); сайт 55 (`cd frontend && npm test`). Линтеры чистые.
 
 **Документы:** `docs/MoverMate_architecture.pdf` (полная архитектура, 10 страниц, исходник `.html` рядом), `docs/CASE.md` (38 пунктов минимума ТЗ со статусом и тестом), `docs/API.md` (контракт), `docs/ARCHITECTURE.md`, `docs/TEAM_PLAN.md` (роли A–E, три дня), `docs/DEPLOY_VM.md` (как выложено), `docs/GITLAB.md`, `docs/DEPLOY.md` (шаблон, часть про прежний домен устарела). В `CASE.md` ни один пункт не ✅: так отмечается только проверенное **на проде**; сейчас 🟦 (покрыто тестом) и 🟨 (вручную).
 

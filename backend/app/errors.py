@@ -33,8 +33,3 @@ class ConflictError(AppError):
 class ValidationFailed(AppError):
     status_code = 422
     code = "validation_failed"
-
-
-class TooManyRequestsError(AppError):
-    status_code = 429
-    code = "too_many_requests"

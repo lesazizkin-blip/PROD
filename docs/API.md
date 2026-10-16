@@ -21,7 +21,6 @@
 | 404 | `not_found` | нет проекта, коробки, вещи, задачи |
 | 409 | `conflict` | недопустимый переход статуса, дубль номера при ручной выдаче |
 | 422 | `validation_failed` | неверные поля, нет `confirm=true` при удалении |
-| 429 | `too_many_requests` | лимит запросов |
 
 - **Пагинация** (списки коробок, вещей, поиска, событий): `?page=1&page_size=50` (по умолчанию 1 и 50, максимум `page_size` = 200). Ответ:
 
@@ -115,10 +114,10 @@ packing (собирается) → packed (собрана) → loaded (погр�
 Фильтры: `stage`, `done` (`true|false`). Сортировка: `stage` (before, moving_day, after), `due_date` (без срока — в конце), `id`. Без пагинации (десятки записей). `200 [Task]`.
 
 ### `POST /api/projects/{pid}/tasks`
-`{ "stage": "before", "title": "…", "due_date": null, "assignee": null }`. `title` 1–200, `assignee` ≤ 80. `201` Task. Событие `task.created`.
+`{ "stage": "before", "title": "…", "due_date": null, "start_time": "09:00", "end_time": "12:30", "category": "Грузчики", "category_color": "#f0a04b", "assignee": null }`. Всё, кроме `stage` и `title`, необязательно. `title` 1–200, `assignee` ≤ 80, `category` ≤ 40. Время — `ЧЧ:ММ` без часового пояса, конец позже начала (иначе `422`); в ответе `ЧЧ:ММ:СС`. `category_color` — `#RRGGBB`, без категории цвет не хранится. `201` Task. Событие `task.created`.
 
 ### `PATCH /api/projects/{pid}/tasks/{tid}`
-Любые из `title`, `stage`, `due_date`, `assignee`, `done`. При `done: true` ставится `done_at`. `200` Task. Событие `task.completed` / `task.reopened`.
+Любые из `title`, `stage`, `due_date`, `start_time`, `end_time`, `category`, `category_color`, `assignee`, `done`; `null` очищает необязательное поле. Время проверяется по итоговым значениям (можно прислать только `end_time`). Сброс `category` сбрасывает и цвет. При `done: true` ставится `done_at`. `200` Task. Событие `task.completed` / `task.reopened`.
 
 ### `DELETE /api/projects/{pid}/tasks/{tid}?confirm=true`
 `204`.
@@ -300,6 +299,3 @@ packing (собирается) → packed (собрана) → loaded (погр�
 | `bulk-transitions` с одним недопустимым номером | `409`, ни один статус не изменён |
 | Проект на 300 коробок и 3000 вещей | `GET /boxes`, `/search`, `/progress` отвечают быстро (цель ≤ 300 мс на обычной машине) |
 | Обновление страницы | состояние берётся из API по сохранённому `pid` |
-
-### Задачи: время и категория
-У задачи (`POST`/`PATCH /projects/{pid}/tasks`) есть необязательные поля `start_time`, `end_time` (`ЧЧ:ММ`, конец позже начала, иначе 422), `category` (до 40 символов) и `category_color` (`#RRGGBB`; без категории цвет не хранится).

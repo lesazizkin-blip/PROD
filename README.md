@@ -41,8 +41,8 @@ cd frontend && npm install && npm run dev                                      #
 
 ## Проверки
 ```bash
-cd backend && .venv/bin/python -m pytest --cov=app    # сервер: 67 тестов, покрытие 98%
-cd frontend && npm test && npm run lint && npm run build   # сайт: 47 тестов
+cd backend && .venv/bin/python -m pytest --cov=app    # сервер: 70 тестов (+1 пропущен на SQLite), покрытие 98%
+cd frontend && npm test && npm run lint && npm run build   # сайт: 55 тестов
 scripts/preflight.sh <адрес>                          # полный сценарий ТЗ на запущенном сайте
 ```
 Тесты сервера запускать из папки `backend/` (миграционный тест читает `alembic.ini` по относительному пути).
