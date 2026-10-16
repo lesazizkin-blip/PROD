@@ -1,0 +1,45 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { errorMessage } from '../api/client'
+
+export interface AsyncState<T> {
+  data: T | null
+  loading: boolean
+  error: string | null
+  reload: () => void
+}
+
+/** Загрузка данных для экрана: состояния «загрузка / ошибка / данные» и повторная попытка. */
+export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T> {
+  const [data, setData] = useState<T | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [tick, setTick] = useState(0)
+  const fnRef = useRef(fn)
+  fnRef.current = fn
+  // Другие параметры (другой проект, другой запрос) - старые данные больше не верны и прячутся сразу;
+  // обычный reload() данные оставляет, чтобы экран не мигал
+  const key = JSON.stringify(deps)
+  const keyRef = useRef(key)
+
+  useEffect(() => {
+    let cancelled = false
+    if (keyRef.current !== key) {
+      keyRef.current = key
+      setData(null)
+    }
+    setLoading(true)
+    setError(null)
+    fnRef
+      .current()
+      .then((d) => !cancelled && setData(d))
+      .catch((e) => !cancelled && setError(errorMessage(e)))
+      .finally(() => !cancelled && setLoading(false))
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [...deps, tick])
+
+  const reload = useCallback(() => setTick((t) => t + 1), [])
+  return { data, loading, error, reload }
+}

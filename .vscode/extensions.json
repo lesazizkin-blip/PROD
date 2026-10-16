@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.debugpy",
+    "charliermarsh.ruff",
+    "oxc.oxc-vscode",
+    "ms-azuretools.vscode-docker",
+    "yzhang.markdown-all-in-one",
+    "bierner.markdown-mermaid",
+    "gitlab.gitlab-workflow"
+  ]
+}

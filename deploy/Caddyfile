@@ -1,0 +1,8 @@
+# Обратный прокси с автоматическим HTTPS (сертификат Let's Encrypt получается и продлевается сам).
+# SITE_ADDRESS - имя сервера, например hack-led-20-vm1-12902f.vmaas-spirit.t-education.com:
+#   с именем Caddy включает HTTPS и перенаправляет http -> https;
+#   без имени (по умолчанию :80) работает обычный HTTP, например при локальном запуске.
+{$SITE_ADDRESS::80} {
+	encode gzip
+	reverse_proxy app:8000
+}
