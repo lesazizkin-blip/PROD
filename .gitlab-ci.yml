@@ -6,7 +6,7 @@
 #
 # На любой ветке идут lint и test; сборка образа - на master и в Merge Request; деплой - только из master.
 # Секреты задаются в Spirit (Код → Репозитории → prod_1 → CI-переменные), не в этом файле:
-#   SSH_PRIVATE_KEY (тип «Файл», приватный ключ ВМ, с переводом строки в конце, «Защищённая»);
+#   SSH_PRIVATE_KEY (тип «Файл», приватный ключ ВМ целиком, «Защищённая»; \r и перевод строки CI поправит сам);
 #   SPIRIT_DOCKER_SA_KEY уже заведена организаторами на уровне тенанта.
 
 include:
@@ -139,8 +139,8 @@ build:image:
 .ssh_vm:
   image: $DEPLOY_IMG
   variables:
-    SSH: "ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=accept-new"
-    SCP: "scp -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=accept-new"
+    SSH: "ssh -i /tmp/vm_key -o StrictHostKeyChecking=accept-new"
+    SCP: "scp -i /tmp/vm_key -o StrictHostKeyChecking=accept-new"
     VM: "$DEPLOY_SSH_USER@$DEPLOY_VM"
     # версия Spirit CLI та же, что у раннеров (dp 14.1.3 tedu)
     DP_CLI_URL: "https://spirit.t-education.com/cli/tedu/14.1.3/linux/dp"
@@ -150,7 +150,12 @@ build:image:
         echo "Нет SSH_PRIVATE_KEY: заведите её в Spirit (Код → Репозитории → prod_1 → CI-переменные), тип «Файл»"; exit 1
       fi
     - command -v ssh >/dev/null || (apk add --no-cache openssh-client 2>/dev/null || (apt-get update -qq && apt-get install -y -qq --no-install-recommends openssh-client))
-    - chmod 600 "$SSH_PRIVATE_KEY"
+    # ключ из веб-формы часто приходит с \r или без перевода строки в конце: ssh такой не читает
+    - |
+      if [ -f "$SSH_PRIVATE_KEY" ]; then tr -d '\r' < "$SSH_PRIVATE_KEY" > /tmp/vm_key; else printf '%s' "$SSH_PRIVATE_KEY" | tr -d '\r' > /tmp/vm_key; fi
+      [ -n "$(tail -c 1 /tmp/vm_key)" ] && echo >> /tmp/vm_key
+      chmod 600 /tmp/vm_key
+      ! command -v ssh-keygen >/dev/null || ssh-keygen -y -f /tmp/vm_key > /dev/null || { echo "SSH_PRIVATE_KEY не читается как ключ: вставьте файл vm1.pem целиком, от BEGIN до END"; exit 1; }
 
 # Spirit CLI (dp) на ВМ нужен, чтобы войти в registry ключом сервис-аккаунта
 setup:vm:
