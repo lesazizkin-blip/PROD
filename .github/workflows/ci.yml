@@ -10,13 +10,13 @@ on:
 permissions:
   contents: read
 
-# Новый пуш отменяет предыдущий запуск той же ветки; на main запуски идут по очереди (деплои не перекрываются)
+# Новый пуш отменяет предыдущий запуск той же ветки; на main запуски идут по очереди
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  # Стиль кода проверяется отдельно и деплой НЕ блокирует: красный линтер виден, но выкладка идёт.
+  # Стиль кода проверяется отдельно: красный линтер виден, но остальное не блокирует.
   # Починить: make fmt
   lint:
     runs-on: ubuntu-latest
@@ -112,93 +112,19 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  docker:
+  # Продовый образ (тот же Dockerfile, что на ВМ): собрать, запустить, прогнать сценарий ТЗ.
+  # Деплоя из GitHub нет: стенд обновляется вручную (docs/DEPLOY_VM.md).
+  image:
     needs: [backend, frontend]
     runs-on: ubuntu-latest
-    env:
-      IMAGE_TAG: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
-      - name: Поднять весь стек
-        run: docker compose up -d --build
-      - name: "Предполётная проверка (тот же скрипт, что и перед сдачей)"
+      - run: docker build -t movermate:ci .
+      - run: docker run -d --name app -p 8000:8000 -e SEED_DEMO=true movermate:ci
+      - name: Предполётная проверка
         run: |
-          for i in $(seq 1 40); do curl -fs localhost:8080/api/health && break || sleep 2; done
-          scripts/preflight.sh http://localhost:8080
+          for i in $(seq 1 40); do curl -fs localhost:8000/api/health && break || sleep 2; done
+          scripts/preflight.sh http://localhost:8000
       - name: Логи при падении
         if: failure()
-        run: docker compose logs
-      - name: Сохранить образы
-        if: github.ref == 'refs/heads/main'
-        run: docker save prod-backend:${IMAGE_TAG} prod-frontend:${IMAGE_TAG} | gzip > images.tar.gz
-      - uses: actions/upload-artifact@v4
-        if: github.ref == 'refs/heads/main'
-        with:
-          name: images
-          path: images.tar.gz
-          retention-days: 14
-
-  deploy:
-    # Включение: Settings -> Secrets and variables -> Actions
-    #   variable DEPLOY_ENABLED=true (необязательно: SEED_DEMO=false - без демо-данных)
-    #   secrets  DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, POSTGRES_PASSWORD (только буквы и цифры),
-    #            SECRET_KEY (>= 32 символов), ADMIN_PASSWORD (>= 8 символов, не admin12345)
-    #   необязательно: DEPLOY_KNOWN_HOSTS (вывод `ssh-keyscan <host>` - закрепляет отпечаток сервера), ADMIN_EMAIL
-    needs: docker
-    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: deploy
-      cancel-in-progress: false
-    env:
-      HOST: ${{ secrets.DEPLOY_HOST }}
-      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-      DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
-      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
-      SEED_DEMO: ${{ vars.SEED_DEMO }}
-      IMAGE_TAG: ${{ github.sha }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Проверка секретов (пустой секрет не должен молча стать публичным значением)
-        run: |
-          for v in HOST DEPLOY_USER DEPLOY_SSH_KEY POSTGRES_PASSWORD SECRET_KEY ADMIN_PASSWORD; do
-            [ -n "${!v}" ] || { echo "::error::Секрет $v не задан"; exit 1; }
-          done
-          [[ "$POSTGRES_PASSWORD" =~ ^[A-Za-z0-9]+$ ]] || { echo "::error::POSTGRES_PASSWORD: только латинские буквы и цифры"; exit 1; }
-          [ "${#SECRET_KEY}" -ge 32 ] || { echo "::error::SECRET_KEY короче 32 символов"; exit 1; }
-          [ "${#ADMIN_PASSWORD}" -ge 8 ] || { echo "::error::ADMIN_PASSWORD короче 8 символов"; exit 1; }
-          [ "$ADMIN_PASSWORD" != "admin12345" ] || { echo "::error::ADMIN_PASSWORD не должен быть паролем по умолчанию"; exit 1; }
-      - uses: actions/download-artifact@v4
-        with:
-          name: images
-      - name: SSH
-        run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          if [ -n "$DEPLOY_KNOWN_HOSTS" ]; then
-            printf '%s\n' "$DEPLOY_KNOWN_HOSTS" >> ~/.ssh/known_hosts
-          else
-            echo "::warning::DEPLOY_KNOWN_HOSTS не задан: отпечаток сервера берётся при первом подключении"
-            ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
-          fi
-      - name: Deploy
-        run: |
-          TARGET="$DEPLOY_USER@$HOST"
-          SSH="ssh -i $HOME/.ssh/id_deploy"
-          $SSH "$TARGET" 'mkdir -p ~/prod-app'
-          scp -i ~/.ssh/id_deploy docker-compose.yml "$TARGET":~/prod-app/
-          # Секреты кладём в .env на сервере (не в репозиторий и не в логи)
-          printf 'APP_ENV=production\nPORT=80\nIMAGE_TAG=%s\nPOSTGRES_PASSWORD=%s\nSECRET_KEY=%s\nADMIN_EMAIL=%s\nADMIN_PASSWORD=%s\nSEED_DEMO=%s\n' \
-            "$IMAGE_TAG" "$POSTGRES_PASSWORD" "$SECRET_KEY" "${ADMIN_EMAIL:-admin@example.com}" "$ADMIN_PASSWORD" "${SEED_DEMO:-true}" \
-            | $SSH "$TARGET" 'umask 077; cat > ~/prod-app/.env'
-          gunzip -c images.tar.gz | $SSH "$TARGET" 'docker load'
-          $SSH "$TARGET" 'cd ~/prod-app && docker compose up -d --no-build'
-      - name: Проверка после деплоя (ждём старта, затем те же проверки, что перед сдачей)
-        run: |
-          for i in $(seq 1 40); do curl -fs "http://$HOST/api/health" && break || sleep 3; done
-          ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}" scripts/preflight.sh "http://$HOST"
+        run: docker logs app

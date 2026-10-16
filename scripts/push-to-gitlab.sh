@@ -33,7 +33,7 @@ if git merge-base --is-ancestor "$REMOTE/$TARGET" HEAD; then
   say "2/4 Файлы организаторов уже в вашей истории: сливать нечего"
 else
   say "2/4 Вливаю историю организаторов (policy.yml и стартовый CI)"
-  # Ваш прежний .gitlab-ci.yml сохраняем: он описывал деплой по SSH и может пригодиться
+  # Наш .gitlab-ci.yml (тесты, покрытие, сборка образа) сохраняем: его можно вернуть или влить в шаблон организаторов
   if git show "$REMOTE/$TARGET:.gitlab-ci.yml" >/dev/null 2>&1 && [ -f .gitlab-ci.yml ] && [ ! -f docs/gitlab-ci.own.yml ]; then
     cp .gitlab-ci.yml docs/gitlab-ci.own.yml
     git add docs/gitlab-ci.own.yml

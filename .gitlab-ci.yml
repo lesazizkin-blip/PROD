@@ -1,14 +1,7 @@
-# GitLab CI: основной CI на хакатоне (по Положению решения команд размещаются на GitLab).
-# Подробности и переменные - docs/GITLAB.md. Аналог для GitHub: .github/workflows/ci.yml (личный запасной репозиторий).
-#
-# Два режима раннера (переменная RUNNER_MODE, по умолчанию docker):
-#   docker - раннер запускает задания в контейнерах (типичные shared runners): тесты идут в python/node-образах
-#   shell  - раннер установлен на сервере команды (тег self-hosted), docker compose доступен напрямую
-# Два способа деплоя (переменная DEPLOY_MODE; без неё деплоя нет):
-#   ssh    - задание заходит на сервер по SSH и запускает docker compose (нужны SSH_PRIVATE_KEY, DEPLOY_USER, REMOTE_SERVER)
-#   local  - раннер стоит на самом сервере и деплоит локально (тег self-hosted)
+# GitLab CI MoverMate: стиль кода, тесты с покрытием, сборка продового образа и проверка сценария ТЗ.
+# Деплой на ВМ пока вручную (docs/DEPLOY_VM.md); автодеплой по шаблону организаторов - docs/GITLAB.md.
 
-stages: [lint, test, build, deploy]
+stages: [lint, test, build]
 
 workflow:
   rules:
@@ -33,8 +26,6 @@ lint-backend:
   image: python:3.11-slim
   <<: *cache
   allow_failure: true
-  rules:
-    - if: $RUNNER_MODE != "shell"
   script:
     - pip install -r backend/requirements-dev.txt -c backend/constraints.txt
     - cd backend
@@ -46,8 +37,6 @@ lint-frontend:
   image: node:22-alpine
   <<: *cache
   allow_failure: true
-  rules:
-    - if: $RUNNER_MODE != "shell"
   script:
     - cd frontend
     - npm ci
@@ -66,8 +55,6 @@ test-backend:
     POSTGRES_USER: app
     POSTGRES_PASSWORD: app
     POSTGRES_DB: app
-  rules:
-    - if: $RUNNER_MODE != "shell"
   script:
     - pip install -r backend/requirements-dev.txt -c backend/constraints.txt
     - cd backend
@@ -95,103 +82,30 @@ test-frontend:
   stage: test
   image: node:22-alpine
   <<: *cache
-  rules:
-    - if: $RUNNER_MODE != "shell"
   script:
     - cd frontend
     - npm ci
     - npm test
     - npm run build
 
-# ---------------------------------------------------------------- проверка стека целиком
-# docker-раннер: Docker-in-Docker (нужен привилегированный раннер; если его нет - задание можно
-# пропустить, оно не блокирует деплой)
-stack-dind:
+# ---------------------------------------------------------------- продовый образ
+# Тот же Dockerfile, что на ВМ: собрать, запустить, прогнать сценарий ТЗ (scripts/preflight.sh).
+# Нужен раннер с Docker-in-Docker; если его нет, задание падает и остальное не блокирует.
+image-smoke:
   stage: build
   image: docker:27
   services:
-    - docker:27-dind
+    - name: docker:27-dind
+      alias: docker
   variables:
     DOCKER_TLS_CERTDIR: ""
     DOCKER_HOST: tcp://docker:2375
   allow_failure: true
-  rules:
-    - if: $RUNNER_MODE != "shell"
-  before_script:
-    - apk add --no-cache bash curl python3 docker-cli-compose
   script:
-    - docker compose up -d --build
-    - for i in $(seq 1 60); do curl -fs http://docker:8080/api/health && break || sleep 3; done
-    - scripts/preflight.sh http://docker:8080
+    - apk add --no-cache bash curl python3
+    - docker build -t movermate:ci .
+    - docker run -d --name app -p 8000:8000 -e SEED_DEMO=true movermate:ci
+    - for i in $(seq 1 40); do curl -fs http://docker:8000/api/health && break || sleep 2; done
+    - scripts/preflight.sh http://docker:8000
   after_script:
-    - docker compose logs --tail=50 || true
-
-# shell-раннер на сервере команды: тесты и проверка в одном задании (python/node на сервере не нужны)
-test-shell:
-  stage: test
-  tags: [self-hosted]
-  rules:
-    - if: $RUNNER_MODE == "shell"
-  variables:
-    COMPOSE_PROJECT_NAME: "ci-$CI_PIPELINE_ID"
-    PORT: "18080"
-  script:
-    - docker compose up -d --build
-    - for i in $(seq 1 60); do curl -fs "http://localhost:$PORT/api/health" && break || sleep 3; done
-    - scripts/preflight.sh "http://localhost:$PORT"
-  after_script:
-    - docker compose logs --tail=50 || true
-    - docker compose down -v || true
-
-# ---------------------------------------------------------------- деплой
-deploy-ssh:
-  stage: deploy
-  image: alpine:3.20
-  interruptible: false
-  resource_group: production
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $DEPLOY_MODE == "ssh"
-  before_script:
-    - apk add --no-cache bash openssh-client rsync openssl curl python3
-    - |
-      for v in SSH_PRIVATE_KEY DEPLOY_USER REMOTE_SERVER POSTGRES_PASSWORD SECRET_KEY ADMIN_PASSWORD; do
-        eval "val=\${$v:-}"
-        [ -n "$val" ] || { echo "Переменная $v не задана (Settings -> CI/CD -> Variables)"; exit 1; }
-      done
-    - install -m 700 -d ~/.ssh
-    # SSH_PRIVATE_KEY может быть переменной типа File (путь) или обычной (текст ключа)
-    - if [ -f "$SSH_PRIVATE_KEY" ]; then cp "$SSH_PRIVATE_KEY" ~/.ssh/id_deploy; else printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy; fi
-    - chmod 600 ~/.ssh/id_deploy
-  script:
-    # DEPLOY_PORT - порт сайта на сервере (по умолчанию 80); DEPLOY_SSH_PORT - порт SSH, если он не 22
-    - export SSH_KEY=~/.ssh/id_deploy PORT="${DEPLOY_PORT:-80}" SSH_PORT="${DEPLOY_SSH_PORT:-}"
-    - scripts/deploy-manual.sh "$DEPLOY_USER@$REMOTE_SERVER"
-    - URL="http://$REMOTE_SERVER$([ "$PORT" = 80 ] || echo ":$PORT")"
-    - for i in $(seq 1 40); do curl -fs "$URL/api/health" && break || sleep 3; done
-    - scripts/preflight.sh "$URL"
-
-deploy-local:
-  stage: deploy
-  tags: [self-hosted]
-  interruptible: false
-  resource_group: production
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $DEPLOY_MODE == "local"
-  variables:
-    DEPLOY_DIR: "$HOME/prod-app"
-  script:
-    - mkdir -p "$DEPLOY_DIR"
-    # .env с секретами живёт на сервере и не перезаписывается; при первом запуске собирается из переменных CI
-    - |
-      if [ ! -f "$DEPLOY_DIR/.env" ]; then
-        for v in POSTGRES_PASSWORD SECRET_KEY ADMIN_PASSWORD; do
-          eval "val=\${$v:-}"; [ -n "$val" ] || { echo "Переменная $v не задана"; exit 1; }
-        done
-        (umask 077; printf 'APP_ENV=production\nPORT=%s\nPOSTGRES_PASSWORD=%s\nSECRET_KEY=%s\nADMIN_EMAIL=%s\nADMIN_PASSWORD=%s\nSEED_DEMO=%s\n' \
-          "${DEPLOY_PORT:-80}" "$POSTGRES_PASSWORD" "$SECRET_KEY" "${ADMIN_EMAIL:-admin@example.com}" "$ADMIN_PASSWORD" "${SEED_DEMO:-true}" > "$DEPLOY_DIR/.env")
-      fi
-    - rsync -a --delete --exclude .git --exclude .env --exclude node_modules --exclude .venv --exclude .cache ./ "$DEPLOY_DIR/"
-    - cd "$DEPLOY_DIR" && docker compose up -d --build
-    - PORT_NOW=$(grep '^PORT=' "$DEPLOY_DIR/.env" | cut -d= -f2)
-    - for i in $(seq 1 40); do curl -fs "http://localhost:${PORT_NOW:-80}/api/health" && break || sleep 3; done
-    - cd "$CI_PROJECT_DIR" && ADMIN_PASSWORD="${ADMIN_PASSWORD:-}" scripts/preflight.sh "http://localhost:${PORT_NOW:-80}"
+    - docker logs app || true
