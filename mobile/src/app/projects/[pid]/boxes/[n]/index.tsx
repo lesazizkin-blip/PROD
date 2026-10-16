@@ -8,6 +8,7 @@ import type { BoxCard } from "../../../../../api/types";
 import { useAsync } from "../../../../../state/useAsync";
 import { confirmDelete } from "../../../../../ui/confirm";
 import { STATUS_LABELS, nextStatus, prevStatus } from "../../../../../ui/format";
+import { StatusChip } from "../../../../../ui/StatusChip";
 import { StateView } from "../../../../../ui/StateView";
 
 // Карточка коробки. Сюда ведёт QR: movermate://projects/{pid}/boxes/{n} (открытие только читает, дублей не создаёт).
@@ -45,7 +46,7 @@ export default function BoxCardScreen() {
           <Text variant="displaySmall">№ {box.number}</Text>
           <Text variant="titleLarge">{box.room}</Text>
           <View style={styles.row}>
-            <Chip icon="flag-outline">{STATUS_LABELS[box.status]}</Chip>
+            <StatusChip status={box.status} />
             {box.fill_later && box.items.length === 0 ? <Chip icon="clock-outline">Заполнить позже</Chip> : null}
           </View>
 

@@ -1,16 +1,16 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
-import { Button, Chip, Dialog, FAB, HelperText, List, Portal, Searchbar, Switch, Text, TextInput } from "react-native-paper";
+import { FlatList, ScrollView, StyleSheet, View } from "react-native";
+import { Banner, Button, Card, Chip, Dialog, FAB, HelperText, List, Portal, Searchbar, Switch, Text, TextInput } from "react-native-paper";
 import { api } from "../../api/endpoints";
 import { errorMessage } from "../../api/client";
-import type { Box, Page, SearchHit } from "../../api/types";
+import type { Box, Page, Reminder, SearchHit } from "../../api/types";
 import { useProjects } from "../../state/ProjectContext";
 import { useAsync } from "../../state/useAsync";
 import { useFocusReload } from "../../state/useFocusReload";
-import { STATUS_LABELS } from "../../ui/format";
 import { NoProject } from "../../ui/NoProject";
 import { StateView } from "../../ui/StateView";
+import { StatusChip } from "../../ui/StatusChip";
 
 export default function BoxesScreen() {
   const { currentId, ready } = useProjects();
@@ -25,47 +25,72 @@ function Boxes({ pid }: { pid: string }) {
   const q = query.trim();
   const boxes = useAsync<Page<Box>>(() => api.boxes(pid, { page_size: 200 }), [pid]);
   const hits = useAsync<Page<SearchHit> | null>(() => (q ? api.search(pid, q, { page_size: 100 }) : Promise.resolve(null)), [pid, q]);
+  const reminders = useAsync<Reminder[]>(() => api.reminders(pid), [pid]);
+  const [room, setRoom] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   useFocusReload(() => {
     boxes.reload();
     hits.reload();
+    reminders.reload();
   });
+  const allBoxes = boxes.data?.items ?? [];
+  const rooms = Array.from(new Set(allBoxes.map((b) => b.room))).sort();
+  const visible = room ? allBoxes.filter((b) => b.room === room) : allBoxes;
+  const waiting = reminders.data ?? [];
 
   const open = (n: number) => router.push({ pathname: "/projects/[pid]/boxes/[n]", params: { pid, n: String(n) } });
 
   return (
     <View style={styles.flex}>
-      <Searchbar placeholder="Найти вещь или коробку №" value={query} onChangeText={setQuery} style={styles.search} />
+      <Searchbar placeholder="Найти вещь или коробку" value={query} onChangeText={setQuery} style={styles.search} />
       {q ? (
-        <StateView loading={hits.loading && !hits.data} error={hits.error} empty={(hits.data?.items.length ?? 0) === 0} emptyText={`«${q}» не найдено`} onRetry={hits.reload}>
+        <StateView loading={hits.loading && !hits.data} error={hits.error} empty={(hits.data?.items.length ?? 0) === 0} emptyText={`«${q}» не найдено`} emptyIcon="magnify-close" onRetry={hits.reload}>
           <FlatList
             data={hits.data?.items ?? []}
             keyExtractor={(h) => String(h.item_id)}
+            contentContainerStyle={styles.list}
             renderItem={({ item }) => (
-              <List.Item
-                title={item.name}
-                description={`Коробка № ${item.box_number} · ${item.room} · ${STATUS_LABELS[item.status]}`}
-                left={(p) => <List.Icon {...p} icon={item.lost ? "alert-circle-outline" : "magnify"} />}
-                onPress={() => open(item.box_number)}
-              />
+              <Card style={styles.card} onPress={() => open(item.box_number)}>
+                <Card.Title
+                  title={item.name}
+                  subtitle={`Коробка № ${item.box_number} · ${item.room}`}
+                  left={(p) => <List.Icon {...p} icon={item.lost ? "alert-circle-outline" : "magnify"} />}
+                  right={() => <View style={styles.chip}><StatusChip status={item.status} /></View>}
+                />
+              </Card>
             )}
           />
         </StateView>
       ) : (
-        <StateView loading={boxes.loading && !boxes.data} error={boxes.error} empty={(boxes.data?.items.length ?? 0) === 0} emptyText="Коробок пока нет. Нажмите «Коробка», чтобы добавить." onRetry={boxes.reload}>
+        <StateView loading={boxes.loading && !boxes.data} error={boxes.error} empty={allBoxes.length === 0} emptyText="Коробок пока нет. Нажмите «Коробка», чтобы добавить." emptyIcon="package-variant" onRetry={boxes.reload}>
+          {waiting.length > 0 ? (
+            <Banner visible icon="clock-alert-outline" actions={[{ label: "Открыть", onPress: () => open(waiting[0].box.number) }]}>
+              Ждут описи содержимого: {waiting.map((r) => `№${r.box.number}`).join(", ")}
+            </Banner>
+          ) : null}
+          {rooms.length > 1 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rooms} contentContainerStyle={styles.roomsContent}>
+              <Chip selected={room === null} onPress={() => setRoom(null)}>Все</Chip>
+              {rooms.map((r) => (
+                <Chip key={r} selected={room === r} onPress={() => setRoom(room === r ? null : r)}>{r}</Chip>
+              ))}
+            </ScrollView>
+          ) : null}
           <FlatList
-            data={boxes.data?.items ?? []}
+            data={visible}
             keyExtractor={(b) => String(b.number)}
-            renderItem={({ item }) => (
-              <List.Item
-                title={`Коробка № ${item.number} · ${item.room}`}
-                description={`${item.items_count} вещей${item.fill_later && item.items_count === 0 ? " · заполнить позже" : ""}`}
-                left={(p) => <List.Icon {...p} icon="package-variant-closed" />}
-                right={() => <Chip compact style={styles.chip}>{STATUS_LABELS[item.status]}</Chip>}
-                onPress={() => open(item.number)}
-              />
-            )}
             contentContainerStyle={styles.list}
+            renderItem={({ item }) => (
+              <Card style={styles.card} onPress={() => open(item.number)}>
+                <Card.Title
+                  title={`№ ${item.number} · ${item.room}`}
+                  titleVariant="titleMedium"
+                  subtitle={`${item.items_count} вещей${item.fill_later && item.items_count === 0 ? " · заполнить позже" : ""}`}
+                  left={(p) => <List.Icon {...p} icon="package-variant-closed" />}
+                  right={() => <View style={styles.chip}><StatusChip status={item.status} /></View>}
+                />
+              </Card>
+            )}
           />
         </StateView>
       )}
@@ -146,8 +171,11 @@ function AddBoxDialog({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   search: { margin: 12 },
-  list: { paddingBottom: 96 },
-  chip: { alignSelf: "center" },
+  rooms: { flexGrow: 0 },
+  roomsContent: { paddingHorizontal: 12, paddingBottom: 8, gap: 8 },
+  list: { paddingHorizontal: 12, paddingBottom: 110 },
+  card: { marginBottom: 8 },
+  chip: { marginRight: 12 },
   fab: { position: "absolute", right: 16, bottom: 16 },
   dialog: { gap: 8 },
   row: { flexDirection: "row", alignItems: "center" },

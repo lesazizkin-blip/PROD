@@ -10,7 +10,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DEMO_PROJECT_ID = process.env.EXPO_PUBLIC_DEMO_PROJECT_ID ?? "00000000-0000-4000-8000-000000000001";
 
 /** Форма создания проекта: показывается на экранах, пока ни одного проекта нет (сценарий 1). */
-export function NoProject() {
+export function NoProject({ onDone }: { onDone?: () => void }) {
   const { add } = useProjects();
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
@@ -23,6 +23,7 @@ export function NoProject() {
     try {
       const project = await api.getProject(DEMO_PROJECT_ID);
       add({ id: project.id, name: project.name });
+      onDone?.();
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -40,6 +41,7 @@ export function NoProject() {
     try {
       const project = await api.createProject({ name: name.trim(), move_date: date });
       add({ id: project.id, name: project.name });
+      onDone?.();
     } catch (e) {
       setError(e instanceof ApiError && e.fieldErrors ? Object.values(e.fieldErrors).join(". ") || errorMessage(e) : errorMessage(e));
     } finally {
