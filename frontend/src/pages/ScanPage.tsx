@@ -1,16 +1,19 @@
 import { Html5Qrcode } from 'html5-qrcode'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import RequireProject from '../components/RequireProject'
+import { useProjects } from '../state/ProjectContext'
 import { boxPath, parseBoxLink } from '../ui/format'
 
+// Проект не нужен: QR сам содержит ссылку на проект, поэтому сканер работает и на новом устройстве (у помощника).
+// Ручной ввод номера возможен только в выбранном проекте.
 export default function ScanPage() {
-  return <RequireProject>{(pid) => <Scanner pid={pid} />}</RequireProject>
+  const { currentId } = useProjects()
+  return <Scanner pid={currentId} />
 }
 
 const READER_ID = 'qr-reader'
 
-function Scanner({ pid }: { pid: string }) {
+function Scanner({ pid }: { pid: string | null }) {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(
     window.isSecureContext ? null : 'Камера работает только по HTTPS (или на localhost). Введите номер коробки вручную.',
@@ -41,7 +44,7 @@ function Scanner({ pid }: { pid: string }) {
   function openNumber(e: FormEvent) {
     e.preventDefault()
     const n = Number(number)
-    if (Number.isInteger(n) && n >= 1) navigate(boxPath(pid, n))
+    if (pid && Number.isInteger(n) && n >= 1) navigate(boxPath(pid, n))
   }
 
   return (
@@ -50,6 +53,7 @@ function Scanner({ pid }: { pid: string }) {
       <p className="muted">Наведите камеру на QR-код на коробке: откроется её карточка.</p>
       <div id={READER_ID} className="scanner" />
       {error ? <div className="alert" role="alert">{error}</div> : null}
+      {pid ? (
       <form className="card stack" onSubmit={openNumber}>
         <label>
           Или введите номер коробки
@@ -57,6 +61,7 @@ function Scanner({ pid }: { pid: string }) {
         </label>
         <button className="primary" type="submit" disabled={!number}>Открыть</button>
       </form>
+      ) : <p className="muted">Номер вручную можно ввести после выбора проекта.</p>}
     </>
   )
 }
