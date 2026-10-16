@@ -1,41 +1,24 @@
-import { useCallback, useEffect, useState } from 'react'
-import { api, setUnauthorizedHandler, tokenStore } from './api'
-import AuthPage from './components/AuthPage'
-import ItemsPage from './components/ItemsPage'
-import type { User } from './types'
+import { Route, Routes, useNavigate } from 'react-router-dom'
+import NewProjectForm from './components/NewProjectForm'
+import Shell from './components/Shell'
+import Placeholder from './pages/Placeholder'
+
+function NewProjectPage() {
+  const navigate = useNavigate()
+  return <NewProjectForm onDone={() => navigate('/')} />
+}
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null)
-  const [checking, setChecking] = useState(!!tokenStore.get())
-  const [notice, setNotice] = useState('')
-
-  const logout = useCallback((message = '') => {
-    tokenStore.clear()
-    setUser(null)
-    setNotice(message)
-  }, [])
-
-  useEffect(() => {
-    // Токен протух посреди работы: возвращаем на вход и объясняем почему
-    setUnauthorizedHandler(() => logout('Сессия истекла. Войдите снова.'))
-    if (!tokenStore.get()) return
-    api
-      .me()
-      .then(setUser)
-      .catch(() => logout())
-      .finally(() => setChecking(false))
-  }, [logout])
-
-  if (checking) return <div className="center muted">Загрузка…</div>
-  if (!user)
-    return (
-      <AuthPage
-        notice={notice}
-        onAuth={(u) => {
-          setNotice('')
-          setUser(u)
-        }}
-      />
-    )
-  return <ItemsPage user={user} onLogout={() => logout()} />
+  return (
+    <Routes>
+      <Route element={<Shell />}>
+        <Route index element={<Placeholder title="План" />} />
+        <Route path="boxes" element={<Placeholder title="Коробки" />} />
+        <Route path="labels" element={<Placeholder title="Этикетки" />} />
+        <Route path="progress" element={<Placeholder title="Прогресс" />} />
+        <Route path="new" element={<NewProjectPage />} />
+        <Route path="*" element={<Placeholder title="Страница не найдена" />} />
+      </Route>
+    </Routes>
+  )
 }
