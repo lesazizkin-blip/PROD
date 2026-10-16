@@ -4,6 +4,7 @@ import { api } from '../api/endpoints'
 import { errorMessage } from '../api/client'
 import Modal from '../components/Modal'
 import { useProjects } from '../state/ProjectContext'
+import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import { STATUS_LABELS, boxPath, nextStatus, prevStatus } from '../ui/format'
 import SectionTitle from '../ui/SectionTitle'
@@ -18,7 +19,7 @@ export default function BoxPage() {
   const { projects, add } = useProjects()
   const valid = pid !== '' && Number.isInteger(number) && number >= 1
   const card = useAsync(() => (valid ? api.getBox(pid, number) : Promise.reject(new Error('Некорректная ссылка на коробку'))), [pid, number])
-  const [error, setError] = useState<string | null>(null)
+  const { busy, error, run } = useAction(() => card.reload())
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
 
@@ -30,24 +31,12 @@ export default function BoxPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pid])
 
-  async function run(action: () => Promise<unknown>) {
-    setError(null)
-    try {
-      await action()
-      card.reload()
-    } catch (e) {
-      setError(errorMessage(e))
-    }
-  }
-
-  async function deleteBox() {
+  function deleteBox() {
     if (!window.confirm(`Удалить коробку № ${number} и всё её содержимое?`)) return
-    try {
+    void run(async () => {
       await api.deleteBox(pid, number)
       navigate('/boxes')
-    } catch (e) {
-      setError(errorMessage(e))
-    }
+    })
   }
 
   const box = card.data
@@ -71,8 +60,8 @@ export default function BoxPage() {
               </div>
             </div>
             <div className="row wrap">
-              {prev ? <button onClick={() => run(() => api.transition(pid, number, prev))}>↩ {STATUS_LABELS[prev]}</button> : null}
-              {next ? <button className="primary" onClick={() => run(() => api.transition(pid, number, next))}>{STATUS_LABELS[next]} →</button> : null}
+              {prev ? <button disabled={busy} onClick={() => run(() => api.transition(pid, number, prev))}>↩ {STATUS_LABELS[prev]}</button> : null}
+              {next ? <button className="primary" disabled={busy} onClick={() => run(() => api.transition(pid, number, next))}>{STATUS_LABELS[next]} →</button> : null}
             </div>
             {error ? <div className="alert" role="alert">{error}</div> : null}
             <div className="row wrap">
@@ -92,16 +81,16 @@ export default function BoxPage() {
                     <b>{item.name}</b>
                     {item.lost ? <span className="sub" style={{ display: 'block' }}>Потеряна: ищите в нераспакованных коробках</span> : null}
                   </span>
-                  <button className="small" onClick={() => run(() => api.updateItem(pid, item.id, { lost: !item.lost }))}>
+                  <button className="small" disabled={busy} onClick={() => run(() => api.updateItem(pid, item.id, { lost: !item.lost }))}>
                     {item.lost ? 'Нашлась' : 'Потеряна'}
                   </button>
-                  <button className="link small" aria-label={`Удалить «${item.name}»`} onClick={() => window.confirm(`Удалить вещь «${item.name}»?`) && run(() => api.deleteItem(pid, item.id))}>✕</button>
+                  <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={() => window.confirm(`Удалить вещь «${item.name}»?`) && run(() => api.deleteItem(pid, item.id))}>✕</button>
                 </div>
               ))}
             </div>
           ) : null}
 
-          <button className="danger" onClick={deleteBox}>Удалить коробку</button>
+          <button className="danger" disabled={busy} onClick={deleteBox}>Удалить коробку</button>
 
           {adding ? <AddItemsModal onClose={() => setAdding(false)} onSave={async (text) => { await api.createItemsBulk(pid, number, text); setAdding(false); card.reload() }} /> : null}
           {editing ? (

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/endpoints'
-import { errorMessage } from '../api/client'
 import type { BoxStatus, Hint, LostItem } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
 import Modal from '../components/Modal'
 import RequireProject from '../components/RequireProject'
+import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import { STATUS_LABELS, boxPath } from '../ui/format'
 import SectionTitle from '../ui/SectionTitle'
@@ -33,7 +33,7 @@ function ProgressView({ pid }: { pid: string }) {
   const navigate = useNavigate()
   const progress = useAsync(() => api.progress(pid), [pid])
   const lost = useAsync<LostItem[]>(() => api.lostItems(pid), [pid])
-  const [error, setError] = useState<string | null>(null)
+  const { busy, error, run } = useAction()
   const [hints, setHints] = useState<{ name: string; list: Hint[] } | null>(null)
 
   const reloadAll = () => {
@@ -41,25 +41,15 @@ function ProgressView({ pid }: { pid: string }) {
     lost.reload()
   }
 
-  async function moveRoom(room: string, from: BoxStatus, to: BoxStatus) {
-    setError(null)
-    try {
+  const moveRoom = (room: string, from: BoxStatus, to: BoxStatus) =>
+    run(async () => {
       const boxes = await api.boxes(pid, { room, status: from, page_size: 200 })
       await api.bulkTransition(pid, boxes.items.map((b) => b.number), to)
       reloadAll()
-    } catch (e) {
-      setError(errorMessage(e))
-    }
-  }
+    })
 
-  async function showHints(entry: LostItem) {
-    setError(null)
-    try {
-      setHints({ name: entry.item.name, list: await api.hints(pid, entry.item.id) })
-    } catch (e) {
-      setError(errorMessage(e))
-    }
-  }
+  const showHints = (entry: LostItem) =>
+    run(async () => setHints({ name: entry.item.name, list: await api.hints(pid, entry.item.id) }))
 
   const p = progress.data
   const lostList = lost.data ?? []
@@ -94,7 +84,7 @@ function ProgressView({ pid }: { pid: string }) {
               <div className="progress"><span style={{ width: `${r.unpacked_percent}%`, background: 'var(--st-unpacked)' }} /></div>
               <div className="row wrap">
                 {ROOM_STEPS.filter((s) => r.by_status[s.from] > 0).map((s) => (
-                  <button key={s.to} className="tonal small" onClick={() => moveRoom(r.room, s.from, s.to)}>
+                  <button key={s.to} className="tonal small" disabled={busy} onClick={() => moveRoom(r.room, s.from, s.to)}>
                     {s.label} ({r.by_status[s.from]})
                   </button>
                 ))}
@@ -112,7 +102,7 @@ function ProgressView({ pid }: { pid: string }) {
                   <b>{entry.item.name}</b>
                   <span className="sub" style={{ display: 'block' }}>Коробка № {entry.box_number} · {entry.room}</span>
                 </span>
-                <button className="small" onClick={() => showHints(entry)}>Где искать</button>
+                <button className="small" disabled={busy} onClick={() => showHints(entry)}>Где искать</button>
               </div>
             ))}
           </div>

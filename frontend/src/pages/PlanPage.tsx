@@ -6,6 +6,7 @@ import type { Stage, Task, TaskCreate } from '../api/types'
 import ChecklistModal from '../components/ChecklistModal'
 import Modal from '../components/Modal'
 import RequireProject from '../components/RequireProject'
+import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import { STAGES, STAGE_LABELS, formatDate, formatTimeRange } from '../ui/format'
 import SectionTitle from '../ui/SectionTitle'
@@ -24,23 +25,13 @@ function Plan({ pid }: { pid: string }) {
   const firstDay = useAsync(() => api.firstDay(pid), [pid])
   const [adding, setAdding] = useState(false)
   const [smart, setSmart] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const reloadAll = () => {
     project.reload()
     tasks.reload()
     firstDay.reload()
   }
-
-  async function act(action: () => Promise<unknown>) {
-    setError(null)
-    try {
-      await action()
-      reloadAll()
-    } catch (e) {
-      setError(errorMessage(e))
-    }
-  }
+  const { busy, error, run: act } = useAction(reloadAll)
 
   const list = tasks.data ?? []
   const done = list.filter((t) => t.done).length
@@ -77,7 +68,7 @@ function Plan({ pid }: { pid: string }) {
             <div className="card flush">
               {items.map((t) => (
                 <label key={t.id} className={`list-row${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
-                  <input type="checkbox" checked={t.done} onChange={() => toggleTask(t)} />
+                  <input type="checkbox" checked={t.done} disabled={busy} onChange={() => toggleTask(t)} />
                   <span className="grow">
                     <span className="title">{t.title}</span>
                     <span className="sub" style={{ display: 'block' }}>
@@ -90,7 +81,7 @@ function Plan({ pid }: { pid: string }) {
                       </span>
                     ) : null}
                   </span>
-                  <button type="button" className="link small" aria-label={`Удалить «${t.title}»`} onClick={(e) => { e.preventDefault(); removeTask(t) }}>✕</button>
+                  <button type="button" className="link small" disabled={busy} aria-label={`Удалить «${t.title}»`} onClick={(e) => { e.preventDefault(); removeTask(t) }}>✕</button>
                 </label>
               ))}
             </div>
@@ -104,9 +95,9 @@ function Plan({ pid }: { pid: string }) {
           {first.length === 0 ? <div className="list-row muted">Список пуст</div> : null}
           {first.map((f) => (
             <label key={f.id} className={f.done ? 'list-row done' : 'list-row'}>
-              <input type="checkbox" checked={f.done} onChange={() => act(() => api.updateFirstDay(pid, f.id, { done: !f.done }))} />
+              <input type="checkbox" checked={f.done} disabled={busy} onChange={() => act(() => api.updateFirstDay(pid, f.id, { done: !f.done }))} />
               <span className="grow title">{f.title}</span>
-              <button type="button" className="link small" aria-label={`Удалить «${f.title}»`} onClick={(e) => { e.preventDefault(); if (window.confirm(`Удалить «${f.title}»?`)) void act(() => api.deleteFirstDay(pid, f.id)) }}>✕</button>
+              <button type="button" className="link small" disabled={busy} aria-label={`Удалить «${f.title}»`} onClick={(e) => { e.preventDefault(); if (window.confirm(`Удалить «${f.title}»?`)) void act(() => api.deleteFirstDay(pid, f.id)) }}>✕</button>
             </label>
           ))}
         </div>
