@@ -23,7 +23,8 @@ function Plan({ pid }: { pid: string }) {
   const project = useAsync(() => api.getProject(pid), [pid])
   const tasks = useAsync(() => api.tasks(pid), [pid])
   const firstDay = useAsync(() => api.firstDay(pid), [pid])
-  const [adding, setAdding] = useState(false)
+  // null - форма закрыта, 'new' - новая задача, Task - правка существующей
+  const [form, setForm] = useState<'new' | Task | null>(null)
   const [smart, setSmart] = useState(false)
 
   const reloadAll = () => {
@@ -81,6 +82,7 @@ function Plan({ pid }: { pid: string }) {
                       </span>
                     ) : null}
                   </span>
+                  <button type="button" className="link small" disabled={busy} aria-label={`Изменить «${t.title}»`} onClick={(e) => { e.preventDefault(); setForm(t) }}>✎</button>
                   <button type="button" className="link small" disabled={busy} aria-label={`Удалить «${t.title}»`} onClick={(e) => { e.preventDefault(); removeTask(t) }}>✕</button>
                 </label>
               ))}
@@ -103,15 +105,17 @@ function Plan({ pid }: { pid: string }) {
         </div>
       </section>
 
-      <button className="primary fab" onClick={() => setAdding(true)}>+ Задача</button>
+      <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button>
       {smart ? <ChecklistModal pid={pid} onClose={() => setSmart(false)} onApplied={reloadAll} /> : null}
-      {adding ? (
-        <AddTaskModal
-          onClose={() => setAdding(false)}
-          categories={[...new Set([...DEFAULT_CATEGORIES, ...list.map((t) => t.category).filter((c): c is string => !!c)])]}
+      {form ? (
+        <TaskModal
+          initial={form === 'new' ? null : form}
+          onClose={() => setForm(null)}
+          categories={categoryColors(list)}
           onSave={async (body) => {
-            await api.createTask(pid, body)
-            setAdding(false)
+            if (form === 'new') await api.createTask(pid, body)
+            else await api.updateTask(pid, form.id, body)
+            setForm(null)
             reloadAll()
           }}
         />
@@ -121,22 +125,42 @@ function Plan({ pid }: { pid: string }) {
 }
 
 const DEFAULT_CATEGORIES = ['Документы', 'Коробки', 'Грузчики', 'Быт']
+const DEFAULT_COLOR = '#1f8f7a'
 
-function AddTaskModal({ onClose, onSave, categories }: { onClose: () => void; onSave: (body: TaskCreate) => Promise<void>; categories: string[] }) {
-  const [title, setTitle] = useState('')
-  const [assignee, setAssignee] = useState('')
-  const [stage, setStage] = useState<Stage>('before')
-  const [dueDate, setDueDate] = useState('')
-  const [startTime, setStartTime] = useState('')
-  const [endTime, setEndTime] = useState('')
-  const [category, setCategory] = useState('')
-  const [color, setColor] = useState('#1f8f7a')
+/** Категории для подсказки и их цвета: у уже использованной категории берём её цвет, чтобы он не расходился. */
+function categoryColors(tasks: Task[]): Map<string, string> {
+  const map = new Map<string, string>(DEFAULT_CATEGORIES.map((c) => [c, DEFAULT_COLOR]))
+  for (const t of tasks) if (t.category) map.set(t.category, t.category_color ?? DEFAULT_COLOR)
+  return map
+}
+
+export function TaskModal({ initial, onClose, onSave, categories }: { initial: Task | null; onClose: () => void; onSave: (body: TaskCreate) => Promise<void>; categories: Map<string, string> }) {
+  const [title, setTitle] = useState(initial?.title ?? '')
+  const [assignee, setAssignee] = useState(initial?.assignee ?? '')
+  const [stage, setStage] = useState<Stage>(initial?.stage ?? 'before')
+  const [dueDate, setDueDate] = useState(initial?.due_date ?? '')
+  const [startTime, setStartTime] = useState(initial?.start_time?.slice(0, 5) ?? '')
+  const [endTime, setEndTime] = useState(initial?.end_time?.slice(0, 5) ?? '')
+  const [category, setCategory] = useState(initial?.category ?? '')
+  const [color, setColor] = useState(initial?.category_color ?? DEFAULT_COLOR)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const timeInvalid = !!startTime && !!endTime && endTime <= startTime
+  const dirty = initial === null
+    ? [title, assignee, dueDate, startTime, endTime, category].some((v) => v.trim() !== '')
+    : title !== initial.title || assignee !== (initial.assignee ?? '') || stage !== initial.stage || dueDate !== (initial.due_date ?? '') ||
+      startTime !== (initial.start_time?.slice(0, 5) ?? '') || endTime !== (initial.end_time?.slice(0, 5) ?? '') ||
+      category !== (initial.category ?? '') || color !== (initial.category_color ?? DEFAULT_COLOR)
+
+  function pickCategory(value: string) {
+    setCategory(value)
+    const known = categories.get(value.trim())
+    if (known) setColor(known)
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    if (startTime && endTime && endTime <= startTime) {
+    if (timeInvalid) {
       setError('Время окончания должно быть позже времени начала')
       return
     }
@@ -160,7 +184,7 @@ function AddTaskModal({ onClose, onSave, categories }: { onClose: () => void; on
   }
 
   return (
-    <Modal title="Новая задача" onClose={onClose} dirty={title.trim() !== ''}>
+    <Modal title={initial ? 'Изменить задачу' : 'Новая задача'} onClose={onClose} dirty={dirty}>
       <form className="stack" onSubmit={submit}>
         <label>
           Что сделать
@@ -183,26 +207,26 @@ function AddTaskModal({ onClose, onSave, categories }: { onClose: () => void; on
         <div className="row wrap">
           <label className="grow">
             Начало
-            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            <input type="time" value={startTime} onChange={(e) => { setStartTime(e.target.value); setError(null) }} />
           </label>
           <label className="grow">
             Конец
-            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            <input type="time" value={endTime} aria-invalid={timeInvalid} onChange={(e) => { setEndTime(e.target.value); setError(null) }} />
           </label>
         </div>
         <div className="row wrap">
           <label className="grow">
             Категория (необязательно)
-            <input list="task-categories" value={category} onChange={(e) => setCategory(e.target.value)} maxLength={40} />
-            <datalist id="task-categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>
+            <input list="task-categories" value={category} onChange={(e) => pickCategory(e.target.value)} maxLength={40} />
+            <datalist id="task-categories">{[...categories.keys()].map((c) => <option key={c} value={c} />)}</datalist>
           </label>
           <label>
             Цвет
-            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} disabled={!category.trim()} aria-label="Цвет категории" />
+            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} disabled={!category.trim()} title={category.trim() ? undefined : 'Сначала укажите категорию'} />
           </label>
         </div>
         {error ? <div className="alert" role="alert">{error}</div> : null}
-        <button className="primary" type="submit" disabled={busy || !title.trim()}>Добавить</button>
+        <button className="primary" type="submit" disabled={busy || !title.trim()}>{initial ? 'Сохранить' : 'Добавить'}</button>
       </form>
     </Modal>
   )
