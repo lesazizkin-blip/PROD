@@ -67,4 +67,4 @@ scripts/preflight.sh <адрес>        # проверка стека (лока
 - Тесты и скрипты берут окружение из `backend/.venv` (в репозиторий не входит).
 
 ## Где что искать
-Папка для команды: `~/Desktop/прод/` (README с картой, копия кода `сайт/` и `готовый-сайт`, архитектурный PDF, презентация, git-бандл `MoverMate-git.bundle`). Это снимок для передачи; **рабочий git-репозиторий — `~/Desktop/prod-hackathon-ml`** (ветка `main`; remotes: `gitlab` — проект команды, `movermate` — GitHub MOVERMATE, `origin` — старый личный GitHub).
+**Рабочий git-репозиторий — `~/Desktop/прод/сайт`** (перенесён сюда 16.10 ночью; ветка `main`; remotes: `gitlab` — проект команды, `movermate` — GitHub MOVERMATE, `origin` — старый личный GitHub). Вокруг него папка команды `~/Desktop/прод/`: README с картой, архитектурный PDF, презентация, задание и критерии, git-бандл `MoverMate-git.bundle`. `сайт/готовый-сайт/` — собранный сайт для `scripts/run-site.sh`, в git не входит (`.gitignore`). Путь с кириллицей: для `run_in_terminal` передавай его через `cwd`.
