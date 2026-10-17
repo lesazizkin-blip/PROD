@@ -103,7 +103,7 @@ scripts/e2e.sh                 # прод по API (ТЗ, доп. функции
 
 | Запись | Поля |
 |---|---|
-| `msg="request"` — каждый запрос к API | `method`, `path`, `status`, `latency_ms`, `user_id`, `request_id`; уровень по статусу (5xx ERROR, 4xx WARN) |
+| `msg="request"` — каждый запрос к API | `method`, `path` (токен приглашения маскируется), `status`, `latency_ms`, `user_id`, `request_id`, `check` (только у автоматических проверок: `e2e`, `preflight`, `ui`); уровень по статусу (5xx ERROR, 4xx WARN). WARN от проверок ожидаемы: они нарочно проверяют отказы 401/403/404/409/422 |
 | `msg="audit"` — действия пользователей | `action` (`auth.login`, `auth.login_failed`, `box.created`, `box.status_changed`, `project.deleted`, `invite.created`…), только id |
 | `msg="unhandled_exception"` | стек, `request_id`, `path` |
 | `msg="app_error"`, `msg="validation_failed"` | код ошибки, путь |

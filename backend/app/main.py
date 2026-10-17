@@ -154,11 +154,11 @@ async def access_log(request: Request, call_next):
             exc_info=exc,
             extra={
                 "extra_fields": {
-                    "message": f"{request.method} {request.url.path} → 500: необработанная ошибка "
+                    "message": f"{request.method} {_safe_path(request.url.path)} → 500: необработанная ошибка "
                     f"{type(exc).__name__}: {str(exc)[:300]}",
                     "request_id": request_id,
                     "method": request.method,
-                    "path": request.url.path,
+                    "path": _safe_path(request.url.path),
                     "error": repr(exc)[:500],
                 }
             },
@@ -185,6 +185,8 @@ async def access_log(request: Request, call_next):
         status=status,
         latency_ms=latency,
         user_id=getattr(request.state, "user_id", None),
+        # запросы e2e и preflight помечены: в Sage их легко отделить от живых пользователей
+        check=request.headers.get("x-movermate-check"),
     )
     return response
 
@@ -209,10 +211,10 @@ async def app_error_handler(request: Request, exc: AppError):
         logger,
         "app_error",
         level=logging.ERROR if exc.status_code >= 500 else logging.WARNING,
-        message=f"{request.method} {request.url.path} → {exc.status_code} {exc.code}: {exc.message}",
+        message=f"{request.method} {_safe_path(request.url.path)} → {exc.status_code} {exc.code}: {exc.message}",
         request_id=request.state.request_id,
         method=request.method,
-        path=request.url.path,
+        path=_safe_path(request.url.path),
         status=exc.status_code,
         code=exc.code,
         reason=exc.message,
@@ -240,11 +242,11 @@ async def validation_handler(request: Request, exc: RequestValidationError):
         logger,
         "validation_failed",
         level=logging.WARNING,
-        message=f"{request.method} {request.url.path} → 422: некорректные поля "
+        message=f"{request.method} {_safe_path(request.url.path)} → 422: некорректные поля "
         + ", ".join(f"{e['field'] or 'тело'} ({e['message']})" for e in errors)[:500],
         request_id=request.state.request_id,
         method=request.method,
-        path=request.url.path,
+        path=_safe_path(request.url.path),
         fields=[e["field"] for e in errors],
         reasons=[e["message"] for e in errors],
     )
