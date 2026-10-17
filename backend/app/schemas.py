@@ -289,9 +289,13 @@ class QrMode(StrEnum):
     COMPACT = "compact"
 
 
+# дата переезда: от 2000 до 2100 года (дата 1900 года давала сроки задач в XIX веке)
+MoveDate = Annotated[date, Field(ge=date(2000, 1, 1), le=date(2100, 12, 31))]
+
+
 class ProjectCreate(BaseModel):
     name: Text120 = Field(examples=["Переезд на Лесную"])
-    move_date: date = Field(examples=["2026-11-01"])
+    move_date: MoveDate = Field(examples=["2026-11-01"])
     address_from: str | None = Field(default=None, max_length=300)
     address_to: str | None = Field(default=None, max_length=300)
     qr_mode: QrMode = QrMode.UNIVERSAL
@@ -327,7 +331,7 @@ class ProjectUpdate(BaseModel):
         }
     )
     name: Text120 | None = None
-    move_date: date | None = None
+    move_date: MoveDate | None = None
     address_from: str | None = Field(default=None, max_length=300)
     address_to: str | None = Field(default=None, max_length=300)
     qr_mode: QrMode | None = None

@@ -56,7 +56,7 @@ function Budget({ pid }: { pid: string }) {
                 {b.items.map((e) => (
                   <div key={`${e.id}-${e.planned}-${e.actual}`} className="budget-row" role="row">
                     <span className="grow"><b>{e.title}</b><span className="sub">{CATEGORY_LABELS[e.category]}</span></span>
-                    <input type="number" min={0} aria-label={`План: ${e.title}`} defaultValue={e.planned} onBlur={(ev) => save(e, 'planned', ev.target.value)} />
+                    <input type="number" min={0} aria-label={`План: ${e.title}`} defaultValue={e.planned} onBlur={(ev) => { if (ev.target.value.trim() === '') ev.target.value = String(e.planned); save(e, 'planned', ev.target.value) }} />
                     <input type="number" min={0} aria-label={`Факт: ${e.title}`} placeholder="—" defaultValue={e.actual ?? ''} onBlur={(ev) => save(e, 'actual', ev.target.value)}
                       className={e.actual !== null && e.actual > e.planned ? 'over' : ''} />
                     <button className="link small" aria-label={`Удалить «${e.title}»`} onClick={async () => {

@@ -42,6 +42,7 @@ function Plan({ pid }: { pid: string }) {
     project.reload()
     tasks.reload()
     firstDayItems.reload()
+    plannedFirstDay.reload() // умный чек-лист добавляет и пункты «Первого дня»
     progress.reload()
   }
 

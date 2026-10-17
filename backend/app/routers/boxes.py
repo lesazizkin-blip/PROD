@@ -172,7 +172,10 @@ def add_items_bulk(
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),
 ):
-    return {"created": BoxService(db).add_items(project.id, n, parse_lines(body.text))}
+    names = parse_lines(body.text)
+    if not names:
+        raise ValidationFailed("Нет ни одной вещи: напишите по вещи на строку")
+    return {"created": BoxService(db).add_items(project.id, n, names)}
 
 
 @router.patch(

@@ -235,7 +235,8 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
   return <div className="recognition-page">
     <PageHeading title={mode === 'live' ? 'Распознать номер' : mode === 'photo' ? 'Номер с фотографии' : 'Сканирование QR'}>{mode === 'live' ? 'Наведите камеру на рукописный номер коробки.' : mode === 'photo' ? 'Снимите номер коробки крупным планом или введите его вручную.' : 'Наведите камеру на этикетку или найдите коробку по номеру.'}</PageHeading>
     <p>Проект для номера и фото: <strong>{projectName ?? 'не выбран'}</strong></p>
-    <div className="recognition-modes" role="group" aria-label="Способ сканирования">
+    {/* распознавание номера - экспериментальный локальный OCR; без него (обычная сборка) кнопки не показываем */}
+    {recognizeHandwriting ? <div className="recognition-modes" role="group" aria-label="Способ сканирования">
       <button type="button" aria-pressed={mode === 'qr'} onClick={restart} disabled={busy || mode === 'qr'}><QrCode aria-hidden="true" className="icon-sm" />QR-код</button>
       <button type="button" aria-pressed={mode === 'live'} disabled={!pid || busy || !recognizeHandwriting || mode === 'live'} onClick={async () => {
         setActive(false)
@@ -257,7 +258,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
           setMode('photo'); setStatus('Снимите крупно только номер на коробке.'); setError(null)
         } catch (e) { if (id === operation.current) setError(cameraMessage(e)) }
       }}><Camera aria-hidden="true" className="icon-sm" />Фото номера</button>
-    </div>
+    </div> : null}
     <div className="scan-layout">
       <div className="scan-stage stack">
         <div id="qr-reader" className="scanner" hidden={mode !== 'qr'} />

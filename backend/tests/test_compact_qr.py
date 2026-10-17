@@ -56,8 +56,8 @@ def test_resolver_membership_unknown_deleted_and_number_reuse(
     assert client.post(endpoint, json={"code": code}).status_code == 404
     db_session.expire_all()
     assert db_session.get(BoxQrCode, code).box_id is None
-    assert make_box(client, base)["number"] == 1
-    new = client.get(f"{base}/boxes/1/label").json()["qr_payload"]
+    assert make_box(client, base)["number"] == 2  # номер удалённой коробки не выдаётся снова
+    new = client.get(f"{base}/boxes/2/label").json()["qr_payload"]
     assert new != code
     assert client.post(endpoint, json={"code": code}).status_code == 404
 

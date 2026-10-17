@@ -217,7 +217,7 @@ def test_member_can_leave_but_not_remove_others(make_client):
     anna_id = anna.get("/api/auth/me").json()["id"]
     assert boris.delete(f"/api/projects/{pid}/members/{carl_id}?confirm=true").status_code == 403
     r = boris.delete(f"/api/projects/{pid}/members/{anna_id}?confirm=true")
-    assert r.status_code == 409  # владельца не убрать
+    assert r.status_code == 403  # участник не убирает других, владельца тем более
     assert boris.delete(f"/api/projects/{pid}/members/{boris_id}?confirm=true").status_code == 204
     assert anna.delete(f"/api/projects/{pid}/members/999?confirm=true").status_code == 404
 

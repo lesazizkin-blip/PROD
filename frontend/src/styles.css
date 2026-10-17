@@ -683,3 +683,10 @@ a.tips-card .sub, .scan-card .sub { display: block; color: var(--muted); font-si
 }
 
 .pagination { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-block: 16px; }
+
+/* гость на телефоне: «Путь переезда» и «Вопросы» в шапке (боковая панель скрыта) */
+.topbar__guest { display: none; }
+@media (max-width: 700px) {
+  .topbar__guest { display: flex; gap: 8px; margin-left: auto; }
+  .topbar__guest .button, .topbar__guest button { min-height: 36px; padding: 6px 10px; font-size: 14px; }
+}

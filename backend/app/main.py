@@ -14,7 +14,7 @@ from opentelemetry.trace import StatusCode
 
 from app.config import get_settings
 from app.db import SessionLocal, engine
-from app.errors import AppError
+from app.errors import AppError, NotFoundError
 from app.logging_setup import close_logging, log, setup_logging
 from app.reference_data import ensure_reference_data
 from app.routers import (
@@ -195,6 +195,12 @@ async def app_error_handler(request: Request, exc: AppError):
         status_code=exc.status_code,
         content={"detail": exc.message, "code": exc.code, "request_id": request.state.request_id},
     )
+
+
+@app.exception_handler(OverflowError)
+async def overflow_handler(request: Request, exc: OverflowError):
+    # id больше 64 бит не может существовать в базе: это «не найдено», а не ошибка сервера
+    return await app_error_handler(request, NotFoundError("Не найдено"))
 
 
 @app.exception_handler(RequestValidationError)

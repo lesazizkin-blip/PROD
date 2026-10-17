@@ -56,6 +56,11 @@ export default function GuestShell() {
         <header className="topbar">
           <Link to="/about" className="topbar__brand" aria-label="MoverMate: о нас"><img src="/assets/box-mark.svg" width="36" height="36" alt="" /></Link>
           <span className="breadcrumb">MoverMate</span>
+          {/* на телефоне боковой панели нет: путь переезда и вопросы - в шапке */}
+          <nav className="topbar__guest" aria-label="Для гостя">
+            <Link to="/journey" className="button" aria-label="Путь переезда"><Route className="icon-sm" aria-hidden />Путь</Link>
+            <button type="button" aria-label="Вопросы" onClick={() => setFaq(true)}><CircleHelp className="icon-sm" aria-hidden />Вопросы</button>
+          </nav>
         </header>
         <main className="container">
           <Outlet />

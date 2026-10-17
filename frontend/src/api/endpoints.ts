@@ -91,9 +91,9 @@ export const api = {
     request<void>("DELETE", `${p(pid)}/expenses/${id}`, { query: { confirm: "true" } }),
   // фото уходит модели только с согласием пользователя; ответ - черновик, ничего не сохраняется
   photoInventory: (pid: string, n: number, image: string) =>
-    request<PhotoInventory>("POST", `${p(pid)}/boxes/${n}/photo-inventory`, { body: { image, consent: true } }),
+    request<PhotoInventory>("POST", `${p(pid)}/boxes/${n}/photo-inventory`, { body: { image, consent: true }, timeoutMs: 70_000 }),
   roomPlan: (pid: string, room: string, image: string) =>
-    request<RoomPlan>("POST", `${p(pid)}/room-plan`, { body: { image, room, consent: true } }),
+    request<RoomPlan>("POST", `${p(pid)}/room-plan`, { body: { image, room, consent: true }, timeoutMs: 70_000 }),
   createItemsBulk: (pid: string, n: number, text: string) =>
     request<{ created: Item[] }>("POST", `${p(pid)}/boxes/${n}/items/bulk`, { body: { text } }),
   updateItem: (pid: string, id: number, body: { name?: string; status?: ItemStatus; first_day?: boolean }) =>

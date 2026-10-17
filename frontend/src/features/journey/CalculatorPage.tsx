@@ -21,6 +21,7 @@ const START: CalculatorIn = {
 
 /** Без лифта этаж не выше 15-го, с лифтом - до 100 (так же проверяет сервер). */
 const NO_ELEVATOR_MAX_FLOOR = 15
+type NumKey = 'rooms' | 'people' | 'distance_km' | 'floor_from' | 'floor_to'
 export default function CalculatorPage() {
   const { user } = useAuth()
   const { currentId } = useProjects()
@@ -39,17 +40,52 @@ export default function CalculatorPage() {
     setForm({ ...form, [key]: on, [floorKey]: on ? form[floorKey] : Math.min(form[floorKey], NO_ELEVATOR_MAX_FLOOR) })
     setResult(null)
   }
-  const num = (key: 'rooms' | 'people' | 'distance_km' | 'floor_from' | 'floor_to', label: string, min: number, max: number) => (
+  // Поле можно стереть и набрать число заново: черновик - строка, в форму оно попадает при уходе
+  // из поля или при расчёте, приведённое к пределам (так же проверяет сервер), с подсказкой
+  const [drafts, setDrafts] = useState<Partial<Record<NumKey, string>>>({})
+  const [hint, setHint] = useState<string | null>(null)
+  const limits = (f: CalculatorIn): Record<NumKey, [number, number, string]> => ({
+    rooms: [1, 8, 'Комнат'],
+    people: [1, 10, 'Человек'],
+    distance_km: [0, 500, 'Расстояние, км'],
+    floor_from: [0, f.elevator_from ? 100 : NO_ELEVATOR_MAX_FLOOR, 'Этаж сейчас'],
+    floor_to: [0, f.elevator_to ? 100 : NO_ELEVATOR_MAX_FLOOR, 'Этаж на новом месте'],
+  })
+  const committed = (): CalculatorIn => {
+    const next = { ...form }
+    const bounds = limits(form)
+    for (const [key, raw] of Object.entries(drafts) as [NumKey, string][]) {
+      const [min, max, label] = bounds[key]
+      const value = Number.parseInt(raw, 10)
+      const clamped = Number.isNaN(value) ? min : Math.max(min, Math.min(max, value))
+      if (clamped !== value) setHint(`${label}: от ${min} до ${max}${key.startsWith('floor') ? ' (без лифта не выше 15-го)' : ''}`)
+      next[key] = clamped
+    }
+    return next
+  }
+  const commit = () => {
+    if (!Object.keys(drafts).length) return
+    setForm(committed())
+    setDrafts({})
+  }
+  const num = (key: NumKey, label: string, min: number, max: number) => (
     <label>
       {label}
-      <input type="number" min={min} max={max} value={form[key]} onChange={(e) => set(key, Math.max(min, Math.min(max, e.target.valueAsNumber || min)))} />
+      <input type="number" inputMode="numeric" min={min} max={max} value={drafts[key] ?? String(form[key])}
+        onChange={(e) => { setDrafts({ ...drafts, [key]: e.target.value }); setHint(null); setResult(null) }}
+        onBlur={commit} />
     </label>
   )
 
   return (
     <div className="stack journey">
       <PageHeading title="Калькулятор переезда">Прикиньте бюджет, коробки и сроки ещё до того, как начать.</PageHeading>
-      <form className="card stack" onSubmit={calc.submit(async () => setResult(await api.calculator({ ...form, move_date: form.move_date || null })))}>
+      <form className="card stack" onSubmit={calc.submit(async () => {
+        const body = committed()
+        setForm(body)
+        setDrafts({})
+        setResult(await api.calculator({ ...body, move_date: body.move_date || null }))
+      })}>
         <div className="calc-grid">
           <label>
             Город (цены грузчиков и машины)
@@ -75,6 +111,7 @@ export default function CalculatorPage() {
           <label className="row"><input type="checkbox" checked={form.piano} onChange={(e) => set('piano', e.target.checked)} />Пианино</label>
           <label className="row"><input type="checkbox" checked={form.many_fragile} onChange={(e) => set('many_fragile', e.target.checked)} />Много хрупкого</label>
         </div>
+        {hint ? <p className="small muted" role="status">{hint}</p> : null}
         <ErrorAlert message={calc.error} />
         <button className="primary" type="submit" disabled={calc.busy}><Calculator className="icon-sm" aria-hidden />{calc.busy ? 'Считаем…' : 'Рассчитать'}</button>
       </form>

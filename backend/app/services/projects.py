@@ -82,6 +82,18 @@ class ProjectService:
         for required in ("name", "move_date", "qr_mode"):
             if required in changes and changes[required] is None:
                 raise ValidationFailed(f"Поле {required} нельзя очистить")
+        if changes.get("move_date") and changes["move_date"] != project.move_date:
+            # сроки задач стандартного плана считаются от даты переезда: сдвигаем невыполненные
+            shift = changes["move_date"] - project.move_date
+            for task in self.db.scalars(
+                select(Task).where(
+                    Task.project_id == project.id,
+                    Task.template_id.is_not(None),
+                    Task.done.is_(False),
+                    Task.due_date.is_not(None),
+                )
+            ):
+                task.due_date = task.due_date + shift
         for field, value in changes.items():
             setattr(project, field, value)
         log_event(
