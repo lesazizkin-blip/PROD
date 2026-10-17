@@ -73,9 +73,10 @@
 .carton-back-flap { fill: #d8bd96; stroke: #b99c76; stroke-width: .7; }
 .carton-mouth { fill: #846747; }
 .carton-front-flap { fill: #e5cda8; stroke: #b99c76; stroke-width: .7; }
+.carton-side-flap { fill: #dcc29c; stroke: #b99c76; stroke-width: .7; }
 .carton-seal { fill: #a1a7a5; }
 .carton-open .carton-seal { display: none; }
-.carton-sealed .carton-back-flap, .carton-sealed .carton-front-flap { display: none; }
+.carton-sealed .carton-back-flap, .carton-sealed .carton-front-flap, .carton-sealed .carton-side-flap { display: none; }
 .carton-sealed .carton-mouth { fill: #d8bd96; }
 .rack-shelf { display: none; }
 @media (min-width: 1000px) {

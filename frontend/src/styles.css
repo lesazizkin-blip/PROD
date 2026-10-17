@@ -650,3 +650,42 @@ input[type='checkbox'].check { width: 22px; height: 22px; margin: 1px 0 0; accen
   .sidebar:not(:hover):not(:focus-within) .tab > span:last-child { visibility: hidden; }
 }
 @media (prefers-reduced-motion: reduce) { .sidebar { transition: none; } }
+
+/* ---------- правки владельца 17.10 вечер ---------- */
+/* свёрнутая панель: видны только значки, названия разделов не выглядывают */
+@media (min-width: 1000px) {
+  .sidebar:not(:hover):not(:focus-within) .tab-label,
+  .sidebar:not(:hover):not(:focus-within) .tab-short { visibility: hidden; }
+  .sidebar .brand .brand-mark { flex: none; width: 36px; height: 36px; margin-left: 4px; }
+}
+
+/* окно «Проекты»: карточки проектов в стиле сайта */
+.project-list { gap: 8px; }
+.project-option { display: grid; gap: 4px; width: 100%; text-align: left; padding: 14px 16px; border: 1px solid var(--border); border-radius: 0; background: var(--surface); }
+.project-option:hover:not(:disabled) { border-color: var(--kraft); background: var(--bg); }
+.project-option.current { border-color: var(--text); box-shadow: inset 4px 0 0 var(--primary); }
+.project-option__name { font-weight: 700; font-size: 1rem; }
+.project-option__meta { font: 11px 'IBM Plex Mono', monospace; text-transform: uppercase; color: var(--muted); }
+
+/* «+ Добавить задачу» в конце каждого этапа */
+button.add-task { display: flex; align-items: center; gap: 8px; width: 100%; justify-content: flex-start; padding: 14px 0; border: 0; border-top: 1px dashed var(--border); border-radius: 0; background: transparent; color: var(--primary); font-weight: 700; }
+button.add-task:hover:not(:disabled) { color: var(--primary-hover); border-color: var(--border); }
+
+/* уведомления в палитре сайта: без системных розовых и жёлтых плашек */
+.alert { background: color-mix(in srgb, var(--danger) 8%, var(--surface)); color: var(--danger); border: 0; border-left: 3px solid var(--danger); border-radius: 0; padding: 12px 14px; }
+.banner { background: var(--primary-soft); color: var(--text); border: 0; border-left: 3px solid var(--primary); border-radius: 0; padding: 12px 14px; }
+.banner a { color: var(--primary); font-weight: 700; }
+.toast { background: var(--text); color: var(--surface); border-radius: 0; border-left: 3px solid var(--primary); box-shadow: var(--shadow-float); padding: 14px 16px; }
+.error-text { color: var(--danger); }
+dialog.modal, dialog.confirm-dialog { border-radius: 0; border: 1px solid var(--border); box-shadow: var(--shadow-float); }
+dialog.modal::backdrop { background: #29292366; backdrop-filter: none; }
+.confirm-dialog__icon { border-radius: 0; color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.confirm-dialog h2 { font-weight: 700; }
+button.danger-solid { border-radius: var(--radius-sm); }
+
+/* сканер: без полосатой ленты под заголовком */
+.recognition-page .heading-stripe { display: none !important; }
+
+/* пока идёт запрос, кнопки не показывают курсор «запрещено» */
+button:disabled, input:disabled, select:disabled { cursor: default; }
+.tips-link { justify-self: start; }

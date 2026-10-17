@@ -22,7 +22,7 @@ export default function BoxesPage() {
 function BoxRow({ pid, box }: { pid: string; box: Box }) {
   return (
     <Link to={boxPath(pid, box.number)} className={`box-card ${box.status === 'packing' || box.status === 'unpacked' ? 'carton-open' : 'carton-sealed'}`} style={roomStyle(box.room)}>
-      <svg className="carton-lid" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"><path className="carton-back-flap" d="M12 38 L0 8 L280 8 L292 38 Z" /><path className="carton-mouth" d="M0 56 L12 38 L300 38 L288 56 Z" /><path className="carton-front-flap" d="M0 56 L288 56 L280 64 L8 64 Z" /><path className="carton-seal" d="M5 48 L293 48 L297 43 L9 43 Z" /></svg>
+      <svg className="carton-lid" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"><path className="carton-back-flap" d="M12 39 L300 39 L307 12 L19 12 Z" /><path className="carton-mouth" d="M0 57 L12 39 L300 39 L288 57 Z" /><path className="carton-side-flap" d="M0 57 L12 39 L4 30 L-8 48 Z" /><path className="carton-side-flap" d="M288 57 L300 39 L312 46 L300 64 Z" /><path className="carton-front-flap" d="M0 57 L288 57 L282 66 L-6 66 Z" /><path className="carton-seal" d="M4 51 L292 51 L298 45 L10 45 Z" /></svg>
       <BoxVolume status={box.status} />
       <div className="box-card-header"><span className="box-number">{String(box.number).padStart(3, '0')}</span><StatusBadge status={box.status} /></div>
       <h2>{box.room}</h2>
@@ -119,8 +119,6 @@ function Boxes({ pid }: { pid: string }) {
           <p className="muted small">Статусы: {Object.values(STATUS_LABELS).join(' → ')}</p>
         </StateView>
       )}
-
-      <div className="packing-tip"><span aria-hidden>↑↑</span><p>Одну кружку оставьте снаружи. Кофе ещё понадобится.</p></div>
       {adding ? (
         <AddBoxModal
           rooms={rooms}

@@ -7,7 +7,6 @@ import { useProjects } from '../state/ProjectContext'
 import { useAsync } from '../state/useAsync'
 import Avatar from './Avatar'
 import BrandMark from './BrandMark'
-import Icon from './Icons'
 import Modal from './Modal'
 import NotificationsModal from './NotificationsModal'
 import { NAV_TABS, tabNumber } from './navTabs'
@@ -51,7 +50,7 @@ export default function Shell() {
         <button className="project-switch" onClick={() => setSwitching(true)} aria-label={`Проект: ${current?.name ?? 'нет'}. Сменить`}>
           <span>{current?.name ?? 'Нет проекта'}</span>
           <span className="project-date">
-            {current?.move_date ? formatShortDate(current.move_date) : current ? 'Сменить проект' : 'Создайте переезд'} <Icon name="swap" />
+            {current?.move_date ? formatShortDate(current.move_date) : current ? 'Сменить проект' : 'Создайте переезд'}
           </span>
         </button>
         <nav className="tabs" aria-label="Разделы">
@@ -64,7 +63,6 @@ export default function Shell() {
             </NavLink>
           ))}
         </nav>
-        <p className="sidebar-note">↑↑ БЕРЕЖНО<br />Каждая вещь на месте.</p>
       </aside>
 
       <header className="topbar">
@@ -88,19 +86,24 @@ export default function Shell() {
 
       {switching ? (
         <Modal title="Проекты" onClose={() => setSwitching(false)}>
-          <ul className="plain">
+          <ul className="plain project-list">
             {projects.map((p) => (
               <li key={p.id}>
                 <button
-                  className={p.id === currentId ? 'row-btn selected' : 'row-btn'}
+                  className={p.id === currentId ? 'project-option current' : 'project-option'}
+                  aria-current={p.id === currentId ? 'true' : undefined}
                   onClick={() => {
                     select(p.id)
                     setSwitching(false)
                     navigate('/')
                   }}
                 >
-                  {p.id === currentId ? '✓ ' : ''}{p.name}
-                  {p.role === 'member' ? <span className="muted small"> · участник</span> : null}
+                  <span className="project-option__name">{p.name}</span>
+                  <span className="project-option__meta">
+                    {p.move_date ? formatShortDate(p.move_date) : 'Дата не указана'}
+                    {p.role === 'member' ? ' · помощник' : ''}
+                    {p.id === currentId ? ' · открыт' : ''}
+                  </span>
                 </button>
               </li>
             ))}
@@ -112,9 +115,8 @@ export default function Shell() {
               navigate('/new')
             }}
           >
-            Новый проект
+            + Новый проект
           </button>
-          <Link to="/profile" className="small" onClick={() => setSwitching(false)}>Участники, настройки проекта и выход — в личном кабинете</Link>
         </Modal>
       ) : null}
       {notifying ? <NotificationsModal pid={currentId} reminders={reminders.data ?? []} onClose={() => setNotifying(false)} /> : null}

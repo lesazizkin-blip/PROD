@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
 import { api } from '../api/endpoints'
-import type { ChecklistFlags, ChecklistSuggestion, Stage } from '../api/types'
+import type { ChecklistFlags, ChecklistSuggestion } from '../api/types'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
-import { STAGES, STAGE_LABELS, parseTaskLines } from '../ui/format'
+import { STAGE_LABELS } from '../ui/format'
 import Modal from './Modal'
 
 const OPTIONS: { key: keyof ChecklistFlags; label: string }[] = [
@@ -14,24 +13,16 @@ const OPTIONS: { key: keyof ChecklistFlags; label: string }[] = [
   { key: 'other_city', label: 'Переезд в другой город' },
 ]
 
-const CUSTOM_COLOR = '#7c3aed'
-
-/** Умный чек-лист: готовые особенности переезда (на правилах, без внешнего ИИ), типовые задачи
- *  и своя особенность, которую пользователь описывает сам. */
+/** Умный чек-лист: типовые задачи и готовые планы под особенности переезда (на правилах, без внешнего ИИ). */
 export default function ChecklistModal({ pid, onClose, onApplied }: { pid: string; onClose: () => void; onApplied: () => void }) {
   const [flags, setFlags] = useState<ChecklistFlags>({ with_children: false, with_pets: false, other_city: false })
   const [typical, setTypical] = useState(false)
   const [suggestion, setSuggestion] = useState<ChecklistSuggestion | null>(null)
   const [done, setDone] = useState<string | null>(null)
-  // своя особенность: название (станет категорией задач), этап и задачи по строке
-  const [ownName, setOwnName] = useState('')
-  const [ownStage, setOwnStage] = useState<Stage>('before')
-  const [ownTasks, setOwnTasks] = useState('')
   const templates = useAsync(() => api.taskTemplates(), [])
   const { busy, error, run } = useAction()
 
   const anyFlag = flags.with_children || flags.with_pets || flags.other_city
-  const ownList = parseTaskLines(ownTasks)
   const typicalCount = typical ? (templates.data?.length ?? 0) : 0
   const total = (suggestion?.suggested_tasks.length ?? 0) + typicalCount
 
@@ -48,17 +39,8 @@ export default function ChecklistModal({ pid, onClose, onApplied }: { pid: strin
       finish(`Добавлено задач: ${tasks}. Уже имеющиеся не дублировались.`)
     })
 
-  const applyOwn = () =>
-    run(async () => {
-      const name = ownName.trim()
-      for (const title of ownList) {
-        await api.createTask(pid, { stage: ownStage, title, category: name, category_color: CUSTOM_COLOR })
-      }
-      finish(`Особенность «${name}»: добавлено задач ${ownList.length} на этап «${STAGE_LABELS[ownStage]}».`)
-    })
-
   return (
-    <Modal title="Умный чек-лист" onClose={onClose} dirty={!done && (ownName.trim() !== '' || ownTasks.trim() !== '')}>
+    <Modal title="Умный чек-лист" onClose={onClose}>
       {done ? (
         <>
           <p>{done}</p>
@@ -112,27 +94,6 @@ export default function ChecklistModal({ pid, onClose, onApplied }: { pid: strin
             </button>
           )}
 
-          <fieldset className="own-feature stack">
-            <legend>Своя особенность</legend>
-            <p className="muted small">Например, «Пианино» или «Ремонт в новой квартире»: задачи появятся в плане с этой категорией.</p>
-            <label>
-              Название
-              <input value={ownName} onChange={(e) => setOwnName(e.target.value)} maxLength={40} placeholder="Пианино" />
-            </label>
-            <label>
-              Этап
-              <select value={ownStage} onChange={(e) => setOwnStage(e.target.value as Stage)}>
-                {STAGES.map((s) => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
-              </select>
-            </label>
-            <label>
-              Задачи (каждая с новой строки)
-              <textarea rows={4} value={ownTasks} onChange={(e) => setOwnTasks(e.target.value)} placeholder={'Заказать такелажников\nНастроить после перевозки'} />
-            </label>
-            <button className="tonal" disabled={busy || !ownName.trim() || ownList.length === 0} onClick={applyOwn}>
-              <Plus className="icon-sm" aria-hidden />Добавить задачи ({ownList.length})
-            </button>
-          </fieldset>
           <ErrorAlert message={error} />
         </>
       )}
