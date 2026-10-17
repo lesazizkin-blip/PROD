@@ -3,7 +3,7 @@ import { isCompactCode, isResolvedBox } from '../features/labels/contract'
 import type {
   AppEvent, Box, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Health, Hint, Item, ItemStatus,
   Credentials, InviteInfo, InviteOut, Member, Label, LostItem, Page, PageParams, Progress, Project, ProjectBrief, ProjectCreate, ProjectUpdate, Reminder, SearchHit, User,
-  Stage, Task, TaskCreate, TaskTemplate, TaskUpdate, Tip, TipTopic, PhotoInventory, RoomPlan, CalculatorIn, CalculatorOut, Budget, Expense, ExpenseCategory,
+  Stage, Task, TaskCreate, TaskTemplate, TaskUpdate, Tip, TipTopic, PhotoInventory, RoomPlan, CalculatorIn, CalculatorOut, City, Budget, Expense, ExpenseCategory,
 } from "./types"
 
 // Все пути — по docs/API.md. Проект выбирается UUID {pid}, коробка — номером {n}.
@@ -81,6 +81,7 @@ export const api = {
     request<Item>("POST", `${p(pid)}/boxes/${n}/items`, { body }),
   // полный путь переезда: калькулятор (без входа) и бюджет проекта
   calculator: (body: CalculatorIn) => request<CalculatorOut>("POST", "/calculator", { body }),
+  cities: () => request<City[]>("GET", "/cities"),
   budget: (pid: string) => request<Budget>("GET", `${p(pid)}/expenses`),
   addExpense: (pid: string, body: { category: ExpenseCategory; title: string; planned: number; actual?: number | null }) =>
     request<Expense>("POST", `${p(pid)}/expenses`, { body }),

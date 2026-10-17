@@ -33,6 +33,7 @@ vi.mock('../../api/endpoints', () => ({
     me: () => me(),
     myProjects: () => Promise.resolve([{ id: 'p1', name: 'Переезд', move_date: '2026-11-01', role: 'owner' }]),
     calculator: (body: unknown) => calculator(body),
+    cities: () => Promise.resolve([{ slug: 'kzn', name: 'Казань' }]),
     addExpense: (...a: unknown[]) => addExpense(...a),
     updateExpense: (...a: unknown[]) => updateExpense(...a),
     deleteExpense: () => Promise.resolve(),

@@ -136,6 +136,7 @@ class CalculatorIn(BaseModel):
                     "piano": False,
                     "many_fragile": True,
                     "move_date": "2026-11-21",
+                    "city": "kzn",
                 }
             ]
         }
@@ -152,6 +153,8 @@ class CalculatorIn(BaseModel):
     piano: bool = False
     many_fragile: bool = False
     move_date: date | None = None
+    # город из GET /api/cities (цены грузчиков и машины); не задан - средние по крупным городам
+    city: str | None = Field(default=None, max_length=20)
 
     @model_validator(mode="after")
     def floors_without_elevator(self):
@@ -190,6 +193,12 @@ class CalculatorOut(BaseModel):
     total: Range
     date_advice: list[str]
     assumptions: str
+    city: str | None = None
+
+
+class CityOut(ORM):
+    slug: str
+    name: str
 
 
 class ExpenseIn(BaseModel):

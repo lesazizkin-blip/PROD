@@ -80,6 +80,7 @@ Caddy добавляет `Strict-Transport-Security`, `X-Content-Type-Options: n
 | ИИ | 10 попыток в час на пользователя и 50 в сутки на всех, попытка списывается до платного вызова | `services/ai_budget.py` |
 | uvicorn | при наплыве больше 300 одновременных запросов лишние сразу получают 503, память не растёт | `Dockerfile` |
 | Docker | лимит памяти app 1,5 ГБ, Caddy 512 МБ; логи контейнеров не больше 50 МБ (не забьют диск) | `deploy/docker-compose.yml` |
+| Цены по городам | раз в сутки в 04:30 по cron: `docker exec deploy-app-1 python -m app.price_update`, лог `/var/log/movermate-prices.log`; при ошибке остаются прежние цены | `backend/app/price_update.py` |
 | Сторож | раз в минуту по cron: упавший стек поднимается, а app, зависший на 3 минуты подряд, перезапускается | `deploy/watchdog.sh`, лог `/var/log/movermate-watchdog.log` |
 | Демо | демо-проект удалить нельзя; если данные в нём испортили — `ssh … 'docker exec deploy-app-1 python -m app.seed --reset-demo'` пересоздаёт его | `backend/app/seed.py` |
 

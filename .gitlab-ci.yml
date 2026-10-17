@@ -203,6 +203,8 @@ deploy:vm:
     - $SSH $VM "chmod +x $DEPLOY_DIR/backup.sh && echo '17 * * * * root $DEPLOY_DIR/backup.sh >> /var/log/movermate-backup.log 2>&1' | sudo tee /etc/cron.d/movermate-backup >/dev/null"
     # сторож раз в минуту: поднимает упавший стек, перезапускает зависший app (deploy/watchdog.sh)
     - $SSH $VM "chmod +x $DEPLOY_DIR/watchdog.sh && echo '* * * * * root $DEPLOY_DIR/watchdog.sh >> /var/log/movermate-watchdog.log 2>&1' | sudo tee /etc/cron.d/movermate-watchdog >/dev/null"
+    # цены на переезд по городам раз в сутки в 04:30 (python -m app.price_update; без сети - остаются прежние)
+    - $SSH $VM "echo '30 4 * * * root docker exec deploy-app-1 python -m app.price_update >> /var/log/movermate-prices.log 2>&1' | sudo tee /etc/cron.d/movermate-prices >/dev/null"
     - |
       $SSH $VM "set -e; cd $DEPLOY_DIR &&
         ($DEPLOY_DIR/backup.sh ci || true) &&
