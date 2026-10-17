@@ -73,3 +73,18 @@ def test_box_number_unique_per_project_constraint(db_session):
     with pytest.raises(IntegrityError):
         db_session.commit()
     db_session.rollback()
+
+
+def test_data_survives_restart(tmp_path):
+    # «перезапуск»: закрываем все соединения и открываем базу заново
+    _, engine = _migrated_engine(tmp_path)
+    with engine.begin() as c:
+        c.execute(
+            sa.text(
+                "INSERT INTO users (username, password_hash, created_at) VALUES ('keep', 'x', '2026-10-18 00:00:00')"
+            )
+        )
+    url = engine.url
+    engine.dispose()
+    with sa.create_engine(url).connect() as c:
+        assert c.execute(sa.text("SELECT username FROM users")).scalar_one() == "keep"
