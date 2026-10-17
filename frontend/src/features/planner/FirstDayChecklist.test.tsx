@@ -7,7 +7,7 @@ import type { FirstDayItem, LostItem } from '../../api/types'
 import { ConfirmProvider } from '../../state/ConfirmContext'
 import FirstDayChecklist from './FirstDayChecklist'
 
-vi.mock('../../api/endpoints', () => ({ api: { firstDay: vi.fn(), firstDayItems: vi.fn(), boxes: vi.fn(), createItem: vi.fn(), deleteFirstDay: vi.fn(), updateFirstDay: vi.fn(), bindFirstDay: vi.fn() } }))
+vi.mock('../../api/endpoints', () => ({ api: { firstDay: vi.fn(), firstDayItems: vi.fn(), boxes: vi.fn(), deleteFirstDay: vi.fn(), updateFirstDay: vi.fn(), bindFirstDay: vi.fn() } }))
 let planned: FirstDayItem[], packed: LostItem[]
 HTMLDialogElement.prototype.showModal = function () { this.open = true }
 HTMLDialogElement.prototype.close = function () { this.open = false }

@@ -201,12 +201,6 @@ export interface AppEvent {
   created_at: string
 }
 
-export interface Health {
-  status: string
-  db: string
-  version: string
-}
-
 // Запросы
 
 export interface ProjectCreate {

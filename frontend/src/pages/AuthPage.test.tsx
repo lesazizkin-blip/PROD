@@ -8,13 +8,11 @@ import AuthPage from './AuthPage'
 
 const login = vi.fn()
 const register = vi.fn()
-const demoLogin = vi.fn()
 vi.mock('../api/endpoints', () => ({
   api: {
     me: () => Promise.reject(new ApiError('Войдите', 401)),
     login: (...a: unknown[]) => login(...a),
     register: (...a: unknown[]) => register(...a),
-    demoLogin: () => demoLogin(),
   },
 }))
 
@@ -28,7 +26,7 @@ async function setup() {
   await waitFor(() => expect(screen.getByTestId('who').textContent).toBe('никто'))
 }
 
-beforeEach(() => [login, register, demoLogin].forEach((f) => f.mockReset()))
+beforeEach(() => [login, register].forEach((f) => f.mockReset()))
 afterEach(cleanup)
 
 describe('вход и регистрация', () => {

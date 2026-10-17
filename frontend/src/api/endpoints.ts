@@ -1,7 +1,7 @@
 import { request } from "./client"
 import { isCompactCode, isResolvedBox } from '../features/labels/contract'
 import type {
-  AppEvent, Box, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Health, Hint, Item, ItemStatus,
+  AppEvent, Box, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Hint, Item, ItemStatus,
   Credentials, InviteInfo, InviteOut, Member, Label, LostItem, Page, PageParams, Progress, Project, ProjectBrief, ProjectCreate, ProjectUpdate, Reminder, SearchHit, User,
   Stage, Task, TaskCreate, TaskTemplate, TaskUpdate, Tip, TipTopic, PhotoInventory, RoomPlan, CalculatorIn, CalculatorOut, City, Budget, Expense, ExpenseCategory,
 } from "./types"
@@ -18,7 +18,6 @@ export const api = {
     return result
   },
   // Служебные
-  health: () => request<Health>("GET", "/health"),
   config: () => request<{ maps_api_key: string | null; maps_provider: "maptiler" | "google" | null }>("GET", "/config"),
   taskTemplates: () => request<TaskTemplate[]>("GET", "/task-templates"),
   tips: (topic?: TipTopic) => request<Tip[]>("GET", "/tips", { query: { topic } }),
@@ -27,7 +26,6 @@ export const api = {
   me: () => request<User>("GET", "/auth/me"),
   register: (body: Credentials) => request<User>("POST", "/auth/register", { body }),
   login: (body: Credentials) => request<User>("POST", "/auth/login", { body }),
-  demoLogin: () => request<User>("POST", "/auth/demo"),
   logout: () => request<void>("POST", "/auth/logout"),
   changePassword: (body: { current_password: string; new_password: string }) =>
     request<User>("POST", "/auth/password", { body }),
@@ -73,11 +71,6 @@ export const api = {
   bulkTransition: (pid: string, numbers: number[], to: BoxStatus) =>
     request<{ updated: Box[] }>("POST", `${p(pid)}/boxes/bulk-transitions`, { body: { numbers, to } }),
 
-  // Вещи
-  items: (pid: string, n: number, params: PageParams = {}) =>
-    request<Page<Item>>("GET", `${p(pid)}/boxes/${n}/items`, { query: { ...params } }),
-  createItem: (pid: string, n: number, body: { name: string; first_day?: boolean; status?: ItemStatus }) =>
-    request<Item>("POST", `${p(pid)}/boxes/${n}/items`, { body }),
   // полный путь переезда: калькулятор (без входа) и бюджет проекта
   calculator: (body: CalculatorIn) => request<CalculatorOut>("POST", "/calculator", { body }),
   cities: () => request<City[]>("GET", "/cities"),

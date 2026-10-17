@@ -8,7 +8,6 @@ interface AuthValue {
   user: User | null | undefined
   login: (c: Credentials) => Promise<void>
   register: (c: Credentials) => Promise<void>
-  demo: () => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -41,7 +40,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       login: async (c) => setUser(await api.login(c)),
       register: async (c) => setUser(await api.register(c)),
-      demo: async () => setUser(await api.demoLogin()),
       logout,
     }),
     [user, logout],

@@ -1,12 +1,12 @@
 import type { CSSProperties } from 'react'
 
 const THEMES = {
-  kitchen: { color: '#bd492c', tape: 'tape-kitchen.svg' },
-  bedroom: { color: '#315e91', tape: 'tape-bedroom.svg' },
-  living: { color: '#3d7659', tape: 'tape-living.svg' },
-  office: { color: '#73598b', tape: 'tape-office.svg' },
-  hall: { color: '#927132', tape: 'tape-hall.svg' },
-  other: { color: '#737064', tape: 'packing-tape.svg' },
+  kitchen: { color: '#bd492c' },
+  bedroom: { color: '#315e91' },
+  living: { color: '#3d7659' },
+  office: { color: '#73598b' },
+  hall: { color: '#927132' },
+  other: { color: '#737064' },
 } as const
 
 /** Shared Figma room palette: decoration only, never a box status or priority. */

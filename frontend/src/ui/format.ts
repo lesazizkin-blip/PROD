@@ -1,5 +1,4 @@
 import type { BoxStatus, ItemStatus, Stage } from '../api/types'
-import { BOX_STATUSES } from '../api/types'
 
 export const STATUS_LABELS: Record<BoxStatus, string> = {
   packing: 'Собирается',
@@ -40,13 +39,6 @@ export const STAGE_LABELS: Record<Stage, string> = {
 }
 
 export const STAGES: Stage[] = ['before', 'moving_day', 'after']
-
-/** Следующий статус вперёд (null, если коробка уже распакована). */
-export const nextStatus = (s: BoxStatus): BoxStatus | null => BOX_STATUSES[BOX_STATUSES.indexOf(s) + 1] ?? null
-export const prevStatus = (s: BoxStatus): BoxStatus | null => BOX_STATUSES[BOX_STATUSES.indexOf(s) - 1] ?? null
-
-/** Можно ли сменить статус коробки (как на сервере: на любой другой, шаги можно пропускать). */
-export const canTransition = (from: BoxStatus, to: BoxStatus): boolean => from !== to
 
 export function formatDate(iso: string): string {
   const [y, m, d] = iso.slice(0, 10).split('-')
@@ -112,13 +104,4 @@ export function formatTimeRange(start: string | null, end: string | null): strin
   if (a) return `с ${a}`
   if (b) return `до ${b}`
   return ''
-}
-
-/** Строки текста -> названия задач: пустые строки и повторы убираются. */
-export function parseTaskLines(text: string): string[] {
-  const seen = new Set<string>()
-  return text
-    .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => l && !seen.has(l.toLowerCase()) && seen.add(l.toLowerCase()))
 }
