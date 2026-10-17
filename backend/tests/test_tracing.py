@@ -43,7 +43,8 @@ def test_request_is_a_trace_named_by_route_with_sql_spans(client, base, spans):
     # имя - шаблон маршрута, не путь с uuid: у Sage лимит 300 операций на сервис
     assert "GET /api/projects/{pid}/boxes" in names
     db = [s for s in mine if s.name.startswith("db ")]
-    assert db and all(s.attributes["db.system"] == "sqlite" for s in db)
+    # тесты идут и на SQLite, и на PostgreSQL (CI): система - диалект текущей базы
+    assert db and all(s.attributes["db.system"] == main.engine.dialect.name for s in db)
     # значения параметров запроса в спан не попадают, только текст с плейсхолдерами
     assert not any("Тайная" in s.attributes["db.query.text"] for s in db)
 
