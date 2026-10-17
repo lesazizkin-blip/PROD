@@ -139,7 +139,7 @@ function Plan({ pid }: { pid: string }) {
       ) : (
       <section className="task-list" role="tabpanel" aria-label={STAGE_LABELS[activeTab]}>
         {list.length === 0 ? (
-          <div className="state"><p>Пока задач нет. Добавьте свою или выберите готовые в «Умном чек-листе».</p></div>
+          <div className="state"><p>Пока задач нет. Добавьте свою кнопкой ниже или выберите готовые в «Умном чек-листе».</p></div>
         ) : stageTasks.length === 0 ? <div className="state"><p>На этом этапе задач нет.</p></div> : null}
         {stageTasks.map((t) => (
           <label key={t.id} className={`task-card${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
@@ -168,9 +168,8 @@ function Plan({ pid }: { pid: string }) {
       )}
       </div>
 
-      {activeTab === 'first-day'
-        ? <button className="primary fab" onClick={() => setAddingItem(true)}>+ Вещь</button>
-        : <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button>}
+      {/* задачи добавляются кнопкой в конце этапа; плавающая кнопка осталась только для вещей первого дня */}
+      {activeTab === 'first-day' ? <button className="primary fab" onClick={() => setAddingItem(true)}>+ Вещь</button> : null}
       {addingItem ? (
         <FirstDayItemModal
           pid={pid}
