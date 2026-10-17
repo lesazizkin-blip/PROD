@@ -16,7 +16,10 @@ const START: CalculatorIn = {
   elevator_from: true, elevator_to: true, pets: false, piano: false, many_fragile: false, move_date: null,
 }
 
-/** Этап «решение»: сколько стоит переезд, сколько коробок и времени. Работает и без входа, ничего не сохраняет. */
+/** Этап «решение»: сколько стоит переезд, сколько коробок и времени. Доступен после входа, ничего не сохраняет. */
+
+/** Без лифта этаж не выше 15-го, с лифтом - до 100 (так же проверяет сервер). */
+const NO_ELEVATOR_MAX_FLOOR = 15
 export default function CalculatorPage() {
   const { user } = useAuth()
   const { currentId } = useProjects()
@@ -27,6 +30,11 @@ export default function CalculatorPage() {
   const toBudget = useAction()
   const set = <K extends keyof CalculatorIn>(key: K, value: CalculatorIn[K]) => {
     setForm({ ...form, [key]: value })
+    setResult(null)
+  }
+  const setElevator = (key: 'elevator_from' | 'elevator_to', on: boolean) => {
+    const floorKey = key === 'elevator_from' ? 'floor_from' : 'floor_to'
+    setForm({ ...form, [key]: on, [floorKey]: on ? form[floorKey] : Math.min(form[floorKey], NO_ELEVATOR_MAX_FLOOR) })
     setResult(null)
   }
   const num = (key: 'rooms' | 'people' | 'distance_km' | 'floor_from' | 'floor_to', label: string, min: number, max: number) => (
@@ -48,12 +56,12 @@ export default function CalculatorPage() {
             Дата переезда (необязательно)
             <input type="date" value={form.move_date ?? ''} onChange={(e) => set('move_date', e.target.value || null)} />
           </label>
-          {num('floor_from', 'Этаж сейчас', 0, 100)}
-          {num('floor_to', 'Этаж на новом месте', 0, 100)}
+          {num('floor_from', 'Этаж сейчас', 0, form.elevator_from ? 100 : NO_ELEVATOR_MAX_FLOOR)}
+          {num('floor_to', 'Этаж на новом месте', 0, form.elevator_to ? 100 : NO_ELEVATOR_MAX_FLOOR)}
         </div>
         <div className="row wrap calc-flags">
-          <label className="row"><input type="checkbox" checked={form.elevator_from} onChange={(e) => set('elevator_from', e.target.checked)} />Лифт сейчас</label>
-          <label className="row"><input type="checkbox" checked={form.elevator_to} onChange={(e) => set('elevator_to', e.target.checked)} />Лифт на новом месте</label>
+          <label className="row"><input type="checkbox" checked={form.elevator_from} onChange={(e) => setElevator('elevator_from', e.target.checked)} />Лифт сейчас</label>
+          <label className="row"><input type="checkbox" checked={form.elevator_to} onChange={(e) => setElevator('elevator_to', e.target.checked)} />Лифт на новом месте</label>
           <label className="row"><input type="checkbox" checked={form.pets} onChange={(e) => set('pets', e.target.checked)} />Питомцы</label>
           <label className="row"><input type="checkbox" checked={form.piano} onChange={(e) => set('piano', e.target.checked)} />Пианино</label>
           <label className="row"><input type="checkbox" checked={form.many_fragile} onChange={(e) => set('many_fragile', e.target.checked)} />Много хрупкого</label>

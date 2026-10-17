@@ -115,6 +115,9 @@ ExpenseCategory = Literal[
 ]
 
 
+MAX_FLOOR_WITHOUT_ELEVATOR = 15
+
+
 class CalculatorIn(BaseModel):
     """Параметры переезда для оценки. Доступно после входа, ничего не сохраняется."""
 
@@ -149,6 +152,20 @@ class CalculatorIn(BaseModel):
     piano: bool = False
     many_fragile: bool = False
     move_date: date | None = None
+
+    @model_validator(mode="after")
+    def floors_without_elevator(self):
+        # решение владельца 17.10: с лифтом до 100 этажа, без лифта - до 15 (выше без лифта не бывает в жизни,
+        # а такие данные давали десятки часов работы)
+        for floor, elevator, where in (
+            (self.floor_from, self.elevator_from, "сейчас"),
+            (self.floor_to, self.elevator_to, "на новом месте"),
+        ):
+            if not elevator and floor > MAX_FLOOR_WITHOUT_ELEVATOR:
+                raise ValueError(
+                    f"Этаж {where} без лифта - не выше {MAX_FLOOR_WITHOUT_ELEVATOR}-го; отметьте лифт"
+                )
+        return self
 
 
 class Range(BaseModel):
