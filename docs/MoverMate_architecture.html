@@ -256,7 +256,7 @@ pre { font-family: Menlo, Consolas, monospace; font-size: 8pt; background: #F6F8
 
 <section class=""><h2>14. Структура репозитория</h2>
 <pre>backend/            сервер: app/ (код), alembic/ (10 миграций), tests/ (219 тестов)
-frontend/           сайт: src/ (код, 202 теста), Dockerfile и nginx.conf (запуск без Caddy)
+frontend/           сайт: src/ (код, 202 теста)
 deploy/             docker-compose.yml, Caddyfile, .env.example для ВМ
 .gitlab-ci.yml      пайплайн: lint → test → образ → деплой → preflight
 Dockerfile          образ: сайт + сервер

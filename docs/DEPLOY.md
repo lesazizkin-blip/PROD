@@ -11,6 +11,3 @@
 
 ## CI и автодеплой
 `.gitlab-ci.yml` проверяет стиль и тесты с покрытием, собирает образ в Spirit Registry и на `master` выкатывает его на ВМ, затем прогоняет `preflight.sh` по живому сайту (работает с 17.10). Подробности и переменные: `docs/GITLAB.md`. `.github/workflows/ci.yml` — запасные проверки на GitHub, без деплоя.
-
-## Остатки шаблона
-`scripts/deploy-manual.sh`, `scripts/bootstrap-server.sh` и корневой `docker-compose.yml` (PostgreSQL, отдельные образы) остались от общего шаблона хакатона и для нашего стенда не используются; на ВМ не проверялись.
