@@ -29,14 +29,12 @@ export default function AboutPage() {
             <div className="row wrap">
               <Link to="/" className="button primary">Перейти к плану</Link>
               <Link to="/calculator" className="button">Рассчитать переезд</Link>
-              <Link to="/journey" className="button">Путь переезда</Link>
             </div>
           ) : (
             <div className="row wrap">
               <Link to="/auth?mode=register" className="button primary">Зарегистрироваться</Link>
               <Link to="/auth" className="button">Войти</Link>
               <Link to="/calculator" className="button">Рассчитать переезд</Link>
-              <Link to="/journey" className="button">Путь переезда</Link>
             </div>
           )}
         </div>

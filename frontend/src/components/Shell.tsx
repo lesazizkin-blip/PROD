@@ -21,7 +21,7 @@ function sectionTitle(pathname: string): string {
   if (box) return `Коробка № ${box[1]}`
   const map: Record<string, string> = {
     '/boxes': 'Коробки', '/labels': 'Этикетки', '/labels/print': 'Печать этикеток', '/progress': 'Прогресс',
-    '/tips': 'Памятки', '/calculator': 'Калькулятор', '/journey': 'Путь переезда', '/budget': 'Бюджет', '/moving-day': 'День переезда', '/scan': 'Сканер', '/new': 'Новый переезд', '/profile': 'Личный кабинет', '/about': 'О нас',
+    '/tips': 'Памятки', '/calculator': 'Калькулятор', '/budget': 'Бюджет', '/scan': 'Сканер', '/new': 'Новый переезд', '/profile': 'Личный кабинет', '/about': 'О нас',
   }
   return map[pathname] ?? (pathname.startsWith('/invite/') ? 'Приглашение' : 'MoverMate')
 }
@@ -58,8 +58,8 @@ export default function Shell() {
             </Link>
           })}
         </nav>
-        <p className="sidebar-group">Путь переезда</p>
-        <nav className="tabs tabs-journey" aria-label="Путь переезда">
+        <p className="sidebar-group">Бюджет и расчёты</p>
+        <nav className="tabs tabs-journey" aria-label="Бюджет и расчёты">
           {JOURNEY_TABS.map((t) => {
             const active = pathname === t.to
             return <Link key={t.to} to={t.to} aria-current={active ? 'page' : undefined} aria-label={t.label} title={sidebarCompact ? t.label : undefined} className={active ? 'tab active' : 'tab'}>

@@ -1,6 +1,5 @@
 import FirstDayChecklist from '../features/planner/FirstDayChecklist'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { CalendarDays, Clock, Pencil, Sparkles, UserRound } from 'lucide-react'
 import { api } from '../api/endpoints'
 import { type Stage, type Task, type TaskCreate } from '../api/types'
@@ -80,7 +79,6 @@ function Plan({ pid }: { pid: string }) {
       <PageHeading title="План переезда">
         {project.data ? formatDate(project.data.move_date) : '…'} · {days !== null && days > 0 ? `${days} ${plural(days, ['день', 'дня', 'дней'])} до переезда` : 'Ваш переезд'}
       </PageHeading>
-      <Link to="/journey" className="journey-link">Путь переезда: все 7 этапов от решения до «обжились» →</Link>
       <div className="move-ticket">
         <div className="stack">
           <span className="eyebrow">Маршрут / {project.data?.name ?? 'ваш переезд'}</span>
