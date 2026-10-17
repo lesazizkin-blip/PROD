@@ -22,7 +22,7 @@ export default function BoxesPage() {
 function BoxRow({ pid, box }: { pid: string; box: Box }) {
   return (
     <Link to={boxPath(pid, box.number)} className={`box-card ${box.status === 'packing' || box.status === 'unpacked' ? 'carton-open' : 'carton-sealed'}`} style={roomStyle(box.room)}>
-      <span className="carton-lid" aria-hidden="true"><span /></span>
+      <svg className="carton-lid" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"><path className="carton-back-flap" d="M12 38 L0 8 L280 8 L292 38 Z" /><path className="carton-mouth" d="M0 56 L12 38 L300 38 L288 56 Z" /><path className="carton-front-flap" d="M0 56 L288 56 L280 64 L8 64 Z" /><path className="carton-seal" d="M5 48 L293 48 L297 43 L9 43 Z" /></svg>
       <BoxVolume status={box.status} />
       <div className="box-card-header"><span className="box-number">{String(box.number).padStart(3, '0')}</span><StatusBadge status={box.status} /></div>
       <h2>{box.room}</h2>
@@ -39,6 +39,13 @@ function Highlight({ text, query }: { text: string; query: string }) {
   const at = text.toLowerCase().indexOf(query.toLowerCase())
   if (at < 0 || !query) return <>{text}</>
   return <>{text.slice(0, at)}<mark>{text.slice(at, at + query.length)}</mark>{text.slice(at + query.length)}</>
+}
+
+function BoxGrid({ pid, boxes }: { pid: string; boxes: Box[] }) {
+  return <div className="box-grid">
+    {Array.from({ length: Math.ceil(boxes.length / 3) }, (_, i) => <span className="rack-shelf" key={i} style={{ top: 290 + i * 320 }} aria-hidden="true" />)}
+    {boxes.map((box) => <BoxRow key={box.number} pid={pid} box={box} />)}
+  </div>
 }
 
 function Boxes({ pid }: { pid: string }) {
@@ -67,7 +74,7 @@ function Boxes({ pid }: { pid: string }) {
 
       {q ? (
         <>
-          {numberMatch ? <div className="box-grid"><BoxRow pid={pid} box={numberMatch} /></div> : null}
+          {numberMatch ? <BoxGrid pid={pid} boxes={[numberMatch]} /> : null}
           <StateView
             loading={hits.loading && !hits.data}
             error={hits.error}
@@ -108,7 +115,7 @@ function Boxes({ pid }: { pid: string }) {
               ))}
             </div>
           ) : null}
-          <div className="box-grid">{visible.map((b) => <BoxRow key={b.number} pid={pid} box={b} />)}</div>
+          <BoxGrid pid={pid} boxes={visible} />
           <p className="muted small">Статусы: {Object.values(STATUS_LABELS).join(' → ')}</p>
         </StateView>
       )}

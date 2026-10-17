@@ -622,3 +622,31 @@ input[type='checkbox'].check { width: 22px; height: 22px; margin: 1px 0 0; accen
 .first-day__list li.done { color: var(--muted); text-decoration: line-through; }
 .room-row { padding: 16px 0; border-bottom: 1px solid var(--border); }
 .room-row:last-child { border-bottom: 0; }
+
+/* The account/scanner bar stays reachable while the page scrolls. */
+.topbar { position: sticky; top: 0; z-index: 20; background: var(--bg); border-bottom: 1px solid var(--border); }
+@media (min-width: 1000px) {
+  .shell { grid-template-columns: 68px minmax(0, 1fr); }
+  .sidebar {
+    position: fixed; inset: 0 auto 0 0; width: 68px; min-height: 0; height: 100dvh;
+    z-index: 30; padding: 20px 12px; overflow: hidden; gap: 24px;
+    transition: width .2s ease, box-shadow .2s ease;
+  }
+  .sidebar:hover, .sidebar:focus-within { width: 224px; box-shadow: 6px 0 18px #29292318; }
+  .sidebar .brand { flex-direction: row; gap: 18px; white-space: nowrap; }
+  .sidebar .brand img { width: 36px; height: 36px; margin-left: 4px; }
+  .sidebar .brand span, .sidebar .brand-caption, .sidebar .project-switch, .sidebar .sidebar-note { visibility: hidden; }
+  .sidebar:hover .brand span, .sidebar:focus-within .brand span,
+  .sidebar:hover .brand-caption, .sidebar:focus-within .brand-caption,
+  .sidebar:hover .project-switch, .sidebar:focus-within .project-switch,
+  .sidebar:hover .sidebar-note, .sidebar:focus-within .sidebar-note { visibility: visible; }
+  .sidebar .brand { font-size: 20px; }
+  .sidebar .brand-caption, .sidebar .project-switch, .sidebar .sidebar-note { width: 200px; }
+  .sidebar .tabs { gap: 16px; }
+  .sidebar .tab { padding: 12px 11px; gap: 20px; width: 200px; }
+  .sidebar .tab > .icon { display: block; }
+  .sidebar .tab-number { display: none; }
+  .sidebar:not(:hover):not(:focus-within) .tab { width: 44px; }
+  .sidebar:not(:hover):not(:focus-within) .tab > span:last-child { visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) { .sidebar { transition: none; } }
