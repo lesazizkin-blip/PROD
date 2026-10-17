@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
@@ -27,9 +27,24 @@ beforeEach(() => {
   localStorage.clear()
   createProject.mockReset()
 })
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('создание проекта', () => {
+  it('сохраняет проверенный персональный план одним запросом создания', async () => {
+    const draft = { tasks: [{ title: 'Переноска для кошки', stage: 'before', offset_days: -3 }], first_day: ['Корм'] }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(draft))))
+    createProject.mockResolvedValue({ id: 'p1', name: 'Переезд' })
+    await setup()
+    await userEvent.type(screen.getByLabelText('Название'), 'Переезд')
+    fireEvent.change(screen.getByLabelText('Дата переезда'), { target: { value: '2026-11-01' } })
+    await userEvent.type(screen.getByLabelText('Особенности и пожелания'), 'Переезжаем с кошкой')
+    await userEvent.click(screen.getByRole('checkbox'))
+    await userEvent.click(screen.getByRole('button', { name: 'Предложить персональный план' }))
+    await screen.findByLabelText('Задача 1')
+    expect(createProject).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Создать проект' }))
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith({ name: 'Переезд', move_date: '2026-11-01', personal_plan: draft }))
+  })
   it('кнопка недоступна, пока нет названия и даты', async () => {
     await setup()
     const submit = screen.getByRole('button', { name: 'Создать проект' }) as HTMLButtonElement

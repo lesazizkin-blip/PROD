@@ -2,7 +2,7 @@
 
 import re
 import uuid
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from enum import StrEnum
 from typing import Annotated, Generic, TypeVar
 
@@ -69,6 +69,31 @@ class HealthOut(BaseModel):
     version: str
 
 
+class PlanTask(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: Text200
+    stage: Stage
+    offset_days: int = Field(ge=-365, le=365, strict=True)
+
+    @model_validator(mode="after")
+    def check_stage(self):
+        if (
+            (self.stage == Stage.BEFORE and self.offset_days > 0)
+            or (self.stage == Stage.MOVING_DAY and self.offset_days != 0)
+            or (self.stage == Stage.AFTER and self.offset_days < 0)
+        ):
+            raise ValueError("Срок задачи должен соответствовать этапу переезда")
+        return self
+
+
+class PersonalPlan(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tasks: list[PlanTask] = Field(min_length=1, max_length=30)
+    first_day: list[Text200] = Field(default_factory=list, max_length=20)
+
+
 # ---------- проекты ----------
 class QrMode(StrEnum):
     UNIVERSAL = "universal"
@@ -81,8 +106,19 @@ class ProjectCreate(BaseModel):
     address_from: str | None = Field(default=None, max_length=300)
     address_to: str | None = Field(default=None, max_length=300)
     qr_mode: QrMode = QrMode.UNIVERSAL
+    personal_plan: PersonalPlan | None = None
 
     _clean = field_validator("address_from", "address_to")(_opt_text)
+
+    @model_validator(mode="after")
+    def check_plan_dates(self):
+        if self.personal_plan:
+            try:
+                for task in self.personal_plan.tasks:
+                    self.move_date + timedelta(days=task.offset_days)
+            except OverflowError:
+                raise ValueError("Срок задачи выходит за допустимый диапазон дат") from None
+        return self
 
 
 class ProjectUpdate(BaseModel):

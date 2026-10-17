@@ -17,6 +17,10 @@ services:
       SEED_DEMO: "${SEED_DEMO:-true}"
       # пароль демо-аккаунта (логин demo); кнопка «Посмотреть демо» входит и без него
       DEMO_PASSWORD: "${DEMO_PASSWORD:-demo-pereezd}"
+      AI_API_KEY: "${AI_API_KEY:-}"
+      AI_BASE_URL: "${AI_BASE_URL:-}"
+      AI_MODEL: "${AI_MODEL:-}"
+      AI_REQUESTS_PER_HOUR: "${AI_REQUESTS_PER_HOUR:-10}"
     volumes:
       - movermate-data:/data
 

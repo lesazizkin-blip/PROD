@@ -201,13 +201,14 @@ export interface Health {
 
 export interface ProjectCreate {
   qr_mode?: QrMode
+  personal_plan?: import('../features/planner/types').PersonalPlan
   name: string
   move_date: string
   address_from?: string | null
   address_to?: string | null
 }
 
-export type ProjectUpdate = Partial<ProjectCreate>
+export type ProjectUpdate = Partial<Omit<ProjectCreate, 'personal_plan'>>
 
 export interface TaskCreate {
   stage: Stage

@@ -41,6 +41,29 @@ class ProjectService:
             )
         for title in FIRST_DAY:
             self.db.add(FirstDayItem(project_id=project.id, title=title))
+        if data.personal_plan:
+            # Всё сохраняется одной транзакцией вместе с шаблонами и владельцем.
+            def normalize(title: str) -> str:
+                return " ".join(title.casefold().split())
+
+            have_tasks = {normalize(title) for title in self.db.scalars(select(TaskTemplate.title))}
+            for task in data.personal_plan.tasks:
+                if normalize(task.title) in have_tasks:
+                    continue
+                have_tasks.add(normalize(task.title))
+                self.db.add(
+                    Task(
+                        project_id=project.id,
+                        title=task.title,
+                        stage=task.stage.value,
+                        due_date=project.move_date + timedelta(days=task.offset_days),
+                    )
+                )
+            have_first = {normalize(title) for title in FIRST_DAY}
+            for title in data.personal_plan.first_day:
+                if normalize(title) not in have_first:
+                    have_first.add(normalize(title))
+                    self.db.add(FirstDayItem(project_id=project.id, title=title))
         if owner_id is not None:  # владелец добавляется в той же транзакции, что и проект
             self.db.add(ProjectMember(project_id=project.id, user_id=owner_id, role="owner"))
         log_event(self.db, project.id, "project.created", "project", project.id, name=project.name)

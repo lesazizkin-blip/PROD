@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.config import DEMO_PROJECT_ID
+from app.config import DEMO_PROJECT_ID, Settings, get_settings
 from app.db import get_db
 from app.deps import PageParams, get_current_user, get_owned_project, get_project
 from app.errors import ForbiddenError
 from app.models import Event, Project, User
+from app.planner_schemas import PlanRequest
 from app.routers.common import confirm_param
 from app.schemas import (
     AppliedTemplates,
@@ -14,6 +15,7 @@ from app.schemas import (
     InviteOut,
     MemberOut,
     Page,
+    PersonalPlan,
     ProjectBrief,
     ProjectCreate,
     ProjectOut,
@@ -25,10 +27,25 @@ from app.schemas import (
     TaskUpdate,
 )
 from app.services.auth import AuthService
+from app.services.planner import generate_plan, limiter
 from app.services.projects import ProjectService
 from app.services.tasks import TaskService
 
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+@router.post(
+    "/plan-preview",
+    response_model=PersonalPlan,
+    summary="Персональный AI-черновик до создания проекта",
+)
+def plan_preview(
+    body: PlanRequest,
+    user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    limiter.take(user.id, settings.ai_requests_per_hour)
+    return generate_plan(body, settings)
 
 
 @router.post(

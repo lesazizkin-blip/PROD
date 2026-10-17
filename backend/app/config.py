@@ -1,6 +1,7 @@
 import uuid
 from functools import lru_cache
 
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Демо-проект для жюри (python -m app.seed): фиксированный id, общий для всех, кто входит в демо
@@ -30,6 +31,23 @@ class Settings(BaseSettings):
     # папка с собранным сайтом (frontend/dist): тогда бэкенд сам отдаёт сайт на том же порту
     static_dir: str | None = None
     log_level: str = "INFO"
+    # Совместимый с Chat Completions endpoint; ключ никогда не отправляется на сайт.
+    ai_api_key: SecretStr = SecretStr("")
+    ai_base_url: str = ""
+    ai_model: str = ""
+    ai_timeout_seconds: float = Field(default=12, gt=0, le=15)
+    ai_requests_per_hour: int = Field(default=10, ge=1, le=100)
+
+    @field_validator("ai_base_url")
+    @classmethod
+    def validate_ai_url(cls, value: str) -> str:
+        if value and (
+            not value.startswith("https://") or "@" in value or "?" in value or "#" in value
+        ):
+            raise ValueError(
+                "AI_BASE_URL должен быть HTTPS URL без учётных данных, query и fragment"
+            )
+        return value.rstrip("/")
 
 
 @lru_cache
