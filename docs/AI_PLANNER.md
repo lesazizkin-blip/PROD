@@ -204,3 +204,21 @@ python -m pytest tests/test_planner.py tests/test_ai_budget.py tests/test_config
 Формула оценки бюджета: сумма входных токенов × фактический тариф входа + сумма выходных
 токенов × фактический тариф выхода + другие тарифицируемые провайдером операции.
 Тарифы нужно брать из вашего Spirit, не переносить цены публичного OpenRouter автоматически.
+
+## Unified design/AI release (2026-10-17)
+
+The release combines the local :5173 interface with the current GitHub main
+(address suggestions, item statuses, first-day flags, profile and deployment updates).
+Standard projects remain empty until the user adds template tasks; a reviewed AI plan
+is saved together with the standard tasks in one transaction. First-day suggestions
+are saved only from the reviewed draft.
+
+Production migration history 0004 (item statuses) and 0005 (first-day flag) is preserved.
+Compact QR now has the unique revision 0006_compact_qr; the existing AI merge revision
+remains recognizable. 0007_legacy_local_items also upgrades older local QR/AI databases
+that were already stamped with the former merge revision. Run `alembic upgrade head`
+on a backup first. Verified against copies of both production and the local :5173 DB.
+
+QA: desktop 1440x1000 and mobile 390x844; real Spirit generation, draft editing,
+project creation and persistence; item status and first-day changes; labels and five
+main mobile routes. Browser plugin was not available; Playwright was used.

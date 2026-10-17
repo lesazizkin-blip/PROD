@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ITEM_STATUSES, type ItemStatus } from '../api/types'
+import { ITEM_STATUS_LABELS } from '../ui/format'
 import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
 import BoxVolume from '../components/BoxVolume'
@@ -116,7 +118,11 @@ export default function BoxPage() {
                     <b>{item.name}</b>
                     {item.lost ? <span className="sub">Потеряна: ищите в нераспакованных коробках</span> : null}
                   </span>
-                  <button className="small" disabled={busy} onClick={() => run(() => api.updateItem(pid, item.id, { lost: !item.lost }))}>
+                  <label className="row small"><input type="checkbox" checked={item.first_day} disabled={busy} onChange={() => run(() => api.updateItem(pid, item.id, { first_day: !item.first_day }))} />Первый день</label>
+                  <select aria-label={`Статус «${item.name}»`} value={item.status} disabled={busy} onChange={e => run(() => api.updateItem(pid, item.id, { status: e.target.value as ItemStatus }))}>
+                    {ITEM_STATUSES.map(s => <option key={s} value={s}>{ITEM_STATUS_LABELS[s]}</option>)}
+                  </select>
+                  <button className="small" disabled={busy} onClick={() => run(() => api.updateItem(pid, item.id, { status: item.lost ? 'found' : 'lost' }))}>
                     {item.lost ? 'Нашлась' : 'Потеряна'}
                   </button>
                   <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={() => window.confirm(`Удалить вещь «${item.name}»?`) && run(() => api.deleteItem(pid, item.id))}>✕</button>

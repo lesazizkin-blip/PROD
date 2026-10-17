@@ -7,13 +7,16 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision = "0004"
-down_revision = "0003"
+revision = "0006_compact_qr"
+down_revision = "0005"
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
+    # Legacy local databases already have the compact QR schema under revision 0004.
+    if "box_qr_codes" in sa.inspect(op.get_bind()).get_table_names():
+        return
     op.add_column(
         "projects",
         sa.Column("qr_mode", sa.String(12), nullable=False, server_default="universal"),

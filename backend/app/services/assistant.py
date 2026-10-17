@@ -1,8 +1,6 @@
 """Умный чек-лист: подбирает задачи и пункты «коробки первого дня» по особенностям переезда.
 Работает на локальных правилах (reference_data.ASSISTANT_RULES), без внешних вызовов."""
 
-from datetime import timedelta
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -51,18 +49,12 @@ class AssistantService:
     def apply(self, project: Project, flags: ChecklistIn) -> ChecklistApplied:
         """Добавляет предложенное. Повторный вызов ничего не дублирует."""
         suggestion = self.suggest(project, flags)
-        offsets = {
-            title: offset
-            for rules in ASSISTANT_RULES.values()
-            for _stage, title, offset in rules["tasks"]
-        }
         for s in suggestion.suggested_tasks:
             self.db.add(
                 Task(
                     project_id=project.id,
                     stage=s.stage.value,
                     title=s.title,
-                    due_date=project.move_date + timedelta(days=offsets[s.title]),
                 )
             )
         for title in suggestion.suggested_first_day:

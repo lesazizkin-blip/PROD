@@ -12,7 +12,7 @@ import ErrorAlert from '../ui/ErrorAlert'
 import ProgressBar from '../ui/ProgressBar'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
-import { STAGES, STAGE_LABELS, formatDate, formatTimeRange } from '../ui/format'
+import { STAGES, STAGE_LABELS, boxPath, formatDate, formatTimeRange } from '../ui/format'
 
 // Срок прошёл, а задача не выполнена (сравниваем даты в формате ГГГГ-ММ-ДД)
 const isOverdue = (t: Task) => !t.done && !!t.due_date && t.due_date.slice(0, 10) < new Date().toLocaleDateString('sv-SE')
@@ -25,6 +25,7 @@ function Plan({ pid }: { pid: string }) {
   const project = useAsync(() => api.getProject(pid), [pid])
   const progress = useAsync(() => api.progress(pid), [pid])
   const tasks = useAsync(() => api.tasks(pid), [pid])
+  const packedFirstDay = useAsync(() => api.firstDayItems(pid), [pid], { refreshOnFocus: true })
   const firstDay = useAsync(() => api.firstDay(pid), [pid])
   // null - форма закрыта, 'new' - новая задача, Task - правка существующей
   const [form, setForm] = useState<'new' | Task | null>(null)
@@ -36,6 +37,7 @@ function Plan({ pid }: { pid: string }) {
     project.reload()
     tasks.reload()
     firstDay.reload()
+    packedFirstDay.reload()
   }
   const { busy, error, run: act } = useAction(reloadAll)
 
@@ -67,6 +69,7 @@ function Plan({ pid }: { pid: string }) {
       <div className="plan-tasks stack">
         <div className="row between"><h2>Ближайшие дела</h2><button className="link small" onClick={() => setSmart(true)}>Умный чек-лист →</button></div>
       <ErrorAlert message={error} />
+      {!list.some(t => t.template_id !== null) ? <button disabled={busy} onClick={() => act(() => api.applyTemplates(pid))}>Добавить стандартные задачи</button> : null}
 
       <div className="stage-tabs" role="group" aria-label="Этапы переезда">
         {STAGES.map((stage) => <button key={stage} className={stage === activeStage ? 'on' : ''} aria-pressed={stage === activeStage} onClick={() => setActiveStage(stage)}>{STAGE_LABELS[stage]}</button>)}
@@ -108,6 +111,10 @@ function Plan({ pid }: { pid: string }) {
         <p>Чайник, зарядки, зубные щётки и постельное бельё — в одну коробку.</p>
       <section>
         <SectionTitle>Коробка первого дня</SectionTitle>
+        {(packedFirstDay.data ?? []).map(({ item, box_number, room }) => <div key={item.id} className="list-row">
+          <input type="checkbox" aria-label={`Распакована: ${item.name}`} checked={item.status === 'unpacked'} disabled={busy} onChange={() => act(() => api.updateItem(pid, item.id, { status: item.status === 'unpacked' ? 'packed' : 'unpacked' }))} />
+          <span className="grow">{item.name}<Link className="sub" to={boxPath(pid, box_number)}>Коробка {box_number} · {room}</Link></span>
+        </div>)}
         <div className="card flush">
           {first.length === 0 ? <div className="list-row muted">Список пуст</div> : null}
           {first.map((f) => (

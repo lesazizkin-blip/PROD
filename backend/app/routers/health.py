@@ -3,8 +3,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db import get_db
-from app.schemas import HealthOut
+from app.schemas import ClientConfigOut, HealthOut
 
 router = APIRouter(tags=["service"])
 
@@ -22,3 +23,15 @@ def health(db: Session = Depends(get_db)):
             status_code=503, content={"status": "error", "db": "down", "version": VERSION}
         )
     return {"status": "ok", "db": "ok", "version": VERSION}
+
+
+@router.get(
+    "/config", response_model=ClientConfigOut, summary="Настройки для сайта (ключ подсказок адреса)"
+)
+def client_config():
+    s = get_settings()
+    if key := s.maptiler_api_key.strip():
+        return {"maps_api_key": key, "maps_provider": "maptiler"}
+    if key := s.google_maps_api_key.strip():
+        return {"maps_api_key": key, "maps_provider": "google"}
+    return {"maps_api_key": None, "maps_provider": None}

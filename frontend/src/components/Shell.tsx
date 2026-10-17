@@ -85,6 +85,7 @@ export default function Shell() {
               </li>
             ))}
           </ul>
+          <Link to="/profile" className="button" onClick={closeProjects}>Настройки профиля и проектов</Link>
           <button
             className="primary"
             onClick={() => {

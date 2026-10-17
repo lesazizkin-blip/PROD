@@ -61,7 +61,7 @@ variables:
 # ---------------------------------------------------------------- lint (деплой не блокирует)
 lint-backend:
   stage: lint
-  image: python:3.11-slim
+  image: mirror.gcr.io/library/python:3.11-slim
   <<: *cache
   allow_failure: true
   script:
@@ -72,7 +72,7 @@ lint-backend:
 
 lint-frontend:
   stage: lint
-  image: node:22-alpine
+  image: mirror.gcr.io/library/node:22-alpine
   <<: *cache
   allow_failure: true
   script:
@@ -84,10 +84,10 @@ lint-frontend:
 # ---------------------------------------------------------------- тесты (деплой ждёт их)
 test-backend:
   stage: test
-  image: python:3.11-slim
+  image: mirror.gcr.io/library/python:3.11-slim
   <<: *cache
   services:
-    - name: postgres:16-alpine
+    - name: mirror.gcr.io/library/postgres:16-alpine
       alias: postgres
   variables:
     POSTGRES_USER: app
@@ -118,7 +118,7 @@ test-backend:
 
 test-frontend:
   stage: test
-  image: node:22-alpine
+  image: mirror.gcr.io/library/node:22-alpine
   <<: *cache
   script:
     - cd frontend
@@ -172,7 +172,9 @@ setup:vm:
 
 # Отличие от шаблона: на ВМ уже работает стек Caddy (HTTPS) + app. Обновляем compose-файл и Caddyfile,
 # меняем образ app на собранный (APP_IMAGE) и перезапускаем только app. deploy/.env на ВМ не трогаем,
-# том с базой и том с сертификатами сохраняются. Перед перезапуском - копия базы в /root/backups.
+# том с базой и том с сертификатами сохраняются. Перед перезапуском - копия базы в /root/backups
+# (deploy/backup.sh, онлайн-копия SQLite с проверкой), cron делает такие копии раз в час. Caddyfile примонтирован файлом: после копирования контейнер видит
+# старую версию, поэтому при изменении Caddy пересоздаётся (сертификаты в томе caddy-data сохраняются).
 deploy:vm:
   stage: deploy
   extends:
@@ -182,16 +184,20 @@ deploy:vm:
   resource_group: production
   script:
     - $SSH $VM "mkdir -p $DEPLOY_DIR /root/backups"
-    - $SCP deploy/docker-compose.yml deploy/Caddyfile $VM:$DEPLOY_DIR/
+    - $SCP deploy/docker-compose.yml deploy/Caddyfile deploy/backup.sh $VM:$DEPLOY_DIR/
     - $SCP "$SPIRIT_DOCKER_SA_KEY" $VM:$DEPLOY_DIR/spirit-sa-key.json
+    # копии базы каждый час (последние 48, с проверкой целостности) - deploy/backup.sh по cron
+    - $SSH $VM "chmod +x $DEPLOY_DIR/backup.sh && echo '17 * * * * root $DEPLOY_DIR/backup.sh >> /var/log/movermate-backup.log 2>&1' | sudo tee /etc/cron.d/movermate-backup >/dev/null"
     - |
       $SSH $VM "set -e; cd $DEPLOY_DIR &&
-        (docker cp deploy-app-1:/data/app.db /root/backups/app-\$(date +%Y%m%d-%H%M%S)-ci.db 2>/dev/null || true) &&
+        ($DEPLOY_DIR/backup.sh ci || true) &&
         sudo dp auth service-acc --key-file spirit-sa-key.json &&
         sudo dp auth configure-docker &&
         rm -f spirit-sa-key.json &&
         sudo APP_IMAGE=$IMAGE_NAME docker compose pull app &&
         sudo APP_IMAGE=$IMAGE_NAME docker compose up -d --no-build &&
+        (sudo docker compose exec -T caddy cat /etc/caddy/Caddyfile | cmp -s - Caddyfile ||
+          sudo docker compose up -d --no-deps --force-recreate caddy) &&
         docker image prune -f >/dev/null"
   environment:
     name: production
@@ -201,7 +207,7 @@ deploy:vm:
 preflight:prod:
   stage: deploy
   extends: .rules-master
-  image: python:3.12-slim
+  image: mirror.gcr.io/library/python:3.12-slim
   needs: [deploy:vm]
   script:
     - apt-get update -qq && apt-get install -y -qq --no-install-recommends curl >/dev/null

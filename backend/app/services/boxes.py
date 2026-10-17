@@ -14,6 +14,7 @@ from app.schemas import (
     BoxStatus,
     BoxUpdate,
     ItemOut,
+    ItemStatus,
     LabelOut,
     ProgressOut,
     RoomProgress,
@@ -25,25 +26,18 @@ from app.services.qr_codes import assign_code
 ORDER = [s.value for s in BoxStatus]
 
 # Из какого статуса куда можно: шаг вперёд или откат на один шаг (исправление ошибки)
-TRANSITIONS: dict[str, frozenset[str]] = {
-    "packing": frozenset({"packed"}),
-    "packed": frozenset({"loaded", "packing"}),
-    "loaded": frozenset({"delivered", "packed"}),
-    "delivered": frozenset({"unpacked", "loaded"}),
-    "unpacked": frozenset({"delivered"}),
-}
+# Статус выбирается свободно: из любого в любой другой (решение владельца продукта 17.10:
+# на переезде коробки часто отмечают с опозданием, пошаговая цепочка мешала).
+TRANSITIONS: dict[str, frozenset[str]] = {s: frozenset(ORDER) - {s} for s in ORDER}
 
 MAX_BULK_LINES = 200
 MAX_NAME = 120
 
 
 def check_transition(current: str, target: str) -> None:
-    """Чистая функция: бросает ConflictError, если переход недопустим."""
+    """Чистая функция: бросает ConflictError, если переход недопустим (тот же статус или неизвестный)."""
     if target not in TRANSITIONS.get(current, frozenset()):
-        allowed = ", ".join(sorted(TRANSITIONS.get(current, frozenset()), key=ORDER.index)) or "нет"
-        raise ConflictError(
-            f"Нельзя перевести коробку из «{current}» в «{target}». Допустимо: {allowed}"
-        )
+        raise ConflictError(f"Коробка уже в статусе «{current}»")
 
 
 def normalize(text: str) -> str:
@@ -80,7 +74,9 @@ def _item_out(item: Item, box_number: int) -> ItemOut:
         id=item.id,
         box_number=box_number,
         name=item.name,
-        lost=item.lost,
+        status=item.status,  # type: ignore[arg-type]
+        lost=item.status == ItemStatus.LOST,
+        first_day=item.first_day,
         created_at=item.created_at,
     )
 
@@ -246,18 +242,34 @@ class BoxService:
         check_transition(box.status, target.value)
         if (
             box.status == "packing"
-            and target == BoxStatus.PACKED
+            and target != BoxStatus.PACKING
             and not box.fill_later
             and not self._count(box.id)
         ):
             raise ConflictError(
-                "Пустую коробку нельзя пометить собранной: добавьте вещи или «заполнить позже»"
+                "Пустую коробку нельзя отправить дальше «собирается»: добавьте вещи или «заполнить позже»"
             )
 
     # --- вещи ---
-    def add_items(self, project_id: uuid.UUID, number: int, names: list[str]) -> list[ItemOut]:
+    def add_items(
+        self,
+        project_id: uuid.UUID,
+        number: int,
+        names: list[str],
+        first_day: bool = False,
+        status: ItemStatus = ItemStatus.PACKED,
+    ) -> list[ItemOut]:
         box = self.get_box(project_id, number)
-        items = [Item(box_id=box.id, name=n, name_norm=normalize(n)) for n in names]
+        items = [
+            Item(
+                box_id=box.id,
+                name=n,
+                name_norm=normalize(n),
+                first_day=first_day,
+                status=status.value,
+            )
+            for n in names
+        ]
         self.db.add_all(items)
         self.db.commit()
         return [_item_out(i, box.number) for i in items]
@@ -273,20 +285,34 @@ class BoxService:
         return row[0], row[1]
 
     def update_item(
-        self, project_id: uuid.UUID, item_id: int, name: str | None, lost: bool | None
+        self,
+        project_id: uuid.UUID,
+        item_id: int,
+        name: str | None,
+        status: ItemStatus | None,
+        lost: bool | None = None,
+        first_day: bool | None = None,
     ) -> ItemOut:
         item, box = self.get_item(project_id, item_id)
         if name is not None:
             item.name, item.name_norm = name, normalize(name)
-        if lost is not None and lost != item.lost:
-            item.lost = lost
+        if first_day is not None:
+            item.first_day = first_day
+        if status is None and lost is not None:  # старый формат: флажок «потеряна»
+            status = ItemStatus.LOST if lost else ItemStatus.FOUND
+        if status is not None and status != item.status:
+            old, item.status = item.status, status.value
+            event = {ItemStatus.LOST: "item.lost", ItemStatus.FOUND: "item.found"}.get(
+                status, "item.status_changed"
+            )
             log_event(
                 self.db,
                 project_id,
-                "item.lost" if lost else "item.found",
+                event,
                 "item",
                 item.id,
                 name=item.name,
+                **{"from": old, "to": status.value},
             )
         self.db.commit()
         return _item_out(item, box.number)
@@ -334,7 +360,8 @@ class BoxService:
             SearchHit(
                 item_id=i.id,
                 name=i.name,
-                lost=i.lost,
+                item_status=i.status,
+                lost=i.status == ItemStatus.LOST,
                 box_number=b.number,
                 room=b.room,
                 status=b.status,

@@ -22,12 +22,20 @@ def test_reference_endpoints(client):
     assert client.get("/api/tips?topic=nope").status_code == 422
 
 
-def test_create_project_applies_templates_with_due_dates(client, base, project):
+def test_new_project_has_empty_plan_templates_come_by_button(client, base, project):
     assert project["address_from"] is None and uuid.UUID(project["id"])
+    fresh = client.post("/api/projects", json={"name": "Пустой", "move_date": "2026-12-01"}).json()
+    fresh_base = f"/api/projects/{fresh['id']}"
+    assert client.get(f"{fresh_base}/tasks").json() == []  # план не заполняется сам
+    assert client.get(f"{fresh_base}/first-day").json() == []  # заготовок первого дня нет
+    assert client.post(f"{fresh_base}/tasks/apply-templates").json() == {
+        "added": len(TASK_TEMPLATES)
+    }
     tasks = client.get(f"{base}/tasks").json()
     assert len(tasks) == len(TASK_TEMPLATES)
     movers = next(t for t in tasks if t["title"] == "Заказать грузчиков")
-    assert movers["due_date"] == "2026-10-18"  # 2026-11-01 минус 14 дней
+    assert movers["due_date"] is None  # срок ставит сам пользователь, шаблон дат не навязывает
+    assert all(t["due_date"] is None for t in tasks)
     assert [t["stage"] for t in tasks] == sorted(
         (t["stage"] for t in tasks), key=["before", "moving_day", "after"].index
     )
@@ -122,6 +130,7 @@ def test_task_filters_and_order(client, base):
 
 def test_tasks_of_other_project_are_not_reachable(client, base):
     other = client.post("/api/projects", json={"name": "Другой", "move_date": "2026-12-01"}).json()
+    client.post(f"/api/projects/{other['id']}/tasks/apply-templates")
     other_task = client.get(f"/api/projects/{other['id']}/tasks").json()[0]
     assert client.patch(f"{base}/tasks/{other_task['id']}", json={"done": True}).status_code == 404
 
@@ -196,3 +205,19 @@ def test_task_time_with_timezone_is_rejected_not_500(client, base):
     task = client.post(f"{base}/tasks", json={**body, "start_time": "10:00"}).json()
     r = client.patch(f"{base}/tasks/{task['id']}", json={"end_time": "13:00+03:00"})
     assert r.status_code == 422
+
+
+def test_client_config_hides_empty_maps_key(client, monkeypatch):
+    from app.config import get_settings
+
+    assert client.get("/api/config").json() == {"maps_api_key": None, "maps_provider": None}
+    monkeypatch.setattr(get_settings(), "google_maps_api_key", " browser-key ")
+    assert client.get("/api/config").json() == {
+        "maps_api_key": "browser-key",
+        "maps_provider": "google",
+    }
+    monkeypatch.setattr(get_settings(), "maptiler_api_key", "mt-key")  # MapTiler важнее Google
+    assert client.get("/api/config").json() == {
+        "maps_api_key": "mt-key",
+        "maps_provider": "maptiler",
+    }

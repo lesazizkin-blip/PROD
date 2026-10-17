@@ -7,6 +7,18 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class PlanRequest(BaseModel):
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "description": "Переезжаем с кошкой и комнатными растениями",
+                    "move_date": "2026-11-01",
+                    "consent": True,
+                }
+            ]
+        }
+    }
+
     description: str = Field(min_length=10, max_length=4000)
     move_date: date
     consent: Literal[True]

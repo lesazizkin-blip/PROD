@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boxPath, boxUrl, formatDate, formatTimeRange, nextStatus, parseBoxLink, plural, prevStatus } from './format'
+import { boxPath, boxUrl, canTransition, formatDate, formatTimeRange, nextStatus, parseBoxLink, parseTaskLines, plural, prevStatus } from './format'
 
 const PID = '00000000-0000-4000-8000-000000000001'
 
@@ -35,6 +35,12 @@ describe('статусы', () => {
     expect(nextStatus('unpacked')).toBeNull()
     expect(prevStatus('packing')).toBeNull()
   })
+  it('в окне можно выбрать любой другой статус, как на сервере', () => {
+    expect(canTransition('packed', 'loaded')).toBe(true)
+    expect(canTransition('packing', 'unpacked')).toBe(true)
+    expect(canTransition('unpacked', 'packing')).toBe(true)
+    expect(canTransition('loaded', 'loaded')).toBe(false)
+  })
 })
 
 describe('форматы', () => {
@@ -62,5 +68,11 @@ describe('formatTimeRange', () => {
     expect(formatTimeRange('09:00:00', null)).toBe('с 09:00')
     expect(formatTimeRange(null, '12:30:00')).toBe('до 12:30')
     expect(formatTimeRange(null, null)).toBe('')
+  })
+})
+
+describe('задачи своей особенности', () => {
+  it('строка = задача, пустые строки и повторы убираются', () => {
+    expect(parseTaskLines(' Заказать такелажников \n\nзаказать такелажников\nНастроить ')).toEqual(['Заказать такелажников', 'Настроить'])
   })
 })

@@ -7,6 +7,11 @@ export type BoxStatus = "packing" | "packed" | "loaded" | "delivered" | "unpacke
 
 export const BOX_STATUSES: BoxStatus[] = ["packing", "packed", "loaded", "delivered", "unpacked"]
 
+/** Состояние вещи: выбирается свободно, в любом порядке */
+export type ItemStatus = "packed" | "unpacked" | "lost" | "found" | "damaged"
+
+export const ITEM_STATUSES: ItemStatus[] = ["packed", "unpacked", "found", "lost", "damaged"]
+
 export type TipTopic = "fragile" | "carry_with_you" | "pack_last"
 
 export type HintReason = "recorded" | "similar_content" | "same_room"
@@ -106,13 +111,18 @@ export interface Item {
   id: number
   box_number: number
   name: string
+  status: ItemStatus
+  /** то же, что status === "lost" */
   lost: boolean
+  /** понадобится в первый день на новом месте */
+  first_day: boolean
   created_at: string
 }
 
 export interface SearchHit {
   item_id: number
   name: string
+  item_status: ItemStatus
   lost: boolean
   box_number: number
   room: string

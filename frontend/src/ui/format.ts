@@ -1,4 +1,4 @@
-import type { BoxStatus, Stage } from '../api/types'
+import type { BoxStatus, ItemStatus, Stage } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
 
 export const STATUS_LABELS: Record<BoxStatus, string> = {
@@ -7,6 +7,30 @@ export const STATUS_LABELS: Record<BoxStatus, string> = {
   loaded: 'Погружена',
   delivered: 'Доставлена',
   unpacked: 'Распакована',
+}
+
+export const BOX_STATUS_HINTS: Record<BoxStatus, string> = {
+  packing: 'Ещё складываем вещи',
+  packed: 'Заклеена, ждёт погрузки',
+  loaded: 'В машине',
+  delivered: 'На новом месте',
+  unpacked: 'Вещи разложены',
+}
+
+export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {
+  packed: 'Упакована',
+  unpacked: 'Распакована',
+  found: 'Найдена',
+  lost: 'Потеряна',
+  damaged: 'Повреждена',
+}
+
+export const ITEM_STATUS_HINTS: Record<ItemStatus, string> = {
+  packed: 'Лежит в коробке',
+  unpacked: 'Достали, вещь на месте',
+  found: 'Была потеряна и нашлась',
+  lost: 'Не можем найти: подскажем, где искать',
+  damaged: 'Пострадала при переезде',
 }
 
 export const STAGE_LABELS: Record<Stage, string> = {
@@ -20,6 +44,9 @@ export const STAGES: Stage[] = ['before', 'moving_day', 'after']
 /** Следующий статус вперёд (null, если коробка уже распакована). */
 export const nextStatus = (s: BoxStatus): BoxStatus | null => BOX_STATUSES[BOX_STATUSES.indexOf(s) + 1] ?? null
 export const prevStatus = (s: BoxStatus): BoxStatus | null => BOX_STATUSES[BOX_STATUSES.indexOf(s) - 1] ?? null
+
+/** Можно ли сменить статус коробки (как на сервере: на любой другой, шаги можно пропускать). */
+export const canTransition = (from: BoxStatus, to: BoxStatus): boolean => from !== to
 
 export function formatDate(iso: string): string {
   const [y, m, d] = iso.slice(0, 10).split('-')
@@ -71,4 +98,13 @@ export function formatTimeRange(start: string | null, end: string | null): strin
   if (a) return `с ${a}`
   if (b) return `до ${b}`
   return ''
+}
+
+/** Строки текста -> названия задач: пустые строки и повторы убираются. */
+export function parseTaskLines(text: string): string[] {
+  const seen = new Set<string>()
+  return text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !seen.has(l.toLowerCase()) && seen.add(l.toLowerCase()))
 }

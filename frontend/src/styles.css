@@ -462,3 +462,98 @@ button.primary, a.button { font-weight: 700; }
 .packing-tip > span { font-size: 14px; opacity: .65; }
 .box-summary .paper-note { margin-top: 4px; padding: 12px 0; border-top: 1px solid var(--border); }
 .carton-lid { display: none; }
+
+/* Item controls remain usable on narrow screens. */
+.box-contents .list-row { flex-wrap: wrap; }
+.box-contents .list-row > .grow { flex-basis: 100%; }
+.box-contents .list-row select { width: auto; min-width: 0; max-width: 100%; }
+@media (max-width: 700px) {
+  .sidebar { overflow-y: auto; }
+  .stage-tabs { overflow-x: auto; }
+}
+@media (max-height: 620px) {
+  .fab { position: static; margin-top: 1rem; }
+}
+
+/* Additional server features use the same local design tokens. */
+:root { --heading: var(--text); --accent: var(--primary); --surface-2: var(--primary-soft); --shadow-sm: none; }
+.profile { display: grid; gap: 14px; }
+.profile__hero { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }
+.profile__hero h1 { margin: 0; }
+.profile__stats { display: flex; gap: 10px; }
+.profile__stats > div { display: grid; justify-items: center; min-width: 76px; padding: 10px 12px; border-radius: 14px; background: var(--surface-2); }
+.profile__stats b { font-size: 1.4rem; color: var(--heading); }
+.profile__stats span { font-size: .78rem; color: var(--muted); }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.project-card {
+  display: grid; gap: 8px; align-content: start; justify-items: start; text-align: left; padding: 16px; min-height: 120px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-sm);
+}
+.project-card:hover:not(:disabled) { border-color: var(--accent); box-shadow: var(--shadow); transform: translateY(-1px); }
+.project-card.current { border: 2px solid var(--accent); }
+.project-card__name { font-weight: 700; color: var(--heading); font-size: 1.02rem; }
+.project-card--new { place-content: center; justify-items: center; color: var(--primary); font-weight: 600; border-style: dashed; border-width: 2px; background: transparent; box-shadow: none; }
+
+/* ---------- уведомления ---------- */
+.timeline { gap: 0; }
+.timeline li { display: grid; gap: 2px; padding: 10px 0 10px 18px; border-left: 2px solid var(--border); position: relative; }
+.timeline li::before { content: ''; position: absolute; left: -6px; top: 15px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--surface); }
+
+/* «О нас» */
+.about { max-width: 1040px; margin: 0 auto; }
+.about__hero { display: grid; gap: 20px; align-items: center; }
+.about__hero h1 { font-size: 1.7rem; margin: 0; color: var(--heading); }
+.about__art { background: linear-gradient(180deg, #e0f2fe, #ecfdf5); border-radius: var(--radius); padding: 16px; }
+.about__grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.about__item h3 { margin: 8px 0 4px; font-size: 1rem; }
+.about__item p { margin: 0; }
+.about__item .icon { color: var(--accent); }
+@media (min-width: 900px) { .about__hero { grid-template-columns: 1fr 1.2fr; } }
+
+/* системное уведомление (гость нажал на раздел) */
+.toast {
+  position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%); z-index: 50; max-width: min(520px, calc(100vw - 32px));
+  background: #0f2d26; color: #fff; padding: 12px 16px; border-radius: 12px; box-shadow: var(--shadow); font-size: .92rem;
+}
+@media (min-width: 900px) { .toast { bottom: 24px; } }
+
+/* вкладки гостя - кнопки, но выглядят как обычные вкладки */
+button.tab { background: transparent; border: 0; box-shadow: none; font-family: inherit; width: 100%; }
+button.tab:hover:not(:disabled) { border: 0; }
+
+/* окно подтверждения (удаление и другие необратимые действия) в стиле сайта */
+dialog.confirm-dialog { width: min(420px, calc(100vw - 32px)); }
+.confirm-dialog .modal-body { justify-items: center; text-align: center; padding: 24px 22px 20px; }
+.confirm-dialog h2 { padding-right: 0; font-size: 1.15rem; }
+.confirm-dialog p { margin: -6px 0 0; }
+.confirm-dialog__icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.confirm-dialog__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 4px; }
+button.danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+button.danger-solid:hover:not(:disabled) { filter: brightness(.92); border-color: var(--danger); }
+
+/* своя особенность в умном чек-листе */
+.own-feature { border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 12px 14px 14px; margin: 4px 0 0; }
+.own-feature legend { font-weight: 700; color: var(--heading); padding: 0 6px; }
+
+/* поле адреса с подсказками Google Maps */
+.address-input { display: grid; gap: 6px; position: relative; align-content: start; }
+.address-input__list { list-style: none; margin: 0; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); display: grid; gap: 2px; }
+.address-input__list button { width: 100%; justify-content: flex-start; min-height: 40px; border: 0; background: transparent; text-align: left; font-weight: 400; }
+.address-input__list button:hover:not(:disabled) { background: var(--primary-soft); }
+.address-input__map { width: 100%; height: 180px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); overflow: hidden; }
+.address-input > button { justify-self: start; }
+
+/* кнопка «Вопросы» внизу меню гостя и окно с ответами */
+button.sidebar__faq { background: transparent; border: 0; font: inherit; width: 100%; justify-content: flex-start; cursor: pointer; }
+.faq { display: grid; gap: 8px; }
+.faq details { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; background: var(--surface); }
+.faq summary { cursor: pointer; font-weight: 600; color: var(--heading); }
+.faq details[open] summary { margin-bottom: 6px; }
+.faq p { margin: 0; }
+
+
+.brand-mark { width: 28px; height: 28px; }
+.topbar__brand { display: inline-flex; }
+.topbar__actions { margin-left: auto; }
+.guest-faq button { color: var(--text); }
+@media (max-width: 700px) { .guest-faq { display: none; } }

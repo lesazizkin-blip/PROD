@@ -5,12 +5,12 @@
 ## Кратко
 - **Где работает:** виртуальная машина `vm1` в Spirit VMaaS (выдана организаторами), Docker Compose: контейнер `app` (сайт + сервер в одном образе, SQLite в томе) и `caddy` (HTTPS, сертификат Let's Encrypt).
 - **Адрес:** https://hack-led-20-vm1-12902f.vmaas-spirit.t-education.com, Swagger: `/api/docs`.
-- **Как выкатить:** `rsync` исходников на ВМ и `docker compose up -d --build` в `deploy/`, затем `scripts/preflight.sh <адрес>` (команды в `docs/DEPLOY_VM.md`). Ключ ВМ у владельца проекта, в репозиторий его не коммитим.
+- **Как выкатить:** слить MR в `master` в GitLab, остальное сделает пайплайн. Запасной путь вручную: `rsync` исходников на ВМ и `docker compose up -d --build` в `deploy/`, затем `scripts/preflight.sh <адрес>` (команды в `docs/DEPLOY_VM.md`). Ключ ВМ у владельца проекта, в репозиторий его не коммитим.
 - **Камера сканера QR** работает только по HTTPS, поэтому Caddy обязателен.
 - **Недеплой даёт штраф −20%:** после каждой выкатки `preflight.sh` должен показывать «Всё в порядке».
 
 ## CI и автодеплой
-`.gitlab-ci.yml` и `.github/workflows/ci.yml` проверяют стиль, тесты с покрытием и собирают продовый образ с прогоном `preflight.sh`. Автодеплой на ВМ пока не настроен. План и нужные переменные: `docs/GITLAB.md`.
+`.gitlab-ci.yml` проверяет стиль и тесты с покрытием, собирает образ в Spirit Registry и на `master` выкатывает его на ВМ, затем прогоняет `preflight.sh` по живому сайту (работает с 17.10, пайплайн 11105). Подробности и переменные: `docs/GITLAB.md`. `.github/workflows/ci.yml` — запасные проверки на GitHub, без деплоя.
 
 ## Остатки шаблона
 `scripts/deploy-manual.sh`, `scripts/bootstrap-server.sh` и корневой `docker-compose.yml` (PostgreSQL, отдельные образы) остались от общего шаблона хакатона и для нашего стенда не используются; на ВМ не проверялись.

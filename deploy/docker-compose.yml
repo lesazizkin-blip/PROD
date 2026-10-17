@@ -15,7 +15,7 @@ services:
       DATABASE_URL: sqlite:////data/app.db
       # демо-проект «Переезд на Лесную» для проверки жюри; на реальных данных поставьте false
       SEED_DEMO: "${SEED_DEMO:-true}"
-      # пароль демо-аккаунта (логин demo); кнопка «Посмотреть демо» входит и без него
+      # пароль демо-аккаунта (логин demo); POST /api/auth/demo (для preflight.sh) входит и без него
       DEMO_PASSWORD: "${DEMO_PASSWORD:-demo-pereezd}"
       AI_API_KEY: "${AI_API_KEY:-}"
       AI_BASE_URL: "${AI_BASE_URL:-}"
@@ -23,6 +23,10 @@ services:
       AI_REQUESTS_PER_HOUR: "${AI_REQUESTS_PER_HOUR:-10}"
       AI_GLOBAL_REQUESTS_PER_DAY: "${AI_GLOBAL_REQUESTS_PER_DAY:-50}"
       AI_TIMEOUT_SECONDS: "${AI_TIMEOUT_SECONDS:-45}"
+      GOOGLE_MAPS_API_KEY: "${GOOGLE_MAPS_API_KEY:-}"
+      MAPTILER_API_KEY: "${MAPTILER_API_KEY:-}"
+      SAGE_LOGS_URL: "${SAGE_LOGS_URL:-}"
+      SAGE_API_KEY: "${SAGE_API_KEY:-}"
     volumes:
       - movermate-data:/data
 

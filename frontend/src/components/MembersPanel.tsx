@@ -5,9 +5,11 @@ import type { SavedProject } from '../state/projects'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
+import { useConfirm } from '../state/confirm'
 
 /** «Помощники» в окне проектов: кто в проекте, приглашение по ссылке, отзыв ссылок, выход из проекта. */
 export default function MembersPanel({ project, me, onLeft }: { project: SavedProject; me: User; onLeft: () => void }) {
+  const confirm = useConfirm()
   const isOwner = project.role === 'owner'
   const members = useAsync(() => api.members(project.id), [project.id])
   const action = useAction(() => members.reload())
@@ -31,8 +33,8 @@ export default function MembersPanel({ project, me, onLeft }: { project: SavedPr
     }
   }
 
-  const revoke = () => {
-    if (!window.confirm('Отозвать все ссылки-приглашения? Те, кто уже в проекте, останутся.')) return
+  const revoke = async () => {
+    if (!(await confirm({ title: 'Отозвать все ссылки?', message: 'Новые люди по ним не войдут. Те, кто уже в проекте, останутся.', confirmLabel: 'Отозвать' }))) return
     void action.run(async () => {
       const { revoked } = await api.revokeInvites(project.id)
       setInviteUrl(null)
@@ -40,9 +42,14 @@ export default function MembersPanel({ project, me, onLeft }: { project: SavedPr
     })
   }
 
-  const remove = (userId: number, username: string) => {
+  const remove = async (userId: number, username: string) => {
     const self = userId === me.id
-    if (!window.confirm(self ? `Выйти из проекта «${project.name}»?` : `Убрать ${username} из проекта?`)) return
+    const ok = await confirm(
+      self
+        ? { title: `Выйти из проекта «${project.name}»?`, message: 'Вернуться можно будет только по новой ссылке-приглашению.', confirmLabel: 'Выйти' }
+        : { title: `Убрать ${username} из проекта?`, message: 'Участник перестанет видеть проект и отмечать коробки.', confirmLabel: 'Убрать' },
+    )
+    if (!ok) return
     void action.run(async () => {
       await api.removeMember(project.id, userId)
       if (self) onLeft()

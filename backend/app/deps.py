@@ -15,6 +15,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     user = AuthService(db).user_by_token(request.cookies.get(SESSION_COOKIE))
     if not user:
         raise UnauthorizedError("Войдите, чтобы продолжить")
+    request.state.user_id = user.id  # попадёт в запись лога о запросе
     return user
 
 

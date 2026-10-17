@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from app.config import Settings, get_settings
 from app.main import app
 from app.models import Project
-from app.reference_data import FIRST_DAY, TASK_TEMPLATES
+from app.reference_data import TASK_TEMPLATES
 from app.services import planner
 
 BODY = {
@@ -385,7 +385,7 @@ def test_reviewed_plan_created_with_templates_dates_owner_and_first_day(client, 
                     PLAN["tasks"][0],
                     {"title": "Заказать грузчиков", "stage": "before", "offset_days": -1},
                 ],
-                "first_day": [*PLAN["first_day"], *PLAN["first_day"], FIRST_DAY[0]],
+                "first_day": [*PLAN["first_day"], *PLAN["first_day"]],
             },
         },
     )
@@ -401,7 +401,7 @@ def test_reviewed_plan_created_with_templates_dates_owner_and_first_day(client, 
         next(t for t in tasks if t["title"] == PLAN["tasks"][1]["title"])["due_date"]
         == "2026-11-02"
     )
-    assert len(client.get(f"{base}/first-day").json()) == len(FIRST_DAY) + 1
+    assert len(client.get(f"{base}/first-day").json()) == len(PLAN["first_day"])
     assert client.get(f"{base}/members").json()[0]["role"] == "owner"
     assert make_client("outsider").get(f"{base}/tasks").status_code in (403, 404)
 

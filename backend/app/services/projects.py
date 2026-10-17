@@ -5,8 +5,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.errors import ValidationFailed
+from app.logging_setup import audit
 from app.models import FirstDayItem, Project, ProjectMember, Task, TaskTemplate
-from app.reference_data import FIRST_DAY
 from app.schemas import ProjectCreate, ProjectUpdate
 from app.services.events import log_event
 
@@ -29,19 +29,18 @@ class ProjectService:
             project.id = project_id
         self.db.add(project)
         self.db.flush()
-        for template in self.db.scalars(select(TaskTemplate).order_by(TaskTemplate.id)):
-            self.db.add(
-                Task(
-                    project_id=project.id,
-                    stage=template.stage,
-                    title=template.title,
-                    due_date=project.move_date + timedelta(days=template.default_offset_days),
-                    template_id=template.id,
-                )
-            )
-        for title in FIRST_DAY:
-            self.db.add(FirstDayItem(project_id=project.id, title=title))
         if data.personal_plan:
+            for template in self.db.scalars(select(TaskTemplate).order_by(TaskTemplate.id)):
+                self.db.add(
+                    Task(
+                        project_id=project.id,
+                        stage=template.stage,
+                        title=template.title,
+                        due_date=project.move_date + timedelta(days=template.default_offset_days),
+                        template_id=template.id,
+                    )
+                )
+
             # Всё сохраняется одной транзакцией вместе с шаблонами и владельцем.
             def normalize(title: str) -> str:
                 return " ".join(title.casefold().split())
@@ -59,7 +58,7 @@ class ProjectService:
                         due_date=project.move_date + timedelta(days=task.offset_days),
                     )
                 )
-            have_first = {normalize(title) for title in FIRST_DAY}
+            have_first: set[str] = set()
             for title in data.personal_plan.first_day:
                 if normalize(title) not in have_first:
                     have_first.add(normalize(title))
@@ -84,5 +83,6 @@ class ProjectService:
         return project
 
     def delete(self, project: Project) -> None:
+        audit("project.deleted", project_id=project.id)
         self.db.delete(project)  # каскадом уходит всё содержимое (и журнал вместе с ним)
         self.db.commit()

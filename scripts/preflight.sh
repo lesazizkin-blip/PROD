@@ -37,6 +37,11 @@ demo_search_ok() {  # поиск находит вещь и показывает
     | ok_if "d['total']>=1 and all(k in d['items'][0] for k in ('box_number','room','status'))"
 }
 demo_lost_ok() { api "/projects/$DEMO_ID/items/lost" | ok_if "len(d)>=1"; }
+security_headers_ok() {  # Caddy на проде: HSTS, nosniff, запрет встраивания в рамку
+  local h; h="$(curl -fsS -D - -o /dev/null "$BASE/" | tr -d '\r' | tr 'A-Z' 'a-z')"
+  echo "$h" | grep -q '^strict-transport-security:' && echo "$h" | grep -q '^x-content-type-options: nosniff' \
+    && echo "$h" | grep -q '^x-frame-options: deny'
+}
 reference_ok() { api /task-templates | ok_if "len(d)>=10" && api /tips | ok_if "{t['topic'] for t in d}=={'fragile','carry_with_you','pack_last'}"; }
 
 # ---- полный сценарий на временном проекте ----
@@ -49,10 +54,12 @@ scenario() {  # временный проект всегда удаляется,
 }
 scenario_body() {
   local pid="$1" n lbl
-  api "/projects/$pid/tasks" | ok_if "len(d)>=10" || return 1                        # шаблоны задач применились
+  api "/projects/$pid/tasks" | ok_if "len(d)==0" || return 1                         # план не заполняется сам
+  post "/projects/$pid/tasks/apply-templates" | ok_if "d['added']>=10" || return 1    # шаблоны задач по кнопке
   n="$(post "/projects/$pid/boxes" '{"room":"Кухня","items_text":"Чайник\nКружки"}' | json "d['number']")" || return 1
   [ "$n" = 1 ] || return 1                                                            # номер выдаёт сервер
-  [ "$(code POST "/projects/$pid/boxes/$n/transitions" '{"to":"unpacked"}')" = 409 ] || return 1   # нельзя распаковать недоставленную
+  post "/projects/$pid/boxes/$n/transitions" '{"to":"unpacked"}' | ok_if "d['status']=='unpacked'" || return 1   # статус выбирается свободно
+  [ "$(code POST "/projects/$pid/boxes/$n/transitions" '{"to":"unpacked"}')" = 409 ] || return 1   # тот же статус - 409
   post "/projects/$pid/boxes/$n/transitions" '{"to":"packed"}' | ok_if "d['status']=='packed'" || return 1
   lbl="$(api "/projects/$pid/boxes/$n/label" | json "d['qr_path']")" || return 1
   [ "$lbl" = "/projects/$pid/boxes/$n" ] || return 1                                  # QR ведёт на карточку коробки
@@ -71,6 +78,11 @@ check "API жив и видит БД (/api/health)"                    sh -c "cu
 check "Swagger доступен (/api/docs)"                        curl -fsS -o /dev/null "$BASE/api/docs"
 check "OpenAPI-схема отдаётся"                              sh -c "curl -fsS '$BASE/api/openapi.json' | grep -q '\"openapi\"'"
 check "неизвестный путь API -> 404"                         sh -c "[ \"\$(curl -s -o /dev/null -w '%{http_code}' '$BASE/api/nope')\" = 404 ]"
+
+case "$BASE" in https://*)
+  echo "Безопасность"
+  check "заголовки безопасности (HSTS, nosniff, X-Frame-Options)" security_headers_ok ;;
+esac
 
 echo "Вход и доступ"
 check "без входа проект закрыт (401)"                       sh -c "[ \"\$(curl -s -o /dev/null -w '%{http_code}' '$BASE/api/projects/$DEMO_ID')\" = 401 ]"

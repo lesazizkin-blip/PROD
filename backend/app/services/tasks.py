@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from sqlalchemy import case, select
 from sqlalchemy.orm import Session
@@ -106,7 +106,6 @@ class TaskService:
                     project_id=project.id,
                     stage=t.stage,
                     title=t.title,
-                    due_date=project.move_date + timedelta(days=t.default_offset_days),
                     template_id=t.id,
                 )
             )

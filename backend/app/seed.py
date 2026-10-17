@@ -13,10 +13,11 @@ from app.config import DEMO_PROJECT_ID, get_settings
 from app.db import SessionLocal
 from app.models import Project, User
 from app.reference_data import ensure_reference_data
-from app.schemas import BoxCreate, BoxStatus, ProjectCreate, TaskUpdate
+from app.schemas import BoxCreate, BoxStatus, ItemStatus, ProjectCreate, TaskUpdate
 from app.security import hash_password
 from app.services.auth import AuthService
 from app.services.boxes import BoxService
+from app.services.extras import LostService
 from app.services.projects import ProjectService
 from app.services.tasks import TaskService
 
@@ -53,6 +54,38 @@ def _advance(svc: BoxService, pid: uuid.UUID, number: int, target: str) -> None:
             return
 
 
+def _keep_demo_lost_item(db) -> None:
+    """Демо общее: если кто-то отметил вещь найденной, при следующем старте снова показываем потерянную
+    (иначе жюри не увидит подсказки «где искать», а проверка прода после выкатки упадёт)."""
+    svc = BoxService(db)
+    if LostService(db).lost_items(DEMO_ID):
+        return
+    hits = svc.search(DEMO_ID, "Зарядки", 0, 1)[0]
+    if hits:
+        svc.update_item(DEMO_ID, hits[0].item_id, None, ItemStatus.LOST)
+
+
+# вещи демо-проекта для чек-листа по распаковке первого дня; True - уже распакована
+DEMO_FIRST_DAY = {
+    "Чайник": True,
+    "Постельное бельё": True,
+    "Зубные щётки": False,
+    "Удлинитель": False,
+}
+
+
+def _keep_demo_first_day(db) -> None:
+    """Если в демо не осталось вещей первого дня (или их ещё не было), отмечаем их снова."""
+    svc = BoxService(db)
+    if LostService(db).first_day_items(DEMO_ID):
+        return
+    for name, unpacked in DEMO_FIRST_DAY.items():
+        hits = svc.search(DEMO_ID, name, 0, 1)[0]
+        if hits:
+            status = ItemStatus.UNPACKED if unpacked else None
+            svc.update_item(DEMO_ID, hits[0].item_id, None, status, first_day=True)
+
+
 def run(load: bool = False) -> None:
     with SessionLocal() as db:
         ensure_reference_data(db)
@@ -70,6 +103,7 @@ def run(load: bool = False) -> None:
                 ),
                 DEMO_ID,
             )
+            TaskService(db).apply_templates(project)  # демо показывает план из шаблонов
             tasks = TaskService(db).list_tasks(project.id, None, None)
             for t in tasks[:4]:
                 TaskService(db).update(project.id, t.id, TaskUpdate(done=True))
@@ -80,9 +114,9 @@ def run(load: bool = False) -> None:
             svc.create(
                 project.id, BoxCreate(room="Кабинет", fill_later=True)
             )  # покажет напоминание об описи
-            lost = svc.search(project.id, "Зарядки", 0, 1)[0][0]
-            svc.update_item(project.id, lost.item_id, None, True)
             print(f"Демо-проект: {DEMO_ID}")
+        _keep_demo_lost_item(db)
+        _keep_demo_first_day(db)
         # демо-проект мог появиться раньше аккаунтов: отдаём его демо-аккаунту
         AuthService(db).add_member(DEMO_ID, demo.id, "owner")
         db.commit()

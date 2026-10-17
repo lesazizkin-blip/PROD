@@ -6,6 +6,8 @@ export interface AsyncState<T> {
   loading: boolean
   error: string | null
   reload: () => void
+  /** Поменять данные на экране сразу, не дожидаясь сервера (мгновенный отклик на клик) */
+  mutate: (update: (data: T | null) => T | null) => void
 }
 
 /** Загрузка данных для экрана: состояния «загрузка / ошибка / данные» и повторная попытка. */
@@ -56,5 +58,6 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], { refreshOnFo
       document.removeEventListener('visibilitychange', refresh)
     }
   }, [refreshOnFocus, reload])
-  return { data, loading, error, reload }
+  const mutate = useCallback((update: (data: T | null) => T | null) => setData(update), [])
+  return { data, loading, error, reload, mutate }
 }

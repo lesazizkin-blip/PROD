@@ -1,6 +1,5 @@
 from datetime import UTC, datetime, timedelta
 
-from app.reference_data import FIRST_DAY
 from tests.conftest import make_box
 
 
@@ -10,9 +9,8 @@ def advance(client, base, n, path):
 
 
 # ---------- чек-лист первого дня ----------
-def test_first_day_template_crud(client, base):
-    items = client.get(f"{base}/first-day").json()
-    assert [i["title"] for i in items] == FIRST_DAY and not any(i["done"] for i in items)
+def test_first_day_checklist_starts_empty_and_crud_works(client, base):
+    assert client.get(f"{base}/first-day").json() == []  # заранее ничего не кладём
     new = client.post(f"{base}/first-day", json={"title": " Тапочки "}).json()
     assert new["title"] == "Тапочки" and new["done"] is False
     assert client.patch(f"{base}/first-day/{new['id']}", json={"done": True}).json()["done"] is True
@@ -25,7 +23,9 @@ def test_first_day_template_crud(client, base):
 
 def test_first_day_is_per_project(client, base):
     other = client.post("/api/projects", json={"name": "Другой", "move_date": "2026-12-01"}).json()
-    other_item = client.get(f"/api/projects/{other['id']}/first-day").json()[0]
+    other_item = client.post(
+        f"/api/projects/{other['id']}/first-day", json={"title": "Чайник"}
+    ).json()
     assert (
         client.patch(f"{base}/first-day/{other_item['id']}", json={"done": True}).status_code == 404
     )
@@ -86,7 +86,10 @@ def test_reminders_for_fill_later_boxes(client, base):
 
 # ---------- массовая погрузка ----------
 def test_bulk_transition_moves_all_or_nothing(client, base):
-    a, b, c = (make_box(client, base, room="Кухня")["number"] for _ in range(3))
+    a, b = (make_box(client, base, room="Кухня")["number"] for _ in range(2))
+    c = make_box(client, base, room="Кухня", items="")[
+        "number"
+    ]  # пустая: дальше «собирается» нельзя
     for n in (a, b):
         advance(client, base, n, ["packed"])
     r = client.post(f"{base}/boxes/bulk-transitions", json={"numbers": [a, b], "to": "loaded"})
@@ -96,7 +99,7 @@ def test_bulk_transition_moves_all_or_nothing(client, base):
     ]
 
     r = client.post(f"{base}/boxes/bulk-transitions", json={"numbers": [a, c], "to": "delivered"})
-    assert r.status_code == 409 and f"№{c}" in r.json()["detail"]  # c ещё собирается
+    assert r.status_code == 409 and f"№{c}" in r.json()["detail"]  # c пустая
     assert client.get(f"{base}/boxes/{a}").json()["status"] == "loaded"  # ничего не изменилось
 
     assert (
@@ -119,3 +122,33 @@ def test_bulk_transition_moves_all_or_nothing(client, base):
     )
     events = client.get(f"{base}/events?type=box.status_changed").json()["items"]
     assert sum(e["data"]["to"] == "loaded" for e in events) == 2
+
+
+# ---------- вещи первого дня ----------
+def test_first_day_items_are_flagged_listed_and_unflagged(client, base):
+    kitchen = make_box(client, base, room="Кухня", items="Кастрюля")["number"]
+    bath = make_box(client, base, room="Ванная", items="")["number"]
+    kettle = client.post(
+        f"{base}/boxes/{kitchen}/items", json={"name": "Чайник", "first_day": True}
+    ).json()
+    assert kettle["first_day"] is True and kettle["status"] == "packed"
+    brush = client.post(
+        f"{base}/boxes/{bath}/items",
+        json={"name": "Зубная щётка", "first_day": True, "status": "unpacked"},
+    ).json()
+    assert brush["status"] == "unpacked"
+    listed = client.get(f"{base}/items/first-day").json()
+    assert [(x["item"]["name"], x["box_number"], x["room"]) for x in listed] == [
+        ("Чайник", kitchen, "Кухня"),
+        ("Зубная щётка", bath, "Ванная"),
+    ]  # по номеру коробки
+    pot = client.get(f"{base}/boxes/{kitchen}").json()["items"][0]
+    assert pot["first_day"] is False
+    assert client.patch(f"{base}/items/{pot['id']}", json={"first_day": True}).json()["first_day"]
+    client.patch(f"{base}/items/{kettle['id']}", json={"first_day": False})
+    assert {x["item"]["name"] for x in client.get(f"{base}/items/first-day").json()} == {
+        "Кастрюля",
+        "Зубная щётка",
+    }
+    other = client.post("/api/projects", json={"name": "Чужой", "move_date": "2026-12-01"}).json()
+    assert client.get(f"/api/projects/{other['id']}/items/first-day").json() == []

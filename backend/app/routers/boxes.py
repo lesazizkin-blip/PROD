@@ -155,7 +155,7 @@ def list_items(
 def add_item(
     n: int, body: ItemCreate, project: Project = Depends(get_project), db: Session = Depends(get_db)
 ):
-    return BoxService(db).add_items(project.id, n, [body.name])[0]
+    return BoxService(db).add_items(project.id, n, [body.name], body.first_day, body.status)[0]
 
 
 @router.post(
@@ -182,7 +182,9 @@ def update_item(
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),
 ):
-    return BoxService(db).update_item(project.id, item_id, body.name, body.lost)
+    return BoxService(db).update_item(
+        project.id, item_id, body.name, body.status, body.lost, body.first_day
+    )
 
 
 @router.delete("/items/{item_id}", status_code=204, summary="Удалить вещь (confirm=true)")
@@ -268,6 +270,15 @@ def delete_first_day(
 @router.get("/items/lost", response_model=list[LostItemOut], summary="Потерянные вещи")
 def lost_items(project: Project = Depends(get_project), db: Session = Depends(get_db)):
     return LostService(db).lost_items(project.id)
+
+
+@router.get(
+    "/items/first-day",
+    response_model=list[LostItemOut],
+    summary="Вещи первого дня: с коробкой, комнатой и статусом",
+)
+def first_day_items(project: Project = Depends(get_project), db: Session = Depends(get_db)):
+    return LostService(db).first_day_items(project.id)
 
 
 @router.get(

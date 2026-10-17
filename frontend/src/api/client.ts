@@ -18,9 +18,6 @@ export class ApiError extends Error {
   }
 }
 
-// Запрос отменён вызывающим кодом (закрытый экран): это не ошибка для пользователя
-export const isAbort = (e: unknown) => e instanceof DOMException && e.name === 'AbortError'
-
 type Query = Record<string, string | number | boolean | null | undefined>
 
 function buildUrl(path: string, query?: Query): string {

@@ -1,5 +1,6 @@
 """Регистрация, вход, сессии, участники проекта и приглашения."""
 
+import logging
 import time
 import uuid
 from collections import defaultdict, deque
@@ -17,6 +18,7 @@ from app.errors import (
     TooManyRequestsError,
     UnauthorizedError,
 )
+from app.logging_setup import audit
 from app.models import AuthSession, Invite, Project, ProjectMember, User
 from app.security import hash_password, new_token, token_hash, verify_password
 
@@ -65,17 +67,24 @@ class AuthService:
         except IntegrityError:  # тот же логин зарегистрировали параллельно
             self.db.rollback()
             raise ConflictError("Такой логин уже занят") from None
+        audit("auth.registered", user_id=user.id)
         return user
 
     def authenticate(self, username: str, password: str, ip: str) -> User:
         key = (ip, username)
-        login_limiter.check(key)
+        try:
+            login_limiter.check(key)
+        except TooManyRequestsError:
+            audit("auth.login_blocked", level=logging.WARNING, ip=ip)  # перебор пароля
+            raise
         user = self.db.scalar(select(User).where(User.username == username))
         if not user or not verify_password(password, user.password_hash):
             login_limiter.fail(key)
+            audit("auth.login_failed", level=logging.WARNING, ip=ip, known_user=bool(user))
             # одна формулировка для «нет логина» и «не тот пароль»: не подсказываем, какие логины есть
             raise UnauthorizedError("Неверный логин или пароль")
         login_limiter.reset(key)
+        audit("auth.login", user_id=user.id, ip=ip)
         return user
 
     def start_session(self, user: User) -> str:
@@ -101,6 +110,7 @@ class AuthService:
 
     def end_session(self, token: str | None) -> None:
         if token and (session := self.db.get(AuthSession, token_hash(token))):
+            audit("auth.logout", user_id=session.user_id)
             self.db.delete(session)
             self.db.commit()
 
@@ -114,6 +124,7 @@ class AuthService:
         # все прежние входы (в том числе на потерянном телефоне) закрываются
         self.db.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
         self.db.commit()
+        audit("auth.password_changed", user_id=user.id)
 
     # --- участники ---
     def role(self, project_id: uuid.UUID, user_id: int) -> str | None:
@@ -152,10 +163,12 @@ class AuthService:
             )
         )
         self.db.commit()
+        audit("member.removed", project_id=project_id, user_id=user_id, by=actor.id)
 
     def revoke_invites(self, project_id: uuid.UUID) -> int:
         result = self.db.execute(delete(Invite).where(Invite.project_id == project_id))
         self.db.commit()
+        audit("invite.revoked", project_id=project_id, count=result.rowcount or 0)
         return result.rowcount or 0
 
     def projects_of(self, user_id: int) -> list[tuple[Project, str]]:
@@ -178,6 +191,7 @@ class AuthService:
         )
         self.db.add(invite)
         self.db.commit()
+        audit("invite.created", project_id=project_id, by=user_id)
         return token, invite
 
     def invite(self, token: str) -> tuple[Invite, Project]:
@@ -190,4 +204,5 @@ class AuthService:
         invite, project = self.invite(token)
         self.add_member(project.id, user.id, "member")
         self.db.commit()
+        audit("invite.accepted", project_id=project.id, user_id=user.id)
         return project
