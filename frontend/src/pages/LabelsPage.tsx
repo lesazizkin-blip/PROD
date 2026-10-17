@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+import { ScanLine } from 'lucide-react'
 import { api } from '../api/endpoints'
 import RequireProject from '../components/RequireProject'
 import PrintWorkspace from '../features/labels/print/PrintWorkspace'
@@ -12,5 +14,18 @@ function LabelList({ pid }: { pid: string }) {
   const labels = useAsync(() => api.labels(pid), [pid], { refreshOnFocus: true })
   return <div className="stack labels-page"><StateView loading={labels.loading && !labels.data} error={labels.error} empty={labels.data?.length === 0} emptyText="Сначала создайте коробку на вкладке «Коробки»" emptyIcon="🏷️" onRetry={labels.reload}>
     {labels.data?.length ? <PrintWorkspace labels={labels.data} pid={pid} extraSettings={<details className="qr-mode-details no-print"><summary>Настройки QR-кодов проекта</summary><QrModeSettings pid={pid} onSaved={labels.reload} /></details>} /> : null}
+    {labels.data?.length ? <ScanCard /> : null}
   </StateView></div>
+}
+
+/** Этикетки наклеены - дальше их сканируют: камера открывает карточку коробки, там меняют статус. */
+function ScanCard() {
+  return <div className="scan-card no-print">
+    <ScanLine className="icon" aria-hidden />
+    <span className="grow">
+      <b>Этикетки наклеены? Сканируйте QR</b>
+      <span className="sub">Камера откроет карточку коробки: там видно содержимое и меняется статус. Без этикетки — по номеру.</span>
+    </span>
+    <Link to="/scan" className="button dark">Открыть сканер →</Link>
+  </div>
 }

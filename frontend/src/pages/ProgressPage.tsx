@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { errorMessage } from '../api/client'
 import { api } from '../api/endpoints'
 import type { Hint, LostItem } from '../api/types'
@@ -83,8 +83,6 @@ function ProgressView({ pid }: { pid: string }) {
             <span className="eyebrow accent">ДЕНЬ ПЕРЕЕЗДА</span>
             <h2>Перед закрытием<br />двери</h2>
             <p>Проверьте шкафы и балкон, снимите показания счётчиков, заберите документы и передайте ключи.</p>
-            <Link to="/scan" className="button dark">Открыть сканер →</Link>
-            <p className="muted small">Сканирование открывает карточку. Статус меняется по нажатию.</p>
           </aside>
           </div>
           </div>
@@ -103,7 +101,6 @@ function ProgressView({ pid }: { pid: string }) {
             ))}
           </div>
           <p className="muted small">Пометить вещь потерянной можно в карточке коробки.</p>
-          <Link to="/tips" className="button tips-link">Памятка по упаковке →</Link>
         </>
       ) : null}
 

@@ -307,8 +307,9 @@ async def main():
                     "document.querySelector('.first-day input[type=checkbox]')?.checked"
                 ),
             )
+            await go("/boxes")
             await js("__click('Памятка по упаковке', 'a')")
-            await step("памятка открывается по ссылке с «Прогресса»", await wait("__has('Как упаковать посуду')"))
+            await step("памятка открывается из «Коробок»", await wait("__has('Как упаковать посуду')"))
 
             # ---- этикетки, печать, сканер, кабинет ----
             await go("/labels")
@@ -316,6 +317,8 @@ async def main():
                 "этикетки: список с QR",
                 await wait("!!document.querySelector('svg, canvas') && __has('Кухня')"),
             )
+            await js("__click('Открыть сканер', 'a')")
+            await step("сканер открывается с «QR-этикеток»", await wait("location.pathname === '/scan'"))
             await go("/labels/print")
             await step("печать этикеток: страница", await wait("__has('Печать')"))
             await go("/scan")
