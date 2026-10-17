@@ -62,8 +62,8 @@ scenario_body() {
   for stage in packed loaded delivered unpacked; do
     post "/projects/$pid/boxes/$n/transitions" "{\"to\":\"$stage\"}" | ok_if "d['status']=='$stage'" || return 1
   done
-  [ "$(code POST "/projects/$pid/boxes/$n/transitions" '{"to":"packed"}')" = 409 ] || return 1
-  post "/projects/$pid/boxes/$n/status-corrections" '{"to":"packed","reason":"Проверка исправления ошибочной отметки"}' | ok_if "d['status']=='packed'" || return 1
+  post "/projects/$pid/boxes/$n/transitions" '{"to":"packed"}' | ok_if "d['status']=='packed'" || return 1  # назад - на любой этап без причины
+  post "/projects/$pid/boxes/$n/status-corrections" '{"to":"packing"}' | ok_if "d['status']=='packing'" || return 1  # старая ручка совместимости
   lbl="$(api "/projects/$pid/boxes/$n/label" | json "d['qr_path']")" || return 1
   [ "$lbl" = "/projects/$pid/boxes/$n" ] || return 1                                  # QR ведёт на карточку коробки
   [ "$(code GET "/projects/$pid/boxes/$n")" = 200 ] || return 1                       # повторное открытие карточки
