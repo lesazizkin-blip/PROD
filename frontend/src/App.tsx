@@ -10,6 +10,7 @@ import AuthPage from './pages/AuthPage'
 import InvitePage from './pages/InvitePage'
 import PlanPage from './pages/PlanPage'
 import PrintAllPage from './pages/PrintAllPage'
+import ProfilePage from './pages/ProfilePage'
 import ProgressPage from './pages/ProgressPage'
 import TipsPage from './pages/TipsPage'
 import { useAuth } from './state/AuthContext'
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="tips" element={<TipsPage />} />
         <Route path="scan" element={<Suspense fallback={<div className="state" role="status">Загрузка…</div>}><ScanPage /></Suspense>} />
         <Route path="new" element={<NewProjectPage />} />
+        <Route path="profile" element={<ProfilePage />} />
         <Route path="projects/:pid/boxes/:n" element={<BoxPage />} />
         <Route path="projects/:pid/boxes/:n/label" element={<LabelPage />} />
         <Route path="invite/:token" element={<InvitePage />} />

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import { BookOpen, CalendarDays, Clock, Gem, PackageCheck, Pencil, Sparkles, Trash2, UserRound, type LucideIcon } from 'lucide-react'
 import { api } from '../api/endpoints'
 import type { Stage, Task, TaskCreate } from '../api/types'
 import ChecklistModal from '../components/ChecklistModal'
@@ -12,6 +13,13 @@ import ProgressBar from '../ui/ProgressBar'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import { STAGES, STAGE_LABELS, formatDate, formatTimeRange } from '../ui/format'
+
+// Памятки (раздел 5.5 ТЗ): короткие карточки над планом, подробно на /tips
+const TIP_CARDS: { icon: LucideIcon; title: string; sub: string }[] = [
+  { icon: PackageCheck, title: 'Хрупкие вещи', sub: 'Как упаковать' },
+  { icon: Gem, title: 'Берём с собой', sub: 'Документы, ценности' },
+  { icon: BookOpen, title: 'Пакуем последними', sub: 'Что оставить на потом' },
+]
 
 // Срок прошёл, а задача не выполнена (сравниваем даты в формате ГГГГ-ММ-ДД)
 const isOverdue = (t: Task) => !t.done && !!t.due_date && t.due_date.slice(0, 10) < new Date().toLocaleDateString('sv-SE')
@@ -26,7 +34,15 @@ function Plan({ pid }: { pid: string }) {
   const firstDay = useAsync(() => api.firstDay(pid), [pid])
   // null - форма закрыта, 'new' - новая задача, Task - правка существующей
   const [form, setForm] = useState<'new' | Task | null>(null)
-  const [smart, setSmart] = useState(false)
+  // кнопка AI в шапке ведёт сюда с ?assistant=1: умный чек-лист открыт, пока параметр в адресе
+  const [params, setParams] = useSearchParams()
+  const [smartByButton, setSmartByButton] = useState(false)
+  const smart = smartByButton || params.get('assistant') === '1'
+  const closeSmart = () => {
+    setSmartByButton(false)
+    if (params.has('assistant')) setParams({}, { replace: true })
+  }
+  const [stage, setStage] = useState<Stage | null>(null)
 
   const reloadAll = () => {
     project.reload()
@@ -38,6 +54,9 @@ function Plan({ pid }: { pid: string }) {
   const list = tasks.data ?? []
   const done = list.filter((t) => t.done).length
   const first = firstDay.data ?? []
+  // по умолчанию открыт первый этап, где остались невыполненные задачи
+  const activeStage = stage ?? STAGES.find((s) => list.some((t) => t.stage === s && !t.done)) ?? 'before'
+  const stageTasks = list.filter((t) => t.stage === activeStage)
   const toggleTask = (t: Task) => act(() => api.updateTask(pid, t.id, { done: !t.done }))
 
   return (
@@ -50,43 +69,54 @@ function Plan({ pid }: { pid: string }) {
         <ProgressBar value={done} max={list.length} label="Выполнено задач" />
         <div className="row between">
           <span className="small">Выполнено {done} из {list.length}</span>
-          <span className="row">
-            <button className="link small" style={{ color: 'inherit' }} onClick={() => setSmart(true)}>Умный чек-лист</button>
-            <Link to="/tips" className="small" style={{ color: 'inherit' }}>Памятки →</Link>
-          </span>
+          <button className="hero__action" onClick={() => setSmartByButton(true)}><Sparkles className="icon-sm" aria-hidden />Умный чек-лист</button>
         </div>
+      </div>
+
+      <div className="tip-cards">
+        {TIP_CARDS.map((c) => (
+          <Link key={c.title} to="/tips" className="tip-card">
+            <c.icon className="icon" aria-hidden />
+            <span><b>{c.title}</b><span className="muted small">{c.sub}</span></span>
+          </Link>
+        ))}
       </div>
       <ErrorAlert message={error} />
 
-      {STAGES.map((stage) => {
-        const items = list.filter((t) => t.stage === stage)
-        if (items.length === 0) return null
-        return (
-          <section key={stage}>
-            <SectionTitle>{STAGE_LABELS[stage]}</SectionTitle>
-            <div className="card flush">
-              {items.map((t) => (
-                <label key={t.id} className={`list-row${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
-                  <input type="checkbox" checked={t.done} disabled={busy} onChange={() => toggleTask(t)} />
-                  <span className="grow">
-                    <span className="title">{t.title}</span>
-                    <span className="sub">
-                      {[t.due_date ? `${isOverdue(t) ? 'просрочено, ' : ''}до ${formatDate(t.due_date)}` : null, formatTimeRange(t.start_time, t.end_time), t.assignee].filter(Boolean).join(' · ')}
-                    </span>
-                    {t.category ? (
-                      <span className="category-chip">
-                        <span className="category-dot" style={{ background: t.category_color ?? 'var(--primary)' }} aria-hidden="true" />
-                        {t.category}
-                      </span>
-                    ) : null}
+      <div className="segmented stage-tabs" role="tablist" aria-label="Этапы переезда">
+        {STAGES.map((s) => {
+          const items = list.filter((t) => t.stage === s)
+          return (
+            <button key={s} type="button" role="tab" aria-selected={s === activeStage} className={s === activeStage ? 'on' : ''} onClick={() => setStage(s)}>
+              {STAGE_LABELS[s]} <span className="count">{items.filter((t) => t.done).length}/{items.length}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <section className="task-list" role="tabpanel" aria-label={STAGE_LABELS[activeStage]}>
+        {stageTasks.length === 0 ? <div className="state"><p>На этом этапе задач нет. Добавьте свою кнопкой «+ Задача».</p></div> : null}
+        {stageTasks.map((t) => (
+          <label key={t.id} className={`task-card${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
+            <input type="checkbox" className="check" checked={t.done} disabled={busy} onChange={() => toggleTask(t)} />
+            <span className="grow">
+              <span className="title">{t.title}</span>
+              <span className="task-meta">
+                {t.due_date ? <span className={isOverdue(t) ? 'meta-chip late' : 'meta-chip'}><CalendarDays className="icon-xs" aria-hidden />{isOverdue(t) ? 'просрочено, ' : ''}до {formatDate(t.due_date)}</span> : null}
+                {formatTimeRange(t.start_time, t.end_time) ? <span className="meta-chip"><Clock className="icon-xs" aria-hidden />{formatTimeRange(t.start_time, t.end_time)}</span> : null}
+                {t.assignee ? <span className="meta-chip"><UserRound className="icon-xs" aria-hidden />{t.assignee}</span> : null}
+                {t.category ? (
+                  <span className="category-chip">
+                    <span className="category-dot" style={{ background: t.category_color ?? 'var(--primary)' }} aria-hidden="true" />
+                    {t.category}
                   </span>
-                  <button type="button" className="link small" disabled={busy} aria-label={`Изменить «${t.title}»`} onClick={(e) => { e.preventDefault(); setForm(t) }}>✎</button>
-                </label>
-              ))}
-            </div>
-          </section>
-        )
-      })}
+                ) : null}
+              </span>
+            </span>
+            <button type="button" className="link small icon-btn" disabled={busy} aria-label={`Изменить «${t.title}»`} onClick={(e) => { e.preventDefault(); setForm(t) }}><Pencil className="icon-sm" aria-hidden /></button>
+          </label>
+        ))}
+      </section>
 
       <section>
         <SectionTitle>Коробка первого дня</SectionTitle>
@@ -94,16 +124,16 @@ function Plan({ pid }: { pid: string }) {
           {first.length === 0 ? <div className="list-row muted">Список пуст</div> : null}
           {first.map((f) => (
             <label key={f.id} className={f.done ? 'list-row done' : 'list-row'}>
-              <input type="checkbox" checked={f.done} disabled={busy} onChange={() => act(() => api.updateFirstDay(pid, f.id, { done: !f.done }))} />
+              <input type="checkbox" className="check" checked={f.done} disabled={busy} onChange={() => act(() => api.updateFirstDay(pid, f.id, { done: !f.done }))} />
               <span className="grow title">{f.title}</span>
-              <button type="button" className="link small" disabled={busy} aria-label={`Удалить «${f.title}»`} onClick={(e) => { e.preventDefault(); if (window.confirm(`Удалить «${f.title}»?`)) void act(() => api.deleteFirstDay(pid, f.id)) }}>✕</button>
+              <button type="button" className="link small" disabled={busy} aria-label={`Удалить «${f.title}»`} onClick={(e) => { e.preventDefault(); if (window.confirm(`Удалить «${f.title}»?`)) void act(() => api.deleteFirstDay(pid, f.id)) }}><Trash2 className="icon-sm" aria-hidden /></button>
             </label>
           ))}
         </div>
       </section>
 
       <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button>
-      {smart ? <ChecklistModal pid={pid} onClose={() => setSmart(false)} onApplied={reloadAll} /> : null}
+      {smart ? <ChecklistModal pid={pid} onClose={closeSmart} onApplied={reloadAll} /> : null}
       {form ? (
         <TaskModal
           initial={form === 'new' ? null : form}
