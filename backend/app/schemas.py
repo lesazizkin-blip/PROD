@@ -610,7 +610,7 @@ class StatusCorrectionIn(BaseModel):
 
 
 class FirstDayBindIn(BaseModel):
-    box_number: int = Field(ge=1, examples=[1])
+    box_number: int = Field(ge=1, le=2_147_483_647, examples=[1])
     name: Text120 | None = None
 
 
@@ -780,7 +780,9 @@ class BulkTransitionIn(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={"examples": [{"numbers": [1, 2, 3], "to": "loaded"}]}
     )
-    numbers: list[int] = Field(min_length=1, max_length=200)
+    numbers: list[Annotated[int, Field(ge=1, le=2_147_483_647)]] = Field(
+        min_length=1, max_length=200
+    )
     to: BoxStatus
 
 

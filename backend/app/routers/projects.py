@@ -8,7 +8,7 @@ from app.deps import PageParams, get_current_user, get_owned_project, get_projec
 from app.errors import ForbiddenError
 from app.models import Event, Project, User
 from app.planner_schemas import PlanQuestions, PlanRequest
-from app.routers.common import confirm_param
+from app.routers.common import Id, confirm_param
 from app.schemas import (
     AppliedTemplates,
     EventOut,
@@ -122,7 +122,7 @@ def members(project: Project = Depends(get_project), db: Session = Depends(get_d
     summary="Убрать участника (владелец) или выйти из проекта (сам участник), confirm=true",
 )
 def remove_member(
-    user_id: int,
+    user_id: Id,
     project: Project = Depends(get_project),
     user: User = Depends(get_current_user),
     _=Depends(confirm_param),
@@ -188,7 +188,7 @@ def create_task(
     "/{pid}/tasks/{tid}", response_model=TaskOut, summary="Изменить задачу / отметить выполнение"
 )
 def update_task(
-    tid: int,
+    tid: Id,
     body: TaskUpdate,
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),
@@ -198,7 +198,7 @@ def update_task(
 
 @router.delete("/{pid}/tasks/{tid}", status_code=204, summary="Удалить задачу (confirm=true)")
 def delete_task(
-    tid: int,
+    tid: Id,
     project: Project = Depends(get_project),
     _=Depends(confirm_param),
     db: Session = Depends(get_db),

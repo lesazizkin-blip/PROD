@@ -5,7 +5,7 @@ from app.db import get_db
 from app.deps import PageParams, get_current_user, get_project
 from app.errors import ValidationFailed
 from app.models import Project, User
-from app.routers.common import confirm_param
+from app.routers.common import MAX_INT, Id, confirm_param
 from app.schemas import (
     BoxCardOut,
     BoxCreate,
@@ -44,7 +44,7 @@ def list_boxes(
     room: str | None = None,
     status: BoxStatus | None = None,
     fill_later: bool | None = None,
-    number: int | None = Query(default=None, ge=1),
+    number: int | None = Query(default=None, ge=1, le=MAX_INT),
     page: PageParams = Depends(),
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),
@@ -74,20 +74,20 @@ def create_box(
 
 
 @router.get("/boxes/{n}", response_model=BoxCardOut, summary="Карточка коробки (её открывает QR)")
-def get_box(n: int, project: Project = Depends(get_project), db: Session = Depends(get_db)):
+def get_box(n: Id, project: Project = Depends(get_project), db: Session = Depends(get_db)):
     return BoxService(db).card(project.id, n)
 
 
 @router.patch("/boxes/{n}", response_model=BoxOut, summary="Изменить комнату или «заполнить позже»")
 def update_box(
-    n: int, body: BoxUpdate, project: Project = Depends(get_project), db: Session = Depends(get_db)
+    n: Id, body: BoxUpdate, project: Project = Depends(get_project), db: Session = Depends(get_db)
 ):
     return BoxService(db).update(project.id, n, body)
 
 
 @router.delete("/boxes/{n}", status_code=204, summary="Удалить коробку с вещами (confirm=true)")
 def delete_box(
-    n: int,
+    n: Id,
     project: Project = Depends(get_project),
     _=Depends(confirm_param),
     db: Session = Depends(get_db),
@@ -102,7 +102,7 @@ def delete_box(
     summary="Сменить статус по допустимым переходам",
 )
 def transition(
-    n: int,
+    n: Id,
     body: TransitionIn,
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),
@@ -113,7 +113,7 @@ def transition(
 @router.get(
     "/boxes/{n}/label", response_model=LabelOut, summary="Данные этикетки (QR строит приложение)"
 )
-def label(n: int, project: Project = Depends(get_project), db: Session = Depends(get_db)):
+def label(n: Id, project: Project = Depends(get_project), db: Session = Depends(get_db)):
     return BoxService(db).label(project, n)
 
 
@@ -135,7 +135,7 @@ def labels(
             parsed = [int(x) for x in numbers.split(",") if x.strip()]
         except ValueError:
             raise ValidationFailed("numbers: ожидается список целых чисел через запятую") from None
-        if not parsed or len(parsed) > 100:
+        if not parsed or len(parsed) > 100 or not all(1 <= x <= MAX_INT for x in parsed):
             raise ValidationFailed("numbers: от 1 до 100 номеров")
     return BoxService(db).labels(project, parsed)
 
@@ -143,7 +143,7 @@ def labels(
 # ---------- вещи ----------
 @router.get("/boxes/{n}/items", response_model=Page[ItemOut], summary="Вещи в коробке")
 def list_items(
-    n: int,
+    n: Id,
     page: PageParams = Depends(),
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),
@@ -155,7 +155,7 @@ def list_items(
 
 @router.post("/boxes/{n}/items", response_model=ItemOut, status_code=201, summary="Добавить вещь")
 def add_item(
-    n: int, body: ItemCreate, project: Project = Depends(get_project), db: Session = Depends(get_db)
+    n: Id, body: ItemCreate, project: Project = Depends(get_project), db: Session = Depends(get_db)
 ):
     return BoxService(db).add_items(project.id, n, [body.name], body.first_day, body.status)[0]
 
@@ -167,7 +167,7 @@ def add_item(
     summary="Быстрый ввод: строка = вещь",
 )
 def add_items_bulk(
-    n: int,
+    n: Id,
     body: ItemsBulkIn,
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),
@@ -182,7 +182,7 @@ def add_items_bulk(
     "/items/{item_id}", response_model=ItemOut, summary="Переименовать / пометить потерянной"
 )
 def update_item(
-    item_id: int,
+    item_id: Id,
     body: ItemUpdate,
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),
@@ -194,7 +194,7 @@ def update_item(
 
 @router.delete("/items/{item_id}", status_code=204, summary="Удалить вещь (confirm=true)")
 def delete_item(
-    item_id: int,
+    item_id: Id,
     project: Project = Depends(get_project),
     _=Depends(confirm_param),
     db: Session = Depends(get_db),
@@ -253,7 +253,7 @@ def add_first_day(
     "/first-day/{item_id}", response_model=FirstDayOut, summary="Отметить / переименовать пункт"
 )
 def update_first_day(
-    item_id: int,
+    item_id: Id,
     body: FirstDayUpdate,
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),
@@ -263,7 +263,7 @@ def update_first_day(
 
 @router.delete("/first-day/{item_id}", status_code=204, summary="Удалить пункт (confirm=true)")
 def delete_first_day(
-    item_id: int,
+    item_id: Id,
     project: Project = Depends(get_project),
     _=Depends(confirm_param),
     db: Session = Depends(get_db),
@@ -292,7 +292,7 @@ def first_day_items(project: Project = Depends(get_project), db: Session = Depen
     response_model=list[HintOut],
     summary="В каких нераспакованных коробках искать вещь",
 )
-def hints(item_id: int, project: Project = Depends(get_project), db: Session = Depends(get_db)):
+def hints(item_id: Id, project: Project = Depends(get_project), db: Session = Depends(get_db)):
     return LostService(db).hints(project.id, item_id)
 
 
@@ -311,7 +311,7 @@ def reminders_(project: Project = Depends(get_project), db: Session = Depends(ge
     summary="Исправить ошибочную отметку: вернуть на более ранний этап с причиной",
 )
 def correct_status(
-    n: int,
+    n: Id,
     body: StatusCorrectionIn,
     project: Project = Depends(get_project),
     user: User = Depends(get_current_user),
@@ -326,7 +326,7 @@ def correct_status(
     summary="Переместить пункт первого дня в коробку одной транзакцией",
 )
 def bind_first_day(
-    item_id: int,
+    item_id: Id,
     body: FirstDayBindIn,
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),

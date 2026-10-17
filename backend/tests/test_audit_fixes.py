@@ -8,7 +8,7 @@ def test_huge_id_is_not_found_not_server_error(client, base):
     for path in (f"{base}/boxes/{big}", f"{base}/items/{big}/hints", f"{base}/boxes?number={big}"):
         r = client.get(path)
         assert r.status_code in (404, 422), (path, r.status_code)
-    assert client.patch(f"{base}/tasks/{big}", json={"done": True}).status_code == 404
+    assert client.patch(f"{base}/tasks/{big}", json={"done": True}).status_code in (404, 422)
 
 
 def test_empty_quick_input_is_rejected(client, base):
