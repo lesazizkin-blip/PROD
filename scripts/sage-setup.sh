@@ -19,6 +19,7 @@ printf 'Хост Logs Collector [%s]: ' "$DEFAULT_HOST"
 read -r HOST || true
 HOST="${HOST:-$DEFAULT_HOST}"
 HOST="${HOST#https://}"; HOST="${HOST#http://}"; HOST="${HOST%%/*}"
+case "$HOST" in *[!A-Za-z0-9.-]*) echo "Хост «$HOST» похож на ошибку ввода. Запустите скрипт снова и на вопросе о хосте просто нажмите Enter."; exit 1 ;; esac
 [ -n "$HOST" ] || { echo "Пусто: узнайте хост коллектора в Spirit или у организаторов."; exit 1; }
 URL="https://$HOST/api/$GROUP/multiline/"
 
