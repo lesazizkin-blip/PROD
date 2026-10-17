@@ -1,9 +1,9 @@
 import { useLayoutEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { BookOpen, Camera } from 'lucide-react'
+import { api } from '../api/endpoints'
 import type { RoomPlan } from '../api/types'
 import PhotoPicker from '../components/PhotoPicker'
-import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
 import BoxGrid from '../components/BoxShelf'
 import PageHeading from '../components/PageHeading'
@@ -38,8 +38,8 @@ function Boxes({ pid }: { pid: string }) {
   const q = useDebounced(query.trim())
   const [room, setRoom] = useState<string | null>(saved?.room ?? null)
   const [page, setPage] = useState(saved?.page ?? 1)
-  const [roomPhoto, setRoomPhoto] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [roomPhoto, setRoomPhoto] = useState(false)
 
   const boxes = useAsync(() => api.boxes(pid, { page_size: 36, page, ...(room ? { room } : {}) }), [pid, room, page], { refreshOnFocus: true, initialData: saved?.boxes })
   const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 50, page, ...(room ? { room } : {}) }) : Promise.resolve(null)), [pid, q, room, page], { refreshOnFocus: true, initialData: saved?.hits })
@@ -116,14 +116,18 @@ function Boxes({ pid }: { pid: string }) {
           ) : null}
           <BoxGrid pid={pid} boxes={all} />
           <p className="muted small">Статусы: {Object.values(STATUS_LABELS).join(' → ')}</p>
-          <Link to="/tips" className="tips-card"><BookOpen className="icon" aria-hidden /><span className="grow"><b>Памятка по упаковке</b><span className="sub">Хрупкое, что везти с собой, что паковать последним</span></span><span aria-hidden>→</span></Link>
+          <Link to="/tips" className="tips-card">
+            <BookOpen className="icon" aria-hidden />
+            <span className="grow">
+              <b>Памятка по упаковке</b>
+              <span className="sub">Хрупкое, что везти с собой, что паковать последним</span>
+            </span>
+            <span aria-hidden>→</span>
+          </Link>
         </StateView>
         <Pagination page={page} pageSize={36} total={boxes.data?.total ?? 0} busy={boxes.loading} onChange={setPage} label="Страницы коробок" />
         </>
       )}
-
-
-      {roomPhoto ? <RoomPhotoModal pid={pid} rooms={rooms.map(r => r.room)} onClose={() => setRoomPhoto(false)} onCreated={() => { setRoomPhoto(false); boxes.reload(); summary.reload(); reminders.reload() }} /> : null}
       {adding ? (
         <AddBoxModal
           rooms={rooms.map(r => r.room)}
@@ -134,36 +138,20 @@ function Boxes({ pid }: { pid: string }) {
           }}
         />
       ) : null}
+      {roomPhoto ? (
+        <RoomPhotoModal
+          pid={pid}
+          rooms={rooms.map(r => r.room)}
+          onClose={() => setRoomPhoto(false)}
+          onCreated={() => {
+            setRoomPhoto(false)
+            boxes.reload()
+            summary.reload()
+            reminders.reload()
+          }}
+        />
+      ) : null}
     </>
-  )
-}
-
-function AddBoxModal({ rooms, onClose, onSave }: { rooms: string[]; onClose: () => void; onSave: (room: string, text: string, fillLater: boolean) => Promise<void> }) {
-  const [room, setRoom] = useState('')
-  const [text, setText] = useState('')
-  const [later, setLater] = useState(false)
-  const { busy, error, submit } = useAction()
-
-  return (
-    <Modal title="Новая коробка" onClose={onClose} dirty={room.trim() !== '' || text.trim() !== ''}>
-      <form className="stack" onSubmit={submit(() => onSave(room.trim(), text, later))}>
-        <label>
-          Комната назначения
-          <input value={room} onChange={(e) => setRoom(e.target.value)} maxLength={60} list="rooms" placeholder="Кухня" data-autofocus />
-          <datalist id="rooms">{rooms.map((r) => <option key={r} value={r} />)}</datalist>
-        </label>
-        <label>
-          Содержимое (каждая вещь с новой строки)
-          <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={'Чайник\nКружки (4 шт)'} />
-        </label>
-        <label className="row">
-          <input type="checkbox" checked={later} onChange={(e) => setLater(e.target.checked)} />
-          Заполнить позже
-        </label>
-        <ErrorAlert message={error} />
-        <button className="primary" type="submit" disabled={busy || !room.trim()}>Создать</button>
-      </form>
-    </Modal>
   )
 }
 
@@ -227,6 +215,35 @@ function RoomPhotoModal({ pid, rooms, onClose, onCreated }: { pid: string; rooms
           </div>
         )
       ) : null}
+    </Modal>
+  )
+}
+
+function AddBoxModal({ rooms, onClose, onSave }: { rooms: string[]; onClose: () => void; onSave: (room: string, text: string, fillLater: boolean) => Promise<void> }) {
+  const [room, setRoom] = useState('')
+  const [text, setText] = useState('')
+  const [later, setLater] = useState(false)
+  const { busy, error, submit } = useAction()
+
+  return (
+    <Modal title="Новая коробка" onClose={onClose} dirty={room.trim() !== '' || text.trim() !== ''}>
+      <form className="stack" onSubmit={submit(() => onSave(room.trim(), text, later))}>
+        <label>
+          Комната назначения
+          <input value={room} onChange={(e) => setRoom(e.target.value)} maxLength={60} list="rooms" placeholder="Кухня" data-autofocus />
+          <datalist id="rooms">{rooms.map((r) => <option key={r} value={r} />)}</datalist>
+        </label>
+        <label>
+          Содержимое (каждая вещь с новой строки)
+          <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={'Чайник\nКружки (4 шт)'} />
+        </label>
+        <label className="row">
+          <input type="checkbox" checked={later} onChange={(e) => setLater(e.target.checked)} />
+          Заполнить позже
+        </label>
+        <ErrorAlert message={error} />
+        <button className="primary" type="submit" disabled={busy || !room.trim()}>Создать</button>
+      </form>
     </Modal>
   )
 }

@@ -1,7 +1,7 @@
-import { Html5Qrcode } from 'html5-qrcode'
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode'
 import { useEffect, useEffectEvent, useRef, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Camera, Pause, Play, QrCode, RotateCcw, ScanLine } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Camera, Pause, Play, QrCode, RotateCcw, ScanLine, Upload } from 'lucide-react'
 import { api } from '../api/endpoints'
 import { ApiError } from '../api/client'
 import { useProjects } from '../state/ProjectContext'
@@ -137,7 +137,9 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
           qrbox: (width, height) => { const side = Math.max(50, Math.floor(Math.min(width, height) * 0.75)); return { width: side, height: side } },
         }, (text) => { if (live && cameraOperation === operation.current && !document.hidden) onScan(text) }, undefined).then(() => {}),
         stop: () => scanner.stop(), clear: () => scanner.clear(),
-        get isScanning() { return scanner.isScanning },
+        // The legacy boolean can lag behind rapid start/stop cycles. The state
+        // manager is also what Html5Qrcode.stop()/clear() use internally.
+        get isScanning() { return scanner.getState() !== Html5QrcodeScannerState.NOT_STARTED },
       }
     }, () => { if (live) { setCameraState('ready'); setStatus('Готово. Наведите камеру на QR.') } }, (e) => {
       if (live) { setCameraState('error'); setError(cameraMessage(e)); setStatus('Ошибка камеры') }
@@ -234,10 +236,10 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
 
   return <div className="recognition-page">
     <PageHeading title={mode === 'live' ? 'Распознать номер' : mode === 'photo' ? 'Номер с фотографии' : 'Сканирование QR'}>{mode === 'live' ? 'Наведите камеру на рукописный номер коробки.' : mode === 'photo' ? 'Снимите номер коробки крупным планом или введите его вручную.' : 'Наведите камеру на этикетку или найдите коробку по номеру.'}</PageHeading>
-    <p>Проект для номера и фото: <strong>{projectName ?? 'не выбран'}</strong></p>
+    <p className="scan-project muted small">Номер ищем в проекте <strong>{projectName ?? 'не выбран'}</strong>. <Link to="/projects">Выбрать другой</Link></p>
     <div className="recognition-modes" role="group" aria-label="Способ сканирования">
       <button type="button" aria-pressed={mode === 'qr'} onClick={restart} disabled={busy || mode === 'qr'}><QrCode aria-hidden="true" className="icon-sm" />QR-код</button>
-      <button type="button" aria-pressed={mode === 'live'} disabled={!pid || busy || !recognizeHandwriting || mode === 'live'} onClick={async () => {
+      {recognizeHandwriting ? <button type="button" aria-pressed={mode === 'live'} disabled={!pid || busy || mode === 'live'} onClick={async () => {
         setActive(false)
         const id = ++operation.current
         ocrAbort.current?.abort()
@@ -246,7 +248,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
           if (id !== operation.current) return
           setMode('live'); setError(null); setStatus('Наведите на номер в рамке.')
         } catch (e) { if (id === operation.current) setError(cameraMessage(e)) }
-      }}><ScanLine aria-hidden="true" className="icon-sm" />Камера номера</button>
+      }}><ScanLine aria-hidden="true" className="icon-sm" />Камера номера</button> : null}
       <button type="button" aria-pressed={mode === 'photo'} disabled={!pid || busy || mode === 'photo'} onClick={async () => {
         setActive(false)
         setStatus('Останавливаем QR-камеру…')
@@ -259,17 +261,20 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
       }}><Camera aria-hidden="true" className="icon-sm" />Фото номера</button>
     </div>
     <div className="scan-layout">
-      <div className="scan-stage stack">
+      <div className={`scan-stage stack${mode === 'photo' ? ' scan-stage--photo' : ''}`}>
+        <div className="scan-viewfinder" hidden={mode !== 'qr'}>
         <div id="qr-reader" className="scanner" hidden={mode !== 'qr'} />
+        {cameraState !== 'ready' || !active ? <div className="scan-placeholder"><QrCode aria-hidden /><span>{cameraState === 'error' ? 'Камера недоступна' : cameraState === 'starting' && active ? 'Включаем камеру…' : 'Камера на паузе'}</span><small>QR-этикетка должна целиком попасть в рамку</small></div> : null}
+        </div>
         {mode === 'qr' ? <button type="button" className="qr-camera-control" disabled={busy || !visible || (active && cameraState === 'starting')} onClick={() => { if (active && cameraState === 'ready') void pauseQr(); else restart() }}>
           {cameraState === 'error' ? <RotateCcw className="icon-sm" aria-hidden="true" /> : active && cameraState === 'ready' ? <Pause className="icon-sm" aria-hidden="true" /> : <Play className="icon-sm" aria-hidden="true" />}
           {cameraState === 'error' ? 'Повторить запуск камеры' : active && cameraState === 'starting' ? 'Запускаем камеру…' : active && cameraState === 'ready' ? 'Приостановить камеру' : 'Продолжить сканирование'}
         </button> : null}
         {mode === 'live' && pid && recognizeHandwriting ? <LiveNumberCamera pid={pid} recognize={recognizeHandwriting} onConfirm={n => openNumber(undefined, n)} /> : null}
         {mode === 'photo' ? <div className="stack">
-          <p>Экспериментальное распознавание. Качество на реальном почерке пока не проверено. Фото не отправляется на сервер.</p>
-          <p>Поместите только надпись в кадр, без адресов и других чисел.</p>
-          <label>Снять или выбрать фото<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={busy} onChange={(e) => { void selectPhoto(e.target.files?.[0]); e.target.value = '' }} /></label>
+          <div><h2>Фото номера</h2><p className="muted small">Снимите только цифры крупным планом. Фото остаётся на устройстве.</p></div>
+          <label className="photo-upload"><Upload aria-hidden /><strong>Снять или выбрать фото</strong><span className="muted small">JPEG, PNG или WebP · до 12 МБ</span><input type="file" aria-label="Снять или выбрать фото" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={busy} onChange={(e) => { void selectPhoto(e.target.files?.[0]); e.target.value = '' }} /></label>
+          {!recognizeHandwriting ? <p className="muted small">Автораспознавание пока недоступно. Посмотрите номер на фото и введите его в поле поиска.</p> : null}
           {preview ? <PhotoCrop src={preview} value={crop} onChange={value => { setCrop(value); setResult(null); setCandidates([]); setError(null); setStatus('Область изменена. Распознайте фото заново.') }} disabled={busy} /> : null}
           {photo && recognizeHandwriting ? <button type="button" disabled={busy} onClick={() => { void recognizePhoto() }}>Распознать фото</button> : null}
           {photo ? <button type="button" onClick={() => { operation.current++; ocrAbort.current?.abort(); setBusy(false); setPhoto(null); setPreview(null); setResult(null); setCandidates([]); setStatus('Снимите номер ещё раз.') }}>Удалить фото / переснять</button> : null}
@@ -280,7 +285,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
         <ErrorAlert message={error ?? (!window.isSecureContext ? 'Камера работает только по HTTPS (или на localhost). Введите номер коробки вручную.' : null)} />
       </div>
       {pid ? <form className="card stack scan-number" onSubmit={(e) => { void openNumber(e) }}>
-        <h2>Поиск по номеру</h2><p>Подтверждение в проекте «{projectName}»</p>
+        <h2>Знаете номер?</h2><p className="muted small">Введите его без сканирования. Найдём коробку в выбранном проекте.</p>
         <label>Или введите номер коробки<input type="text" inputMode="text" autoComplete="off" placeholder="#001" value={number} onChange={(e) => setNumber(e.target.value)} /></label>
         <button className="primary" type="submit" disabled={!number || busy}>Подтвердить и открыть</button>
       </form> : <p className="muted">Номер вручную и фото доступны после выбора проекта.</p>}

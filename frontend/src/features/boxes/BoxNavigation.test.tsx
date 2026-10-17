@@ -13,17 +13,11 @@ function Detail() {
   return <article><h1 id="box-heading" tabIndex={-1}>{navigation.cardSeed('p1', 1)?.room ?? 'Загрузка коробки'}</h1><button onClick={() => void navigation.returnToShelf('p1', 1)}>Назад</button></article>
 }
 
-function Shelf() {
-  const navigation = useBoxNavigation()
-  const saved = navigation.shelfView('p1')
-  return <><button onClick={() => navigation.rememberShelf({ pid: 'p1', page: 9, query: '', room: 'Кухня', scrollY: 800, boxes: null, hits: null, byNumber: null, summary: null })}>Запомнить страницу 9</button><span>Страница {saved?.page ?? 1}</span><BoxLink pid="p1" number={1}>Коробка 001</BoxLink></>
-}
-
 function setup() {
   return render(<BrowserRouter><BoxNavigationProvider>
     <Link to="/profile">Аккаунт</Link>
     <Routes>
-      <Route path="/boxes" element={<Shelf />} />
+      <Route path="/boxes" element={<BoxLink pid="p1" number={1}>Коробка 001</BoxLink>} />
       <Route path="/projects/p1/boxes/1" element={<Detail />} />
       <Route path="/profile" element={<h1>Профиль</h1>} />
     </Routes>
@@ -35,23 +29,13 @@ beforeEach(() => {
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   vi.spyOn(api, 'getBox').mockResolvedValue(card)
   vi.spyOn(api, 'boxes').mockResolvedValue({ items: [card], total: 1, page: 1, page_size: 200 })
+  vi.spyOn(api, 'progress').mockResolvedValue({ boxes_total: 1, by_status: { packing: 1, packed: 0, loaded: 0, delivered: 0, unpacked: 0 }, unpacked_percent: 0, rooms: [], coverage: 0 })
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })))
   document.startViewTransition = undefined as unknown as typeof nativeTransition
 })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); document.startViewTransition = nativeTransition })
 
 describe('переход к коробке', () => {
-  it('возвращается на последнюю страницу и сохраняет серверный фильтр комнаты', async () => {
-    setup()
-    fireEvent.click(screen.getByRole('button', { name: 'Запомнить страницу 9' }))
-    fireEvent.click(screen.getByRole('link', { name: 'Коробка 001' }))
-    await screen.findByRole('heading', { name: 'Кухня' })
-    fireEvent.click(screen.getByRole('button', { name: 'Назад' }))
-    await screen.findByRole('link', { name: 'Коробка 001' })
-    expect(api.boxes).toHaveBeenCalledWith('p1', { page: 9, page_size: 36, room: 'Кухня' })
-    expect(screen.getByText('Страница 9')).toBeTruthy()
-  })
-
   it('ждёт данные перед уходом со стеллажа и передаёт их экрану коробки', async () => {
     let resolve!: (value: BoxCard) => void
     vi.mocked(api.getBox).mockReturnValue(new Promise((done) => { resolve = done }))

@@ -9,9 +9,9 @@ export interface ShelfView {
   pid: string
   query: string
   room: string | null
-  page?: number
-  summary?: Progress | null
   scrollY: number
+  page: number
+  summary: Progress | null
   boxes: Page<Box> | null
   hits: Page<SearchHit> | null
   byNumber: Page<Box> | null
@@ -55,7 +55,7 @@ export function BoxNavigationProvider({ children }: { children: ReactNode }) {
     return new Promise<void>((finish) => {
       pendingCommit.current?.finish()
       pendingCommit.current = { path, finish, after }
-      navigate(path)
+      navigate(path, { state: { cartonTransition: true } })
     })
   }
 
@@ -118,11 +118,13 @@ export function BoxNavigationProvider({ children }: { children: ReactNode }) {
     const ticket = ++request.current
     setPendingPath('/boxes')
     try {
-      const current = shelf.current?.pid === pid ? shelf.current : null
-      const boxes = await api.boxes(pid, { page: current?.page ?? 1, page_size: 36, ...(current?.room ? { room: current.room } : {}) })
-      if (!mounted.current || ticket !== request.current || window.location.href !== origin) return
       const previous = shelf.current?.pid === pid ? shelf.current : null
-      shelf.current = { page: previous?.page ?? 1, summary: previous?.summary ?? null, pid, query: previous?.query ?? '', room: previous?.room ?? null, scrollY: previous?.scrollY ?? 0, hits: previous?.hits ?? null, byNumber: previous?.byNumber ?? null, boxes }
+      const [boxes, summary] = await Promise.all([
+        api.boxes(pid, { page_size: 36, page: previous?.page ?? 1, ...(previous?.room ? { room: previous.room } : {}) }),
+        api.progress(pid),
+      ])
+      if (!mounted.current || ticket !== request.current || window.location.href !== origin) return
+      shelf.current = { pid, query: previous?.query ?? '', room: previous?.room ?? null, scrollY: previous?.scrollY ?? 0, page: previous?.page ?? 1, hits: previous?.hits ?? null, byNumber: previous?.byNumber ?? null, boxes, summary }
     } catch {
       if (!mounted.current || ticket !== request.current || window.location.href !== origin) return
       shelf.current = null

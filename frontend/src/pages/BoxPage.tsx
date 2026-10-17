@@ -7,8 +7,8 @@ import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
 import PhotoPicker from '../components/PhotoPicker'
 import StatusPickerModal, { type StatusOption } from '../components/StatusPickerModal'
+import { boxStatusOptions, canAdvanceBox } from '../components/statusOptions'
 import CorrectBoxStatusModal from '../components/CorrectBoxStatusModal'
-import { boxStatusOptions } from '../components/statusOptions'
 import { useConfirm } from '../state/confirm'
 import CartonLid from '../components/CartonLid'
 import { useBoxNavigation } from '../features/boxes/BoxNavigation'
@@ -21,8 +21,6 @@ import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
 import { roomStyle } from '../ui/roomTheme'
 import { ITEM_STATUS_HINTS, ITEM_STATUS_LABELS, labelPath, plural } from '../ui/format'
-
-// Обычная смена статуса проходит по порядку; исправление вынесено отдельно.
 
 const itemOptions: StatusOption<ItemStatus>[] = ITEM_STATUSES.map((s) => ({
   value: s,
@@ -57,8 +55,9 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
     }
   }, [pid, number])
 
-  // Любой статус выбирается в окне; при «Собрана» коробка заклеивается (только после подтверждённого сохранения)
+  // Correction is intentionally separate from the ordinary sequential workflow.
   async function changeStatus(to: BoxStatus) {
+    if (!card.data || !canAdvanceBox(card.data.status, to)) throw new Error('Сначала завершите предыдущий этап переезда.')
     const key = `${pid}/${number}`
     await api.transition(pid, number, to)
     card.reload()
@@ -86,8 +85,8 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
     optimistic((items) => items.filter((x) => x.id !== id), () => api.deleteItem(pid, id))
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [correcting, setCorrecting] = useState(false)
   const [pickingBox, setPickingBox] = useState(false)
+  const [correcting, setCorrecting] = useState(false)
   const [pickingItem, setPickingItem] = useState<Item | null>(null)
 
   // Открыли коробку по QR из другого проекта: переключаем вкладки на него, чтобы «Коробки» и «План» были про ту же коробку
@@ -105,7 +104,6 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
   }
 
   const box = card.data
-  const boxOptions = box ? boxStatusOptions(box.status) : []
 
   return (
     <>
@@ -177,7 +175,6 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
           <button className="manifest-add" onClick={() => setAdding(true)}><Plus className="icon-sm" aria-hidden />Добавить вещи</button>
           </section>
           <footer className="carton-footer">
-            {box.status !== 'packing' ? <button onClick={() => setCorrecting(true)}>Исправить ошибочный статус</button> : null}
             <details className="carton-help">
               <summary>Нет принтера?</summary>
               <p>Напишите маркером на коробке <strong>#{String(box.number).padStart(3, '0')}</strong> и комнату «{box.room}». Подпишите с двух сторон — так её проще найти в стопке.</p>
@@ -191,16 +188,17 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
           </article>
           </div>
 
-          {correcting && box ? <CorrectBoxStatusModal current={box.status} number={number} onClose={() => setCorrecting(false)} onSave={async (to, reason) => { await api.correctBoxStatus(pid, number, to, reason); card.reload() }} /> : null}
           {pickingBox ? (
             <StatusPickerModal
               title={`Статус коробки № ${box.number}`}
               current={box.status}
-              options={boxOptions}
+              options={boxStatusOptions(box.status)}
               onPick={changeStatus}
               onClose={() => setPickingBox(false)}
+              footer={<button className="link" onClick={() => { setPickingBox(false); setCorrecting(true) }}>Исправить ошибочный статус</button>}
             />
           ) : null}
+          {correcting ? <CorrectBoxStatusModal current={box.status} number={box.number} onSave={async (to, reason) => { await api.correctBoxStatus(pid, number, to, reason); card.reload() }} onClose={() => setCorrecting(false)} /> : null}
           {pickingItem ? (
             <StatusPickerModal
               title={`«${pickingItem.name}»`}

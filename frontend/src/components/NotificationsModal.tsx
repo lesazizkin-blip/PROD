@@ -5,6 +5,8 @@ import { useAsync } from '../state/useAsync'
 import { STATUS_LABELS, boxPath } from '../ui/format'
 import StateView from '../ui/StateView'
 import Modal from './Modal'
+import { useState } from 'react'
+import Pagination from '../ui/Pagination'
 
 const text = (v: unknown) => (typeof v === 'string' ? v : '')
 const status = (v: unknown) => STATUS_LABELS[v as keyof typeof STATUS_LABELS] ?? text(v)
@@ -33,10 +35,11 @@ const when = (iso: string) => new Date(iso).toLocaleString('ru-RU', { day: 'nume
 
 /** Колокольчик: коробки, которые ждут описи, и журнал важных событий проекта. */
 export default function NotificationsModal({ pid, reminders, onClose }: { pid: string | null; reminders: Reminder[]; onClose: () => void }) {
-  const events = useAsync(() => (pid ? api.events(pid, { page_size: 30 }) : Promise.resolve(null)), [pid])
+  const [page, setPage] = useState(1)
+  const events = useAsync(() => (pid ? api.events(pid, { page, page_size: 30 }) : Promise.resolve(null)), [pid, page])
   const list = events.data?.items ?? []
   return (
-    <Modal title="Уведомления" onClose={onClose}>
+    <Modal title="Уведомления" onClose={onClose} variant="drawer">
       {!pid ? <p className="muted">Сначала создайте проект.</p> : null}
       {reminders.length > 0 && pid ? (
         <section className="stack">
@@ -66,6 +69,7 @@ export default function NotificationsModal({ pid, reminders, onClose }: { pid: s
               ))}
             </ul>
           </StateView>
+          <Pagination page={page} pageSize={30} total={events.data?.total ?? 0} busy={events.loading} onChange={setPage} label="Страницы журнала" />
         </section>
       ) : null}
     </Modal>

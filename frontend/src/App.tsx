@@ -13,10 +13,13 @@ import InvitePage from './pages/InvitePage'
 import PlanPage from './pages/PlanPage'
 import PrintAllPage from './pages/PrintAllPage'
 import ProfilePage from './pages/ProfilePage'
+import ProjectsPage from './pages/ProjectsPage'
+import ProjectSettingsPage from './pages/ProjectSettingsPage'
 import ProgressPage from './pages/ProgressPage'
 import TipsPage from './pages/TipsPage'
 import BudgetPage from './features/journey/BudgetPage'
 import CalculatorPage from './features/journey/CalculatorPage'
+import MovingDayPage from './features/journey/MovingDayPage'
 import JourneyPage from './features/journey/JourneyPage'
 import { useAuth } from './state/AuthContext'
 
@@ -45,10 +48,10 @@ export default function App() {
   if (user === undefined) return <div className="state" role="status"><span className="spinner" /> Загрузка…</div>
   if (user === null) {
     // ссылка из QR или приглашение: вход на месте, адрес не меняется - после входа откроется та же страница
-    if (pathname.startsWith('/invite/') || pathname.startsWith('/projects/')) {
+    if (pathname.startsWith('/invite/') || pathname === '/projects' || pathname.startsWith('/projects/')) {
       const note = pathname.startsWith('/invite/')
         ? 'Вас пригласили в проект. Войдите или зарегистрируйтесь, чтобы присоединиться.'
-        : 'Войдите, чтобы открыть коробку.'
+        : pathname === '/projects' ? 'Войдите, чтобы открыть ваши проекты.' : pathname.endsWith('/settings') ? 'Войдите, чтобы открыть настройки проекта.' : 'Войдите, чтобы открыть коробку.'
       return <div className="workspace auth-page"><AuthPage note={note} /></div>
     }
     // гость попадает на страницу «О нас»; разделы просят сначала зарегистрироваться
@@ -56,6 +59,7 @@ export default function App() {
       <Routes>
         <Route element={<GuestShell />}>
           <Route path="auth" element={<AuthPage />} />
+          <Route path="calculator" element={<AuthPage note="Войдите, чтобы рассчитать переезд." />} />
           <Route path="journey" element={<JourneyPage />} />
           <Route path="*" element={<AboutPage />} />
         </Route>
@@ -74,9 +78,12 @@ export default function App() {
         <Route path="calculator" element={<CalculatorPage />} />
         <Route path="journey" element={<JourneyPage />} />
         <Route path="budget" element={<BudgetPage />} />
+        <Route path="moving-day" element={<MovingDayPage />} />
         <Route path="scan" element={<Suspense fallback={<div className="state" role="status">Загрузка…</div>}><ScanPage /></Suspense>} />
         <Route path="new" element={<NewProjectPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="projects" element={<ProjectsPage />} />
+        <Route path="projects/:pid/settings" element={<ProjectSettingsPage />} />
         <Route path="about" element={<AboutPage />} />
         <Route path="auth" element={<Navigate to="/" replace />} />
         <Route path="projects/:pid/boxes/:n" element={<BoxPage />} />

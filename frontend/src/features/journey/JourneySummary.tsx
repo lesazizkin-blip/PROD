@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Calculator, Wallet } from 'lucide-react'
+import { Calculator, Truck, Wallet } from 'lucide-react'
 import { api } from '../../api/endpoints'
 import type { Progress } from '../../api/types'
 import { useAsync } from '../../state/useAsync'
@@ -25,6 +25,7 @@ export default function JourneySummary({ pid, progress, lost }: { pid: string; p
         <div><b>{b ? rub(b.actual) : '…'}</b><span>{b && b.planned ? `потрачено из ${rub(b.planned)}` : 'бюджет не задан'}</span></div>
       </div>
       <div className="row wrap">
+        <Link to="/moving-day" className="button"><Truck className="icon-sm" aria-hidden />День переезда: погрузка и приёмка</Link>
         <Link to="/budget" className="button"><Wallet className="icon-sm" aria-hidden />Бюджет</Link>
         <Link to="/calculator" className="button"><Calculator className="icon-sm" aria-hidden />Калькулятор</Link>
       </div>

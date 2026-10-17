@@ -28,7 +28,7 @@ export default function ChecklistModal({ pid, onClose, onApplied }: { pid: strin
 
   const anyFlag = Object.values(flags).some(Boolean)
   const typicalCount = typical ? (templates.data?.length ?? 0) : 0
-  const total = (suggestion?.suggested_tasks.length ?? 0) + typicalCount
+  const total = (suggestion?.suggested_tasks.length ?? 0) + (suggestion?.suggested_first_day.length ?? 0) + typicalCount
 
   const finish = (message: string) => {
     setDone(message)
@@ -38,9 +38,14 @@ export default function ChecklistModal({ pid, onClose, onApplied }: { pid: strin
   const applyReady = () =>
     run(async () => {
       let tasks = 0
-      if (anyFlag) tasks += (await api.applyChecklist(pid, flags)).added_tasks
+      let firstDay = 0
+      if (anyFlag) {
+        const added = await api.applyChecklist(pid, flags)
+        tasks += added.added_tasks
+        firstDay = added.added_first_day
+      }
       if (typical) tasks += (await api.applyTemplates(pid)).added
-      finish(`Добавлено задач: ${tasks}. Уже имеющиеся не дублировались.`)
+      finish(`Добавлено задач: ${tasks}, пунктов первого дня: ${firstDay}. Уже имеющиеся не дублировались.`)
     })
 
   return (
@@ -86,6 +91,7 @@ export default function ChecklistModal({ pid, onClose, onApplied }: { pid: strin
                   <ul>{suggestion.suggested_tasks.map((t) => <li key={t.title}>{t.title} <span className="muted small">({STAGE_LABELS[t.stage]})</span></li>)}</ul>
                 </div>
               ) : null}
+              {suggestion.suggested_first_day.length > 0 ? <div><b>Подготовить на первый день</b><ul>{suggestion.suggested_first_day.map(title => <li key={title}>{title}</li>)}</ul></div> : null}
               <button className="primary" disabled={busy || total === 0} onClick={applyReady}>Добавить всё ({total})</button>
             </div>
           ) : (

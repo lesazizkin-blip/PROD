@@ -6,6 +6,7 @@ import { AuthProvider } from '../../state/AuthContext'
 import { ProjectProvider } from '../../state/ProjectContext'
 import BudgetPage from './BudgetPage'
 import CalculatorPage from './CalculatorPage'
+import MovingDayPage from './MovingDayPage'
 
 const me = vi.fn()
 const calculator = vi.fn()
@@ -62,6 +63,15 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('калькулятор', () => {
+  it('гость получает оценку и приглашение начать переезд', async () => {
+    me.mockRejectedValue(new Error('401'))
+    setup(<CalculatorPage />)
+    await userEvent.click(screen.getByRole('button', { name: 'Рассчитать' }))
+    expect(await screen.findByText('30 000 ₽ – 50 000 ₽')).toBeTruthy()
+    expect(calculator.mock.calls[0][0]).toMatchObject({ rooms: 2, people: 2, move_date: null })
+    expect(screen.getByRole('link', { name: /Начать переезд/ })).toBeTruthy()
+  })
+
   it('смета переносится в бюджет проекта серединой диапазона', async () => {
     setup(<CalculatorPage />)
     await screen.findByText('Калькулятор переезда')
@@ -79,5 +89,44 @@ describe('бюджет', () => {
     await userEvent.type(actual, '13500')
     fireEvent.blur(actual)
     await waitFor(() => expect(updateExpense).toHaveBeenCalledWith('p1', 7, { actual: 13500 }))
+  })
+})
+
+describe('день переезда', () => {
+  it('погрузка по номеру, счётчик и список того, что осталось', async () => {
+    setup(<MovingDayPage />)
+    expect(await screen.findByText('1 из 3')).toBeTruthy()
+    expect(screen.getByText('Осталось погрузить: 2')).toBeTruthy()
+    await userEvent.type(screen.getByLabelText('Номер коробки'), '003{Enter}')
+    await waitFor(() => expect(transition).toHaveBeenCalledWith('p1', 3, 'loaded'))
+    expect(await screen.findByText('2 из 3')).toBeTruthy()
+    // уже погруженная коробка не отправляется повторно, неизвестный номер - понятное сообщение
+    await userEvent.type(screen.getByLabelText('Номер коробки'), '2{Enter}')
+    expect(await screen.findByText('№ 2 (Спальня) уже погружена')).toBeTruthy()
+    await userEvent.type(screen.getByLabelText('Номер коробки'), '99{Enter}')
+    expect(await screen.findByText('Коробки № 99 нет в этом проекте')).toBeTruthy()
+    expect(transition).toHaveBeenCalledTimes(1)
+    // сервер принимает не больше 200 коробок на страницу
+    expect(boxesCall.mock.calls.every(([f]) => f.page_size <= 200)).toBe(true)
+  })
+
+  it('приёмка не пропускает погрузку при вводе номера вручную', async () => {
+    setup(<MovingDayPage />)
+    await screen.findByText('1 из 3')
+    await userEvent.click(screen.getByRole('tab', { name: 'Приёмка' }))
+    await userEvent.type(screen.getByLabelText('Номер коробки'), '1{Enter}')
+    expect(await screen.findByText('№ 1: сначала отметьте погрузку коробки')).toBeTruthy()
+    expect(transition).not.toHaveBeenCalled()
+    await userEvent.type(screen.getByLabelText('Номер коробки'), '2{Enter}')
+    await waitFor(() => expect(transition).toHaveBeenCalledWith('p1', 2, 'delivered'))
+    expect(await screen.findByText('1 из 3')).toBeTruthy()
+  })
+
+  it('приёмка считает то, что доехало', async () => {
+    setup(<MovingDayPage />)
+    await screen.findByText('1 из 3')
+    await userEvent.click(screen.getByRole('tab', { name: 'Приёмка' }))
+    expect(screen.getByText('0 из 3')).toBeTruthy()
+    expect(screen.getByText('Не хватает: 3')).toBeTruthy()
   })
 })
