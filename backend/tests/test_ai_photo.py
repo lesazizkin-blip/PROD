@@ -179,3 +179,30 @@ def test_photo_shares_hourly_limit_with_ai_plan(client, base, provider):
     url = f"{base}/boxes/{box['number']}/photo-inventory"
     assert client.post(url, json={"image": IMAGE, "consent": True}).status_code == 200
     assert client.post(url, json={"image": IMAGE, "consent": True}).status_code == 429
+
+
+def test_photos_use_the_vision_model_when_set(client, base, provider):
+    _, calls = provider
+    box = make_box(client, base)
+    url = f"{base}/boxes/{box['number']}/photo-inventory"
+    # без AI_VISION_MODEL фото идут в основную модель
+    assert client.post(url, json={"image": IMAGE, "consent": True}).status_code == 200
+    assert calls[-1]["model"] == "vision-model"
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        ai_api_key="test-server-secret",
+        ai_base_url="https://model.example/v1",
+        ai_model="text-model",
+        ai_vision_model="photo-model",
+    )
+    assert client.post(url, json={"image": IMAGE, "consent": True}).status_code == 200
+    assert calls[-1]["model"] == "photo-model"
+    # текстовые запросы (вопросы и план) остаются на основной модели
+    client.post(
+        "/api/projects/plan-questions",
+        json={
+            "description": "Переезжаем с кошкой в другой город",
+            "move_date": "2026-11-01",
+            "consent": True,
+        },
+    )
+    assert calls[-1]["model"] == "text-model"
