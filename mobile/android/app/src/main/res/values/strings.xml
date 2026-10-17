@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MoverMate</string>
+    <string name="title_activity_main">MoverMate</string>
+    <string name="package_name">ru.prod.movermate</string>
+    <string name="custom_url_scheme">ru.prod.movermate</string>
+</resources>

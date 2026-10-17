@@ -123,8 +123,20 @@ test-frontend:
   script:
     - cd frontend
     - npm ci
-    - npm test
+    - npm run test:ci
     - npm run build
+  # процент строк из text-summary vitest; отчёты: тесты в MR (junit) и покрытие строк в диффе (cobertura)
+  coverage: '/^Lines\s*:\s*(\d+(?:\.\d+)?)%/'
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - frontend/coverage/
+    reports:
+      junit: frontend/report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: frontend/coverage/cobertura-coverage.xml
 
 # ---------------------------------------------------------------- сборка образа (шаблон .dp_build)
 # Kaniko собирает корневой Dockerfile (сайт + сервер в одном образе) и публикует его в Spirit Registry.
@@ -171,7 +183,8 @@ setup:vm:
         chmod +x /tmp/dp && sudo mv /tmp/dp /usr/local/bin/dp )"
 
 # Отличие от шаблона: на ВМ уже работает стек Caddy (HTTPS) + app. Обновляем compose-файл и Caddyfile,
-# меняем образ app на собранный (APP_IMAGE) и перезапускаем только app. deploy/.env на ВМ не трогаем,
+# меняем образ app на собранный (APP_IMAGE) и перезапускаем только app. В deploy/.env на ВМ меняется только APP_IMAGE
+# (чтобы ручной `docker compose up` не поднял старый образ без новых миграций);
 # том с базой и том с сертификатами сохраняются. Перед перезапуском - копия базы в /root/backups
 # (deploy/backup.sh, онлайн-копия SQLite с проверкой), cron делает такие копии раз в час. Caddyfile примонтирован файлом: после копирования контейнер видит
 # старую версию, поэтому при изменении Caddy пересоздаётся (сертификаты в томе caddy-data сохраняются).
@@ -196,6 +209,7 @@ deploy:vm:
         rm -f spirit-sa-key.json &&
         sudo APP_IMAGE=$IMAGE_NAME docker compose pull app &&
         sudo APP_IMAGE=$IMAGE_NAME docker compose up -d --no-build &&
+        (grep -q '^APP_IMAGE=' .env && sed -i 's#^APP_IMAGE=.*#APP_IMAGE=$IMAGE_NAME#' .env || echo 'APP_IMAGE=$IMAGE_NAME' >> .env) &&
         (sudo docker compose exec -T caddy cat /etc/caddy/Caddyfile | cmp -s - Caddyfile ||
           sudo docker compose up -d --no-deps --force-recreate caddy) &&
         docker image prune -f >/dev/null"
