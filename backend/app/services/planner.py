@@ -134,19 +134,22 @@ def ensure_planner_configured(settings: Settings) -> None:
         )
 
 
-def chat_completion(settings: Settings, messages: list[dict], max_tokens: int) -> str:
+def chat_completion(
+    settings: Settings, messages: list[dict], max_tokens: int, model: str | None = None
+) -> str:
     """Один запрос к совместимому с Chat Completions провайдеру, ответ - JSON-текст модели.
     Без повторов и редиректов; тело запроса и ключ не журналируются. Общий для плана и фото-функций."""
     ensure_planner_configured(settings)
     payload = {
-        "model": settings.ai_model,
+        # своя модель у фото-функций (AI_VISION_MODEL), остальные - основная AI_MODEL
+        "model": model or settings.ai_model,
         "messages": messages,
         "response_format": {"type": "json_object"},
         "max_tokens": max_tokens,
     }
     # отдельный спан на вызов модели: в трейсе видно, сколько ждали AI и чем кончилось (без тела и ключа)
     with tracer.start_as_current_span("ai.chat_completion") as span:
-        span.set_attribute("gen_ai.request.model", settings.ai_model)
+        span.set_attribute("gen_ai.request.model", payload["model"])
         span.set_attribute("gen_ai.request.max_tokens", max_tokens)
         try:
             return _chat_request(settings, payload)

@@ -68,6 +68,8 @@ def _ask(settings: Settings, prompt: str, text: str, image: str, max_tokens: int
             },
         ],
         max_tokens=max_tokens,
+        # фото можно отдать отдельной модели (AI_VISION_MODEL); не задана - основная AI_MODEL
+        model=settings.ai_vision_model or None,
     )
 
 
