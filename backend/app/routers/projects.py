@@ -7,7 +7,7 @@ from app.db import get_db
 from app.deps import PageParams, get_current_user, get_owned_project, get_project
 from app.errors import ForbiddenError
 from app.models import Event, Project, User
-from app.planner_schemas import PlanRequest
+from app.planner_schemas import PlanQuestions, PlanRequest
 from app.routers.common import confirm_param
 from app.schemas import (
     AppliedTemplates,
@@ -28,7 +28,7 @@ from app.schemas import (
 )
 from app.services.ai_budget import reserve_attempt
 from app.services.auth import AuthService
-from app.services.planner import ensure_planner_configured, generate_plan
+from app.services.planner import ensure_planner_configured, generate_plan, generate_questions
 from app.services.projects import ProjectService
 from app.services.tasks import TaskService
 
@@ -36,9 +36,25 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 
 
 @router.post(
+    "/plan-questions",
+    response_model=PlanQuestions,
+    summary="Шаг 1 AI-плана: уточняющие вопросы с вариантами ответа (ответы - в plan-preview)",
+)
+def plan_questions(
+    body: PlanRequest,
+    user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+):
+    ensure_planner_configured(settings)
+    reserve_attempt(db, user.id, settings)
+    return generate_questions(body, settings)
+
+
+@router.post(
     "/plan-preview",
     response_model=PersonalPlan,
-    summary="Персональный AI-черновик до создания проекта",
+    summary="Персональный AI-черновик до создания проекта (шаг 2; answers - ответы на вопросы шага 1)",
 )
 def plan_preview(
     body: PlanRequest,
