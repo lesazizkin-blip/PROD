@@ -273,6 +273,11 @@ export interface ChecklistFlags {
   with_children: boolean
   with_pets: boolean
   other_city: boolean
+  // этапы полного пути переезда
+  renting: boolean
+  paperwork: boolean
+  declutter: boolean
+  settling: boolean
 }
 
 export interface ChecklistSuggestion {
@@ -305,4 +310,60 @@ export interface RoomBox {
 export interface RoomPlan {
   room: string
   boxes: RoomBox[]
+}
+
+/** Полный путь переезда: калькулятор и бюджет «план–факт» */
+export type ExpenseCategory = 'movers' | 'transport' | 'materials' | 'cleaning' | 'services' | 'rent' | 'other'
+
+export interface CalculatorIn {
+  rooms: number
+  people: number
+  distance_km: number
+  floor_from: number
+  floor_to: number
+  elevator_from: boolean
+  elevator_to: boolean
+  pets: boolean
+  piano: boolean
+  many_fragile: boolean
+  move_date?: string | null
+}
+
+export interface Range {
+  low: number
+  high: number
+}
+
+export interface CostLine {
+  category: ExpenseCategory
+  title: string
+  cost: Range
+}
+
+export interface CalculatorOut {
+  boxes: Range
+  volume_m3: Range
+  vehicle: string
+  movers: number
+  hours: Range
+  prep_weeks: number
+  costs: CostLine[]
+  total: Range
+  date_advice: string[]
+  assumptions: string
+}
+
+export interface Expense {
+  id: number
+  category: ExpenseCategory
+  title: string
+  planned: number
+  actual: number | null
+}
+
+export interface Budget {
+  items: Expense[]
+  planned: number
+  actual: number
+  variance: number
 }

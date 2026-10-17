@@ -1,0 +1,58 @@
+/* ---------- полный путь переезда: калькулятор, бюджет, «День X», итог ---------- */
+.calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.calc-flags { gap: 8px 18px; }
+.calc-flags label { font-weight: 400; }
+.journey .over { color: var(--danger); }
+.journey .under { color: var(--green); }
+
+.budget-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 120px 44px; gap: 10px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--border); }
+.budget-row:first-child { border-top: 0; }
+.budget-row .sub { display: block; color: var(--muted); font-size: .8rem; }
+.budget-row input { min-height: 40px; padding: 6px 8px; text-align: right; }
+.budget-row input.over { color: var(--danger); border-color: var(--danger); }
+.budget-head { font: 11px 'IBM Plex Mono', monospace; text-transform: uppercase; color: var(--muted); }
+.budget-head span:nth-child(2), .budget-head span:nth-child(3) { text-align: right; }
+.budget-add { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+@media (max-width: 640px) {
+  .budget-row { grid-template-columns: minmax(0, 1fr) 90px 90px 40px; padding: 10px; gap: 6px; }
+  .budget-add { grid-template-columns: 1fr; }
+}
+
+.day-x { align-items: flex-end; }
+.day-x__scan { display: grid; grid-template-columns: minmax(120px, 180px) auto; gap: 10px; align-items: end; background: var(--bg); padding: 14px; }
+.day-x__scan input { font: 28px 'IBM Plex Mono', monospace; text-align: center; }
+.day-x__feed { gap: 4px; font: 13px 'IBM Plex Mono', monospace; }
+.day-x__feed .ok { color: var(--green); }
+.day-x__feed .bad { color: var(--danger); }
+@media (max-width: 599px) { .day-x__scan { grid-template-columns: 1fr; } }
+
+.journey-summary__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+.journey-summary__grid > div { display: grid; gap: 4px; padding: 12px; background: var(--bg); }
+.journey-summary__grid b { font-size: 22px; }
+.journey-summary__grid span { color: var(--muted); font-size: .8rem; }
+.journey-summary .over { color: var(--danger); }
+
+/* путь переезда: 7 этапов */
+.journey-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.journey-step { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 16px; position: relative; padding-bottom: 18px; }
+.journey-step:not(:last-child)::before { content: ''; position: absolute; left: 27px; top: 52px; bottom: 0; width: 2px; background: var(--border); }
+.journey-step.done:not(:last-child)::before { background: var(--green); }
+.journey-step__n { width: 56px; height: 56px; display: grid; place-items: center; font: 18px 'IBM Plex Mono', monospace; background: var(--surface); border: 2px solid var(--border); }
+.journey-step.done .journey-step__n { background: var(--green); border-color: var(--green); color: var(--surface); }
+.journey-step.active .journey-step__n { border-color: var(--primary); color: var(--primary); }
+.journey-step.current .journey-step__n { background: var(--primary); color: var(--surface); }
+.journey-step__body { background: var(--surface); padding: 16px 18px; gap: 6px; }
+.journey-step.current .journey-step__body { box-shadow: inset 3px 0 0 var(--primary); }
+.journey-step__body h2 { margin: 0; font-size: 20px; }
+.journey-step__q { font-weight: 600; }
+.journey-step__detail { font: 12px 'IBM Plex Mono', monospace; color: var(--text); background: var(--bg); padding: 6px 8px; justify-self: start; }
+.journey-badge.done { color: var(--green); background: var(--pale); }
+.journey-badge.active { color: var(--primary); background: var(--primary-soft); }
+.journey-badge.current { color: var(--surface); background: var(--primary); }
+.journey-badge.todo { color: var(--muted); background: var(--bg); }
+@media (max-width: 599px) {
+  .journey-step { grid-template-columns: 40px minmax(0, 1fr); gap: 10px; }
+  .journey-step__n { width: 40px; height: 40px; font-size: 14px; }
+  .journey-step:not(:last-child)::before { left: 19px; top: 40px; }
+}
+.journey-link { justify-self: start; font-weight: 600; }

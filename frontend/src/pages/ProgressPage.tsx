@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { errorMessage } from '../api/client'
 import { api } from '../api/endpoints'
 import type { Hint, LostItem } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
 import Modal from '../components/Modal'
+import JourneySummary from '../features/journey/JourneySummary'
 import PageHeading from '../components/PageHeading'
 import RequireProject from '../components/RequireProject'
 import { useAction } from '../state/useAction'
@@ -51,6 +52,7 @@ function ProgressView({ pid }: { pid: string }) {
       {p ? (
         <>
           <ErrorAlert message={error} />
+          <JourneySummary pid={pid} progress={p} lost={lostList.length} />
 
           <div className="stat-grid">
             {BOX_STATUSES.map((s) => (
@@ -83,6 +85,7 @@ function ProgressView({ pid }: { pid: string }) {
             <span className="eyebrow accent">ДЕНЬ ПЕРЕЕЗДА</span>
             <h2>Перед закрытием<br />двери</h2>
             <p>Проверьте шкафы и балкон, снимите показания счётчиков, заберите документы и передайте ключи.</p>
+            <Link to="/moving-day" className="button dark">Погрузка и приёмка по номерам →</Link>
           </aside>
           </div>
           </div>

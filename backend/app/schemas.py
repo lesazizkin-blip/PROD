@@ -109,6 +109,108 @@ class PersonalPlan(BaseModel):
     first_day: list[Text200] = Field(default_factory=list, max_length=20)
 
 
+# ---------- полный путь переезда: калькулятор и бюджет ----------
+ExpenseCategory = Literal[
+    "movers", "transport", "materials", "cleaning", "services", "rent", "other"
+]
+
+
+class CalculatorIn(BaseModel):
+    """Параметры переезда для оценки. Ничего не сохраняется: калькулятор доступен и до регистрации."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "rooms": 2,
+                    "people": 3,
+                    "distance_km": 15,
+                    "floor_from": 5,
+                    "floor_to": 9,
+                    "elevator_from": True,
+                    "elevator_to": True,
+                    "pets": True,
+                    "piano": False,
+                    "many_fragile": True,
+                    "move_date": "2026-11-21",
+                }
+            ]
+        }
+    )
+    rooms: int = Field(ge=1, le=8, description="Жилых комнат (студия = 1)")
+    people: int = Field(default=2, ge=1, le=12)
+    distance_km: int = Field(default=10, ge=0, le=10_000)
+    floor_from: int = Field(default=1, ge=0, le=100)
+    floor_to: int = Field(default=1, ge=0, le=100)
+    elevator_from: bool = True
+    elevator_to: bool = True
+    pets: bool = False
+    piano: bool = False
+    many_fragile: bool = False
+    move_date: date | None = None
+
+
+class Range(BaseModel):
+    low: int
+    high: int
+
+
+class CostLine(BaseModel):
+    category: ExpenseCategory
+    title: str
+    cost: Range
+
+
+class CalculatorOut(BaseModel):
+    boxes: Range
+    volume_m3: Range
+    vehicle: str
+    movers: int
+    hours: Range
+    prep_weeks: int
+    costs: list[CostLine]
+    total: Range
+    date_advice: list[str]
+    assumptions: str
+
+
+class ExpenseIn(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [{"category": "movers", "title": "Грузчики, 2 человека", "planned": 12000}]
+        }
+    )
+    category: ExpenseCategory = "other"
+    title: Text120
+    planned: int = Field(default=0, ge=0, le=100_000_000)
+    actual: int | None = Field(default=None, ge=0, le=100_000_000)
+
+
+class ExpenseUpdate(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"actual": 13500}]})
+    category: ExpenseCategory | None = None
+    title: Text120 | None = None
+    planned: int | None = Field(default=None, ge=0, le=100_000_000)
+    actual: int | None = Field(default=None, ge=0, le=100_000_000)
+
+
+class ExpenseOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    category: str
+    title: str
+    planned: int
+    actual: int | None
+
+
+class BudgetOut(BaseModel):
+    items: list[ExpenseOut]
+    planned: int
+    actual: int
+    # отклонение факта от плана по статьям, где факт уже внесён (минус - сэкономили)
+    variance: int
+
+
 # ---------- фото-помощник (черновики модели, в проект попадают только после подтверждения) ----------
 class PhotoRequest(BaseModel):
     """Фото как data URL (сайт уменьшает его до 1280 px). consent - явное согласие отправить фото модели."""
@@ -637,12 +739,19 @@ class BulkTransitionOut(BaseModel):
 class ChecklistIn(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
-            "examples": [{"with_children": True, "with_pets": False, "other_city": True}]
+            "examples": [
+                {"with_children": True, "with_pets": False, "other_city": True, "renting": True}
+            ]
         }
     )
     with_children: bool = False
     with_pets: bool = False
     other_city: bool = False
+    # этапы полного пути переезда: новое жильё (аренда), документы, разбор вещей, обжиться
+    renting: bool = False
+    paperwork: bool = False
+    declutter: bool = False
+    settling: bool = False
 
 
 class SuggestedTask(BaseModel):

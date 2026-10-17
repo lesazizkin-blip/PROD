@@ -11,8 +11,8 @@ export interface AsyncState<T> {
 }
 
 /** Загрузка данных для экрана: состояния «загрузка / ошибка / данные» и повторная попытка. */
-export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], { refreshOnFocus = false } = {}): AsyncState<T> {
-  const [data, setData] = useState<T | null>(null)
+export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], { refreshOnFocus = false, initialData = null }: { refreshOnFocus?: boolean; initialData?: T | null } = {}): AsyncState<T> {
+  const [data, setData] = useState<T | null>(initialData)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)

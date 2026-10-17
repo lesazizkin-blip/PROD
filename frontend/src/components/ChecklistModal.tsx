@@ -11,18 +11,22 @@ const OPTIONS: { key: keyof ChecklistFlags; label: string }[] = [
   { key: 'with_children', label: 'Переезжаем с детьми' },
   { key: 'with_pets', label: 'Переезжаем с животными' },
   { key: 'other_city', label: 'Переезд в другой город' },
+  { key: 'renting', label: 'Снимаю или сдаю квартиру: осмотр и акт' },
+  { key: 'paperwork', label: 'Документы, договоры и смена адреса' },
+  { key: 'declutter', label: 'Разобрать вещи до упаковки' },
+  { key: 'settling', label: 'Обжиться после переезда' },
 ]
 
 /** Умный чек-лист: типовые задачи и готовые планы под особенности переезда (на правилах, без внешнего ИИ). */
 export default function ChecklistModal({ pid, onClose, onApplied }: { pid: string; onClose: () => void; onApplied: () => void }) {
-  const [flags, setFlags] = useState<ChecklistFlags>({ with_children: false, with_pets: false, other_city: false })
+  const [flags, setFlags] = useState<ChecklistFlags>({ with_children: false, with_pets: false, other_city: false, renting: false, paperwork: false, declutter: false, settling: false })
   const [typical, setTypical] = useState(false)
   const [suggestion, setSuggestion] = useState<ChecklistSuggestion | null>(null)
   const [done, setDone] = useState<string | null>(null)
   const templates = useAsync(() => api.taskTemplates(), [])
   const { busy, error, run } = useAction()
 
-  const anyFlag = flags.with_children || flags.with_pets || flags.other_city
+  const anyFlag = Object.values(flags).some(Boolean)
   const typicalCount = typical ? (templates.data?.length ?? 0) : 0
   const total = (suggestion?.suggested_tasks.length ?? 0) + typicalCount
 

@@ -19,11 +19,10 @@ import { formatDate, plural } from '../ui/format'
 // логин демо-входа для жюри: пароль у него сменить нельзя (сервер запрещает)
 const DEMO_LOGIN = 'demo'
 
-/** Личный кабинет: кто вошёл, мои проекты, настройки и участники выбранного проекта, пароль и выход.
- * Клик по проекту открывает его настройки здесь же; сам проект открывается только кнопкой с названием в шапке. */
+/** Project selection and settings live in the account, outside the main navigation. */
 export default function ProfilePage() {
   const { user, logout } = useAuth()
-  const { projects, currentId, reload, ready } = useProjects()
+  const { projects, currentId, select, reload, ready } = useProjects()
   const navigate = useNavigate()
   const [changingPassword, setChangingPassword] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -55,13 +54,11 @@ export default function ProfilePage() {
       <StateView loading={!ready} error={null}>
         <div className="project-grid">
           {projects.map((p) => (
-            <button
+            <article
               key={p.id}
               className={p.id === selected?.id ? 'project-card current' : 'project-card'}
-              aria-pressed={p.id === selected?.id}
-              aria-label={`Настройки проекта «${p.name}»`}
-              onClick={() => setSelectedId(p.id)}
             >
+              <button type="button" className="project-card__settings" aria-pressed={p.id === selected?.id} aria-label={`Настройки проекта «${p.name}»`} onClick={() => setSelectedId(p.id)}>
               <span className="project-card__name">{p.name}</span>
               <span className="muted small row">
                 <Calendar className="icon-sm" aria-hidden />
@@ -71,7 +68,11 @@ export default function ProfilePage() {
                 <span className={p.role === 'owner' ? 'badge role-owner' : 'badge role-member'}>{p.role === 'owner' ? 'Владелец' : 'Участник'}</span>
                 {p.id === currentId ? <span className="badge st-unpacked">Открыт сейчас</span> : null}
               </span>
-            </button>
+              </button>
+              <button type="button" className={p.id === currentId ? 'tonal' : 'primary'} aria-label={`${p.id === currentId ? 'Открыть' : 'Выбрать'} проект «${p.name}»`} onClick={() => { select(p.id); navigate('/') }}>
+                {p.id === currentId ? 'Открыть план' : 'Выбрать проект'}
+              </button>
+            </article>
           ))}
           <button className="project-card project-card--new" onClick={() => navigate('/new')}>
             <Plus className="icon" aria-hidden />
@@ -80,7 +81,7 @@ export default function ProfilePage() {
         </div>
       </StateView>
 
-      <p className="muted small">Нажмите на проект, чтобы открыть его настройки. Перейти к проекту можно кнопкой с его названием вверху.</p>
+      <p className="muted small">Нажмите на название, чтобы открыть настройки. Кнопка «Выбрать проект» переключает переезд и открывает его план.</p>
 
       {selected ? (
         <>

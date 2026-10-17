@@ -41,14 +41,28 @@ describe('личный кабинет', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Настройки проекта «Дача»' }))
     expect(await screen.findByText('Настройки проекта «Дача»')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Настройки проекта «Дача»' }).getAttribute('aria-pressed')).toBe('true')
-    // открытым остался прежний проект: переход к проекту только кнопкой в шапке
+    // Viewing settings does not switch the active project.
     expect(JSON.parse(localStorage.getItem('movermate.projects.v1') ?? '{}').currentId).toBe('p1')
+  })
+
+  it('выбирает проект в аккаунте и сохраняет выбор после повторного открытия', async () => {
+    myProjects.mockResolvedValue([
+      { id: 'p1', name: 'Переезд', move_date: '2026-11-01', role: 'owner' },
+      { id: 'p2', name: 'Дача', move_date: '2026-12-01', role: 'member' },
+    ])
+    setup()
+    await userEvent.click(await screen.findByRole('button', { name: 'Выбрать проект «Дача»' }))
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('movermate.projects.v1') ?? '{}').currentId).toBe('p2'))
+    cleanup()
+    setup()
+    expect(await screen.findByRole('button', { name: 'Открыть проект «Дача»' })).toBeTruthy()
+    expect(JSON.parse(localStorage.getItem('movermate.projects.v1') ?? '{}').currentId).toBe('p2')
   })
 
   it('показывает логин, проекты и кнопку смены пароля', async () => {
     setup()
     expect(await screen.findByRole('heading', { name: 'anna' })).toBeTruthy()
-    expect(await screen.findByRole('button', { name: /Переезд/ })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Настройки проекта «Переезд»' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Сменить пароль' })).toBeTruthy()
   })
 

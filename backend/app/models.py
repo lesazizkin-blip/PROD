@@ -189,6 +189,20 @@ class Item(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class Expense(Base):
+    """Статья бюджета переезда: план и факт в рублях (план - из калькулятора или вручную)."""
+
+    __tablename__ = "expenses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[uuid.UUID] = _fk("projects.id")
+    category: Mapped[str] = mapped_column(String(40))
+    title: Mapped[str] = mapped_column(String(120))
+    planned: Mapped[int] = mapped_column(Integer, default=0)
+    actual: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class FirstDayItem(Base):
     __tablename__ = "first_day_items"
 

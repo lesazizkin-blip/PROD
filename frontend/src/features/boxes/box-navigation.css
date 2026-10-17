@@ -1,0 +1,15 @@
+::view-transition-group(carton-zoom) {
+  animation-duration: 620ms;
+  animation-timing-function: cubic-bezier(.22, 1, .36, 1);
+  z-index: 2;
+}
+::view-transition-old(carton-zoom) { animation: carton-old 160ms ease-out both; mix-blend-mode: normal; height: 100%; }
+::view-transition-new(carton-zoom) { animation: carton-new 240ms ease-out both; mix-blend-mode: normal; height: 100%; }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+@keyframes carton-old { from { opacity: 1; } to { opacity: 0; } }
+@keyframes carton-new { from { opacity: 0; } to { opacity: 1; } }
+[data-box-path][aria-busy='true'] { cursor: progress; }
+[data-box-path][aria-busy='true'] .shelf-carton__action svg { opacity: .3; }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(carton-zoom), ::view-transition-old(carton-zoom), ::view-transition-new(carton-zoom) { animation: none !important; }
+}

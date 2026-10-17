@@ -1,4 +1,8 @@
-.recognition-page .recognition-modes { display: flex; flex-wrap: wrap; gap: 12px; margin-block: 16px; }
+.recognition-page { display: grid; gap: 24px; }
+.recognition-page .recognition-modes { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.recognition-modes button { min-height: var(--control-height); border-radius: var(--radius-control); font-size: var(--control-font); }
+.recognition-modes button[aria-pressed='true'] { background: var(--text); border-color: var(--text); color: var(--surface); opacity: 1; }
+.recognition-page .qr-camera-control { justify-self: start; min-height: var(--control-height); }
 .recognition-page .scanner { width: 100%; min-width: 0; overflow: hidden; }
 .recognition-page .scanner video { max-width: 100%; }
 .recognition-page .scanner[hidden] { display: none; }
@@ -7,7 +11,7 @@
 .recognition-crop-preview { position: relative; }
 .recognition-crop-preview > span { position: absolute; border: 3px solid #e96645; pointer-events: none; }
 .recognition-crop input[type=range] { width: 100%; }
-.recognition-page .heading-stripe { display: block; }
+.recognition-page .heading-stripe { display: none; }
 .recognition-page output { white-space: pre-wrap; overflow-wrap: anywhere; }
 .recognition-page input[type=file] { max-width: 100%; }
 .recognition-page .scan-stage button, .recognition-page .scan-stage input { color: #27251f; }

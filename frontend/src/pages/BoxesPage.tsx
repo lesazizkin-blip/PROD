@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { BookOpen, Camera } from 'lucide-react'
 import { api } from '../api/endpoints'
-import type { Box, RoomPlan } from '../api/types'
-import Modal from '../components/Modal'
+import type { RoomPlan } from '../api/types'
 import PhotoPicker from '../components/PhotoPicker'
-import BoxVolume from '../components/BoxVolume'
+import Modal from '../components/Modal'
+import BoxGrid from '../components/BoxShelf'
 import PageHeading from '../components/PageHeading'
 import RequireProject from '../components/RequireProject'
 import { useAction } from '../state/useAction'
@@ -14,26 +14,12 @@ import { useDebounced } from '../state/useDebounced'
 import ErrorAlert from '../ui/ErrorAlert'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
-import { roomStyle, roomTheme } from '../ui/roomTheme'
+import { roomStyle } from '../ui/roomTheme'
 import { STATUS_LABELS, boxPath, plural } from '../ui/format'
+import { BoxLink, useBoxNavigation } from '../features/boxes/BoxNavigation'
 
 export default function BoxesPage() {
-  return <RequireProject>{(pid) => <Boxes pid={pid} />}</RequireProject>
-}
-
-function BoxRow({ pid, box }: { pid: string; box: Box }) {
-  return (
-    <Link to={boxPath(pid, box.number)} className={`box-card ${box.status === 'packing' || box.status === 'unpacked' ? 'carton-open' : 'carton-sealed'}`} style={roomStyle(box.room)}>
-      <svg className="carton-lid" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"><path className="carton-back-flap" d="M12 39 L300 39 L307 12 L19 12 Z" /><path className="carton-mouth" d="M0 57 L12 39 L300 39 L288 57 Z" /><path className="carton-side-flap" d="M0 57 L12 39 L4 30 L-8 48 Z" /><path className="carton-side-flap" d="M288 57 L300 39 L312 46 L300 64 Z" /><path className="carton-front-flap" d="M0 57 L288 57 L282 66 L-6 66 Z" /><path className="carton-seal" d="M4 51 L292 51 L298 45 L10 45 Z" /></svg>
-      <BoxVolume status={box.status} />
-      <div className="box-card-header"><span className="box-number">{String(box.number).padStart(3, '0')}</span><StatusBadge status={box.status} /></div>
-      <h2>{box.room}</h2>
-      <p className="muted small">{box.items_count} {plural(box.items_count, ['вещь', 'вещи', 'вещей'])}{box.fill_later && box.items_count === 0 ? ' · заполнить позже' : ' · посмотреть содержимое →'}</p>
-      <span className="eyebrow muted">↑↑ ВЕРХ</span>
-      <img className="packing-tape" src={`/assets/${roomTheme(box.room).tape}`} alt="" />
-      <img className="packing-bars" src="/assets/packing-bars.svg" alt="" />
-    </Link>
-  )
+  return <RequireProject>{(pid) => <Boxes key={pid} pid={pid} />}</RequireProject>
 }
 
 /** Подсветка найденного фрагмента в названии вещи. */
@@ -43,26 +29,27 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return <>{text.slice(0, at)}<mark>{text.slice(at, at + query.length)}</mark>{text.slice(at + query.length)}</>
 }
 
-function BoxGrid({ pid, boxes }: { pid: string; boxes: Box[] }) {
-  return <div className="box-grid">
-    {Array.from({ length: Math.ceil(boxes.length / 3) }, (_, i) => <span className="rack-shelf" key={i} style={{ top: 290 + i * 320 }} aria-hidden="true" />)}
-    {boxes.map((box) => <BoxRow key={box.number} pid={pid} box={box} />)}
-  </div>
-}
-
 function Boxes({ pid }: { pid: string }) {
   const navigate = useNavigate()
-  const [query, setQuery] = useState('')
+  const navigation = useBoxNavigation()
+  const [saved] = useState(() => navigation.shelfView(pid))
+  const [query, setQuery] = useState(saved?.query ?? '')
   const q = useDebounced(query.trim())
-  const [room, setRoom] = useState<string | null>(null)
+  const [room, setRoom] = useState<string | null>(saved?.room ?? null)
   const [adding, setAdding] = useState(false)
   const [roomPhoto, setRoomPhoto] = useState(false)
 
-  const boxes = useAsync(() => api.boxes(pid, { page_size: 200 }), [pid], { refreshOnFocus: true })
-  const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 100 }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true })
+  const boxes = useAsync(() => api.boxes(pid, { page_size: 200 }), [pid], { refreshOnFocus: true, initialData: saved?.boxes })
+  const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 100 }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true, initialData: saved?.hits })
   // Поиск коробки по номеру: если запрос - число, показываем коробку с этим номером
-  const byNumber = useAsync(() => (/^\d+$/.test(q) ? api.boxes(pid, { number: Number(q) }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true })
+  const byNumber = useAsync(() => (/^\d+$/.test(q) ? api.boxes(pid, { number: Number(q) }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true, initialData: saved?.byNumber })
   const reminders = useAsync(() => api.reminders(pid), [pid], { refreshOnFocus: true })
+
+  useLayoutEffect(() => () => {
+    navigation.rememberShelf({ pid, query, room, scrollY: window.scrollY, boxes: boxes.data, hits: hits.data, byNumber: byNumber.data })
+  }, [pid, query, room, boxes.data, hits.data, byNumber.data, navigation])
+
+  useLayoutEffect(() => { window.scrollTo({ top: saved?.scrollY ?? 0, behavior: 'instant' }) }, [saved])
 
   const all = boxes.data?.items ?? []
   const rooms = Array.from(new Set(all.map((b) => b.room))).sort()
@@ -89,14 +76,14 @@ function Boxes({ pid }: { pid: string }) {
             {(hits.data?.items.length ?? 0) > 0 ? (
               <div className="card flush">
                 {hits.data?.items.map((h) => (
-                  <Link key={h.item_id} to={boxPath(pid, h.box_number)} className="list-row">
+                  <BoxLink key={h.item_id} pid={pid} number={h.box_number} sourceId={`item-${h.item_id}`} className="list-row">
                     <span aria-hidden>{h.lost ? '⚠️' : '🔎'}</span>
                     <span className="grow">
                       <b><Highlight text={h.name} query={q} /></b>
                       <span className="sub">Коробка № {h.box_number} · {h.room}</span>
                     </span>
                     <StatusBadge status={h.status} />
-                  </Link>
+                  </BoxLink>
                 ))}
               </div>
             ) : null}
@@ -107,7 +94,7 @@ function Boxes({ pid }: { pid: string }) {
           {waiting.length > 0 ? (
             <div className="banner">
               <span>Ждут описи содержимого: {waiting.map((r) => `№${r.box.number}`).join(', ')}</span>
-              <Link to={boxPath(pid, waiting[0].box.number)}>Открыть</Link>
+              <BoxLink pid={pid} number={waiting[0].box.number} sourceId="reminder">Открыть</BoxLink>
             </div>
           ) : null}
           {rooms.length > 1 ? (
