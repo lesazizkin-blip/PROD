@@ -36,4 +36,5 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=20s \
   CMD python -c "import urllib.request as u; u.urlopen('http://localhost:8000/api/health', timeout=2)"
 
 # Миграции применяются при каждом старте: схема БД всегда соответствует коду
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# --limit-concurrency: при наплыве лишние запросы сразу получают 503, а не копятся в памяти до падения
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --limit-concurrency 300"]

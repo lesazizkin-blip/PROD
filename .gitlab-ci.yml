@@ -197,10 +197,12 @@ deploy:vm:
   resource_group: production
   script:
     - $SSH $VM "mkdir -p $DEPLOY_DIR /root/backups"
-    - $SCP deploy/docker-compose.yml deploy/Caddyfile deploy/backup.sh $VM:$DEPLOY_DIR/
+    - $SCP deploy/docker-compose.yml deploy/Caddyfile deploy/backup.sh deploy/watchdog.sh $VM:$DEPLOY_DIR/
     - $SCP "$SPIRIT_DOCKER_SA_KEY" $VM:$DEPLOY_DIR/spirit-sa-key.json
     # копии базы каждый час (последние 48, с проверкой целостности) - deploy/backup.sh по cron
     - $SSH $VM "chmod +x $DEPLOY_DIR/backup.sh && echo '17 * * * * root $DEPLOY_DIR/backup.sh >> /var/log/movermate-backup.log 2>&1' | sudo tee /etc/cron.d/movermate-backup >/dev/null"
+    # сторож раз в минуту: поднимает упавший стек, перезапускает зависший app (deploy/watchdog.sh)
+    - $SSH $VM "chmod +x $DEPLOY_DIR/watchdog.sh && echo '* * * * * root $DEPLOY_DIR/watchdog.sh >> /var/log/movermate-watchdog.log 2>&1' | sudo tee /etc/cron.d/movermate-watchdog >/dev/null"
     - |
       $SSH $VM "set -e; cd $DEPLOY_DIR &&
         ($DEPLOY_DIR/backup.sh ci || true) &&

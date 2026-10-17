@@ -29,6 +29,7 @@ from app.routers import (
     reference,
 )
 from app.static_site import mount_site
+from app.throttle import WindowLimiter, client_ip
 from app.tracing import current_ids, setup_tracing
 
 settings = get_settings()
@@ -74,6 +75,39 @@ def _internal_error(request_id: str) -> JSONResponse:
         status_code=500,
         content={"detail": "Внутренняя ошибка", "code": "internal_error", "request_id": request_id},
     )
+
+
+api_limiter = WindowLimiter(settings.api_requests_per_minute, 60)
+register_limiter = WindowLimiter(settings.registrations_per_hour, 3600)
+
+
+# Защита от флуда. Объявлена до access_log, поэтому лежит внутри неё: отказ 429 попадает в журнал запросов.
+@app.middleware("http")
+async def throttle(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api/") and path != "/api/health":
+        ip = client_ip(request)
+        blocked = None
+        if api_limiter.limit and not api_limiter.hit(ip):
+            blocked = api_limiter
+        elif (
+            request.method == "POST"
+            and path == "/api/auth/register"
+            and register_limiter.limit
+            and not register_limiter.hit(ip)
+        ):
+            blocked = register_limiter
+        if blocked is not None:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "detail": "Слишком много запросов с вашего адреса. Подождите немного.",
+                    "code": "too_many_requests",
+                    "request_id": getattr(request.state, "request_id", None),
+                },
+                headers={"Retry-After": str(blocked.retry_after())},
+            )
+    return await call_next(request)
 
 
 # Порядок важен: эта прослойка добавлена РАНЬШЕ CORS, поэтому лежит внутри неё. Ответ 500, который она
