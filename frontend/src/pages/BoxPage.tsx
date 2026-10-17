@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Pencil, Plus, QrCode, Trash2 } from 'lucide-react'
-import { ITEM_STATUSES, type BoxStatus, type Item, type ItemStatus, type PhotoItem } from '../api/types'
+import { ArrowLeft, ArrowRightLeft, Pencil, Plus, QrCode, Trash2 } from 'lucide-react'
+import { type BoxStatus, type Item, type PhotoItem } from '../api/types'
 import { errorMessage } from '../api/client'
 import { api } from '../api/endpoints'
+import { readAllPages } from '../api/pagination'
 import Modal from '../components/Modal'
 import PhotoPicker from '../components/PhotoPicker'
-import StatusPickerModal, { type StatusOption } from '../components/StatusPickerModal'
+import StatusPickerModal from '../components/StatusPickerModal'
 import { boxStatusOptions } from '../components/statusOptions'
 import { useConfirm } from '../state/confirm'
 import CartonLid from '../components/CartonLid'
@@ -19,14 +20,7 @@ import ErrorAlert from '../ui/ErrorAlert'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
 import { roomStyle } from '../ui/roomTheme'
-import { ITEM_STATUS_HINTS, ITEM_STATUS_LABELS, labelPath, plural } from '../ui/format'
-
-const itemOptions: StatusOption<ItemStatus>[] = ITEM_STATUSES.map((s) => ({
-  value: s,
-  label: ITEM_STATUS_LABELS[s],
-  hint: ITEM_STATUS_HINTS[s],
-  badge: `it-${s}`,
-}))
+import { boxPath, labelPath, plural } from '../ui/format'
 
 // Карточка коробки. Сюда ведёт QR: /projects/{pid}/boxes/{n} (открытие только читает, дублей не создаёт).
 export default function BoxPage() {
@@ -66,25 +60,31 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
   }
   const confirm = useConfirm()
   const [itemError, setItemError] = useState<string | null>(null)
+  const itemRequests = useRef(new Set<number>())
+  const [pendingItems, setPendingItems] = useState<number[]>([])
 
   // Отметки у вещей срабатывают сразу на экране, запрос идёт следом; при ошибке карточка перечитывается.
-  // Кнопки при этом не блокируются, поэтому список не мигает и не показывает курсор «запрещено».
-  const optimistic = (apply: (items: Item[]) => Item[], request: () => Promise<unknown>) => {
+  // Для одной вещи ждём завершения запроса, чтобы быстрые повторные нажатия не меняли порядок отметок.
+  const optimistic = (apply: (items: Item[]) => Item[], request: () => Promise<unknown>, id: number) => {
+    if (itemRequests.current.has(id)) return
+    itemRequests.current.add(id)
+    setPendingItems([...itemRequests.current])
     setItemError(null)
     card.mutate((b) => (b ? { ...b, items: apply(b.items) } : b))
     request().catch((e) => {
       setItemError(errorMessage(e))
       card.reload()
-    })
+    }).finally(() => { itemRequests.current.delete(id); setPendingItems([...itemRequests.current]) })
   }
-  const patchItem = (id: number, patch: Partial<Pick<Item, 'first_day' | 'status'>>) =>
-    optimistic((items) => items.map((x) => (x.id === id ? { ...x, ...patch, lost: patch.status ? patch.status === 'lost' : x.lost } : x)), () => api.updateItem(pid, id, patch))
+  const patchItem = (id: number, patch: Partial<Pick<Item, 'first_day' | 'lost' | 'damaged'>>) =>
+    optimistic((items) => items.map((x) => (x.id === id ? { ...x, ...patch, lost: patch.lost ?? x.lost } : x)), () => api.updateItem(pid, id, patch), id)
   const removeItem = (id: number) =>
-    optimistic((items) => items.filter((x) => x.id !== id), () => api.deleteItem(pid, id))
+    optimistic((items) => items.filter((x) => x.id !== id), () => api.deleteItem(pid, id), id)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
   const [pickingBox, setPickingBox] = useState(false)
-  const [pickingItem, setPickingItem] = useState<Item | null>(null)
+  const [movingItem, setMovingItem] = useState<Item | null>(null)
+  const [movedTo, setMovedTo] = useState<{ name: string; number: number } | null>(null)
 
   // Открыли коробку по QR из другого проекта: переключаем вкладки на него, чтобы «Коробки» и «План» были про ту же коробку
   useEffect(() => {
@@ -137,6 +137,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
           <ErrorAlert message={error} />
           <section className="box-manifest" aria-labelledby="manifest-heading">
           <ErrorAlert message={itemError} />
+          {movedTo ? <p role="status">«{movedTo.name}» переложена в <Link to={boxPath(pid, movedTo.number)}>коробку № {movedTo.number}</Link>.</p> : null}
           <h2 id="manifest-heading">Содержимое <span>({box.items.length})</span></h2>
           {box.items.length === 0 ? <p className="muted">Пока пусто. Добавьте вещи кнопкой «+ Вещи».</p> : null}
           {box.items.length > 0 ? (
@@ -145,24 +146,21 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
                 <div key={item.id} className="manifest-item">
                   <span className="manifest-item__description">
                     <b>{item.name}</b>
-                    {item.lost ? <span className="sub">Ищите в нераспакованных коробках: подсказки на «Прогрессе»</span> : null}
+                    {item.lost ? <span className="sub">Не могу найти. Подсказки — на «Прогрессе».</span> : null}
                   </span>
                   <div className="manifest-item__tools">
                   <button
                     className={item.first_day ? 'chip-toggle on' : 'chip-toggle'}
+                    disabled={pendingItems.includes(item.id)}
                     aria-pressed={item.first_day}
                     title="Понадобится в первый день на новом месте"
                     onClick={() => patchItem(item.id, { first_day: !item.first_day })}
                   >
                     {item.first_day ? '✓ ' : ''}Первый день
                   </button>
-                  <button
-                    className={`badge-button badge it-${item.status}`}
-                    aria-label={`Статус «${item.name}»: ${ITEM_STATUS_LABELS[item.status]}. Изменить`}
-                    onClick={() => setPickingItem(item)}
-                  >
-                    {ITEM_STATUS_LABELS[item.status]} ▾
-                  </button>
+                  <button className={item.lost ? 'chip-toggle on' : 'chip-toggle'} disabled={pendingItems.includes(item.id)} aria-pressed={item.lost} onClick={() => patchItem(item.id, { lost: !item.lost })} aria-label={`${item.lost ? 'Нашлась' : 'Не могу найти'}: ${item.name}`}>{item.lost ? 'Нашлась' : 'Не могу найти'}</button>
+                  <button className={item.damaged ? 'chip-toggle on' : 'chip-toggle'} disabled={pendingItems.includes(item.id)} aria-pressed={!!item.damaged} onClick={() => patchItem(item.id, { damaged: !item.damaged })} aria-label={`Повреждена: ${item.name}`}>Повреждена</button>
+                  <button className="link small item-move" disabled={pendingItems.includes(item.id)} onClick={() => setMovingItem(item)} aria-label={`Переложить «${item.name}»`}><ArrowRightLeft className="icon-sm" aria-hidden />Переложить</button>
                   <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={async () => { if (await confirm({ title: `Удалить «${item.name}»?`, message: 'Вещь пропадёт из коробки и из поиска.' })) removeItem(item.id) }}><Trash2 className="icon-sm" aria-hidden /></button>
                   </div>
                 </div>
@@ -195,15 +193,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
               onClose={() => setPickingBox(false)}
             />
           ) : null}
-          {pickingItem ? (
-            <StatusPickerModal
-              title={`«${pickingItem.name}»`}
-              current={pickingItem.status}
-              options={itemOptions}
-              onPick={async (status) => { patchItem(pickingItem.id, { status }) }}
-              onClose={() => setPickingItem(null)}
-            />
-          ) : null}
+          {movingItem ? <MoveItemModal pid={pid} from={number} item={movingItem} onClose={() => setMovingItem(null)} onMoved={target => { setMovedTo({ name: movingItem.name, number: target }); setMovingItem(null); card.reload() }} /> : null}
           {adding ? (
             <AddItemsModal
               onClose={() => setAdding(false)}
@@ -291,4 +281,27 @@ function EditBoxModal({ room: initialRoom, fillLater, onClose, onSave }: { room:
       </form>
     </Modal>
   )
+}
+
+
+function MoveItemModal({ pid, from, item, onClose, onMoved }: { pid: string; from: number; item: Item; onClose: () => void; onMoved: (number: number) => void }) {
+  const boxes = useAsync(() => readAllPages(page => api.boxes(pid, { page, page_size: 200 })), [pid])
+  const [target, setTarget] = useState('')
+  const [query, setQuery] = useState('')
+  const { busy, error, submit } = useAction()
+  const choices = boxes.data?.filter(box => box.number !== from) ?? []
+  const visible = choices.filter(box => `${box.number} ${box.room}`.toLowerCase().includes(query.trim().toLowerCase()))
+  return <Modal title={`Переложить «${item.name}»`} onClose={onClose}>
+    <form className="stack" onSubmit={submit(async () => { await api.moveItem(pid, item.id, from, Number(target)); onMoved(Number(target)) })}>
+      <p className="muted small">Из коробки № {from}. Отметка первого дня и отметки о вещи сохранятся.</p>
+      {choices.length > 10 ? <label>Найти коробку<input type="search" value={query} onChange={e => { setQuery(e.target.value); setTarget('') }} placeholder="Номер или комната" /></label> : null}
+      <label>В какую коробку<select value={target} onChange={e => setTarget(e.target.value)} disabled={busy || boxes.loading} data-autofocus><option value="">Выберите коробку</option>{visible.map(box => <option key={box.number} value={box.number}>№ {box.number} · {box.room}</option>)}</select></label>
+      {boxes.loading ? <p role="status">Загружаем коробки…</p> : null}
+      {boxes.data && !choices.length ? <p>Других коробок пока нет. <Link to="/boxes">Добавить коробку</Link></p> : null}
+      {choices.length > 0 && !visible.length ? <p>По этому запросу коробок нет.</p> : null}
+      <ErrorAlert message={error ?? boxes.error} />
+      {boxes.error ? <button type="button" onClick={boxes.reload}>Повторить загрузку</button> : null}
+      <button className="primary" disabled={busy || !target || boxes.loading}>Переложить</button>
+    </form>
+  </Modal>
 }

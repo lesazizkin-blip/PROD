@@ -141,3 +141,11 @@ group="hack-led-20" system="movermate" trace_id="<trace_id>"
 Чтобы снова брать интерфейс из образа, после проверки его сборки уберите только это подключение `site` из override и пересоздайте `app`. Производственные override и `.env` хранятся на ВМ; резервная копия перед восстановлением — `/root/movermate-ui-restore`, памятка — `/opt/movermate-ui/README.txt`.
 
 18 октября: frontend обновлён до `f48d2cc` — исправление статуса без ручного ввода причины, печать этикеток без отдельной кнопки предпросмотра, QR-сканер и ручной ввод без распознавания рукописи. Активный mount в override: `/opt/movermate-ui/f48d2cc/site:/app/site:ro`. Серверный образ продолжает обновляться из Spirit; фактические образ и путь интерфейса проверяйте через `docker inspect deploy-app-1`.
+
+### Согласованный релиз описи и переноса вещей: 894a21b
+
+Активный production-релиз: `registry.spirit.t-education.com/hack-led-20/prod_1:inventory-894a21b` (digest `sha256:376f5434a9b0e279251ab2bb658d9bc381280bd5c1a418633622902ca119c183`). Базовый серверный образ Spirit — `d7b93a08`; поверх него добавлены изменения описи/переноса из GitHub `894a21b`, миграция `0010_item_damage` и собранный frontend. Полный Dockerfile и контекст сборки сохранены на ВМ в `/opt/movermate-builds/inventory-894a21b`. Образ опубликован в существующем Spirit registry, его можно подтянуть обычным `docker compose pull app`.
+
+В production override теперь закреплены **образ app и интерфейс** `/opt/movermate-ui/894a21b/site:/app/site:ro`. Это сохраняет совместимость API, схемы базы и UI при независимых деплоях Spirit. Для следующего согласованного релиза необходимо явно обновить `image` и путь `site` в `/opt/movermate/deploy/docker-compose.override.yml`, а также `APP_IMAGE` в `.env`; затем пересоздать только app. Сначала проверьте миграции и запуск на копии базы. Старый образ без `0010_item_damage` не является совместимым откатом для новой базы.
+
+Перед выкладкой проверена копия production-базы: все исходные записи сохранены, две старые отметки `status=damaged` перенесены в независимый признак. Копии до и после: `/root/movermate-inventory-backup`. Исходники production backend, миграции и frontend в `/opt/movermate` синхронизированы с релизом. Экспериментальные локальные серверы и worktree не являются источником production-образа без проверки этого override.

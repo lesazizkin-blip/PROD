@@ -23,4 +23,8 @@ describe('уведомления: человеческий текст вмест
     const text = describeEvent(ev('something.new'))
     expect(text).not.toContain('.')
   })
+  it('перенос вещи и отметка о повреждении', () => {
+    expect(describeEvent(ev('item.moved', { name: 'Чайник', from_box: 2, to_box: 5 }))).toBe('«Чайник» переложили из коробки № 2 в № 5')
+    expect(describeEvent(ev('item.damage_changed', { name: 'Ваза', damaged: true }))).toBe('Отмечено повреждение: «Ваза»')
+  })
 })
