@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
 import { ITEM_STATUSES, type BoxStatus, type Item, type ItemStatus } from '../api/types'
+import { errorMessage } from '../api/client'
 import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
 import StatusPickerModal, { type StatusOption } from '../components/StatusPickerModal'
@@ -62,6 +63,22 @@ export default function BoxPage() {
     }
   }
   const confirm = useConfirm()
+  const [itemError, setItemError] = useState<string | null>(null)
+
+  // Отметки у вещей срабатывают сразу на экране, запрос идёт следом; при ошибке карточка перечитывается.
+  // Кнопки при этом не блокируются, поэтому список не мигает и не показывает курсор «запрещено».
+  const optimistic = (apply: (items: Item[]) => Item[], request: () => Promise<unknown>) => {
+    setItemError(null)
+    card.mutate((b) => (b ? { ...b, items: apply(b.items) } : b))
+    request().catch((e) => {
+      setItemError(errorMessage(e))
+      card.reload()
+    })
+  }
+  const patchItem = (id: number, patch: Partial<Pick<Item, 'first_day' | 'status'>>) =>
+    optimistic((items) => items.map((x) => (x.id === id ? { ...x, ...patch, lost: patch.status ? patch.status === 'lost' : x.lost } : x)), () => api.updateItem(pid, id, patch))
+  const removeItem = (id: number) =>
+    optimistic((items) => items.filter((x) => x.id !== id), () => api.deleteItem(pid, id))
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
   const [pickingBox, setPickingBox] = useState(false)
@@ -117,6 +134,7 @@ export default function BoxPage() {
             <p className="paper-note">Подпишите коробку с двух сторон — так её проще найти в стопке.</p>
           </aside>
           <section className="box-contents stack">
+          <ErrorAlert message={itemError} />
           <SectionTitle>{`Содержимое (${box.items.length})`}</SectionTitle>
           {box.items.length === 0 ? <p className="muted">Пока пусто. Добавьте вещи кнопкой «+ Вещи».</p> : null}
           {box.items.length > 0 ? (
@@ -130,21 +148,19 @@ export default function BoxPage() {
                   <button
                     className={item.first_day ? 'chip-toggle on' : 'chip-toggle'}
                     aria-pressed={item.first_day}
-                    disabled={busy}
                     title="Понадобится в первый день на новом месте"
-                    onClick={() => run(() => api.updateItem(pid, item.id, { first_day: !item.first_day }))}
+                    onClick={() => patchItem(item.id, { first_day: !item.first_day })}
                   >
                     {item.first_day ? '✓ ' : ''}Первый день
                   </button>
                   <button
                     className={`badge-button badge it-${item.status}`}
-                    disabled={busy}
                     aria-label={`Статус «${item.name}»: ${ITEM_STATUS_LABELS[item.status]}. Изменить`}
                     onClick={() => setPickingItem(item)}
                   >
                     {ITEM_STATUS_LABELS[item.status]} ▾
                   </button>
-                  <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={async () => { if (await confirm({ title: `Удалить «${item.name}»?`, message: 'Вещь пропадёт из коробки и из поиска.' })) void run(() => api.deleteItem(pid, item.id)) }}><Trash2 className="icon-sm" aria-hidden /></button>
+                  <button className="link small" aria-label={`Удалить «${item.name}»`} onClick={async () => { if (await confirm({ title: `Удалить «${item.name}»?`, message: 'Вещь пропадёт из коробки и из поиска.' })) removeItem(item.id) }}><Trash2 className="icon-sm" aria-hidden /></button>
                 </div>
               ))}
               <button className="list-row add-row" onClick={() => setAdding(true)}><Plus className="icon-sm" aria-hidden />Добавить вещи</button>
@@ -170,7 +186,7 @@ export default function BoxPage() {
               title={`«${pickingItem.name}»`}
               current={pickingItem.status}
               options={itemOptions}
-              onPick={async (status) => { await api.updateItem(pid, pickingItem.id, { status }); card.reload() }}
+              onPick={async (status) => { patchItem(pickingItem.id, { status }) }}
               onClose={() => setPickingItem(null)}
             />
           ) : null}
