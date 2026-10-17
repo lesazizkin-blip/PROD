@@ -157,7 +157,12 @@ export default function CalculatorPage() {
             <Link to="/auth?mode=register" className="button primary">Начать переезд: план, коробки и бюджет</Link>
           ) : currentId ? (
             <button className="primary" disabled={toBudget.busy} onClick={() => toBudget.run(async () => {
-              for (const c of result.costs) await api.addExpense(currentId, { category: c.category, title: c.title, planned: mid(c.cost) })
+              // повторный перенос не удваивает бюджет: статьи с тем же названием уже есть
+              const key = (t: string) => t.trim().toLocaleLowerCase('ru-RU')
+              const have = new Set((await api.budget(currentId)).items.map((e) => key(e.title)))
+              for (const c of result.costs) {
+                if (!have.has(key(c.title))) await api.addExpense(currentId, { category: c.category, title: c.title, planned: mid(c.cost) })
+              }
               navigate('/budget')
             })}>
               {toBudget.busy ? 'Переносим…' : `Перенести смету в бюджет проекта (${rub(result.costs.reduce((s, c) => s + mid(c.cost), 0))})`}

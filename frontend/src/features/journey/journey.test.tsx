@@ -14,6 +14,7 @@ const addExpense = vi.fn()
 const updateExpense = vi.fn()
 const transition = vi.fn()
 const boxesCall = vi.fn()
+const budget = vi.fn()
 const ESTIMATE = {
   boxes: { low: 40, high: 60 }, volume_m3: { low: 12, high: 18 }, vehicle: 'Грузовик 18–20 м³', movers: 3,
   hours: { low: 4, high: 6 }, prep_weeks: 3, total: { low: 30000, high: 50000 },
@@ -38,10 +39,7 @@ vi.mock('../../api/endpoints', () => ({
     addExpense: (...a: unknown[]) => addExpense(...a),
     updateExpense: (...a: unknown[]) => updateExpense(...a),
     deleteExpense: () => Promise.resolve(),
-    budget: () => Promise.resolve({
-      items: [{ id: 7, category: 'movers', title: 'Грузчики', planned: 12000, actual: null }],
-      planned: 12000, actual: 0, variance: 0,
-    }),
+    budget: () => budget(),
     boxes: (_pid: string, filters: { page_size?: number }) => {
       boxesCall(filters)
       return Promise.resolve({ items: BOXES, total: 3, page: 1, page_size: filters.page_size })
@@ -58,6 +56,10 @@ beforeEach(() => {
   me.mockResolvedValue({ id: 1, username: 'anna' })
   calculator.mockReset().mockResolvedValue(ESTIMATE)
   addExpense.mockReset().mockResolvedValue({})
+  budget.mockReset().mockResolvedValue({
+    items: [{ id: 7, category: 'movers', title: 'Грузчики', planned: 12000, actual: null }],
+    planned: 12000, actual: 0, variance: 0,
+  })
   updateExpense.mockReset().mockResolvedValue({})
   transition.mockReset().mockResolvedValue({})
 })
@@ -94,6 +96,19 @@ describe('калькулятор', () => {
     await userEvent.click(await screen.findByRole('button', { name: /Перенести смету в бюджет/ }))
     await waitFor(() => expect(addExpense).toHaveBeenCalledTimes(2))
     expect(addExpense.mock.calls[0]).toEqual(['p1', { category: 'movers', title: 'Грузчики: 3 чел.', planned: 15000 }])
+  })
+
+  it('повторный перенос сметы не удваивает бюджет', async () => {
+    budget.mockResolvedValue({
+      items: [{ id: 8, category: 'movers', title: 'Грузчики: 3 чел.', planned: 15000, actual: null }],
+      planned: 15000, actual: 0, variance: 0,
+    })
+    setup(<CalculatorPage />)
+    await screen.findByText('Калькулятор переезда')
+    await userEvent.click(screen.getByRole('button', { name: 'Рассчитать' }))
+    await userEvent.click(await screen.findByRole('button', { name: /Перенести смету в бюджет/ }))
+    await waitFor(() => expect(addExpense).toHaveBeenCalledTimes(1))
+    expect(addExpense.mock.calls[0][1]).toMatchObject({ title: 'Коробки' })
   })
 })
 
