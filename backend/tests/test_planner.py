@@ -125,6 +125,20 @@ def test_preview_is_private_draft_not_database_mutation(client, provider, db_ses
     assert "test-server-secret" not in response.text
 
 
+def test_spirit_chat_completions_profile(client, provider):
+    provider[2].ai_base_url = "https://llm-proxy.spirit.t-education.com"
+    provider[2].ai_model = "openrouter/google/gemini-3.1-flash-lite"
+    response = client.post("/api/projects/plan-preview", json=BODY)
+    assert response.status_code == 200
+    request = provider[1][0]
+    assert str(request.url) == "https://llm-proxy.spirit.t-education.com/chat/completions"
+    assert request.headers["authorization"] == "Bearer test-server-secret"
+    payload = json.loads(request.content)
+    assert payload["model"] == "openrouter/google/gemini-3.1-flash-lite"
+    assert payload["response_format"] == {"type": "json_object"}
+    assert payload["max_tokens"] == 3000
+
+
 @pytest.mark.parametrize(
     "content",
     [
