@@ -17,6 +17,7 @@ from app.schemas import BoxCreate, BoxStatus, ItemStatus, ProjectCreate, TaskUpd
 from app.security import hash_password
 from app.services.auth import AuthService
 from app.services.boxes import BoxService
+from app.services.extras import LostService
 from app.services.projects import ProjectService
 from app.services.tasks import TaskService
 
@@ -53,6 +54,17 @@ def _advance(svc: BoxService, pid: uuid.UUID, number: int, target: str) -> None:
             return
 
 
+def _keep_demo_lost_item(db) -> None:
+    """Демо общее: если кто-то отметил вещь найденной, при следующем старте снова показываем потерянную
+    (иначе жюри не увидит подсказки «где искать», а проверка прода после выкатки упадёт)."""
+    svc = BoxService(db)
+    if LostService(db).lost_items(DEMO_ID):
+        return
+    hits = svc.search(DEMO_ID, "Зарядки", 0, 1)[0]
+    if hits:
+        svc.update_item(DEMO_ID, hits[0].item_id, None, ItemStatus.LOST)
+
+
 def run(load: bool = False) -> None:
     with SessionLocal() as db:
         ensure_reference_data(db)
@@ -81,9 +93,8 @@ def run(load: bool = False) -> None:
             svc.create(
                 project.id, BoxCreate(room="Кабинет", fill_later=True)
             )  # покажет напоминание об описи
-            lost = svc.search(project.id, "Зарядки", 0, 1)[0][0]
-            svc.update_item(project.id, lost.item_id, None, ItemStatus.LOST)
             print(f"Демо-проект: {DEMO_ID}")
+        _keep_demo_lost_item(db)
         # демо-проект мог появиться раньше аккаунтов: отдаём его демо-аккаунту
         AuthService(db).add_member(DEMO_ID, demo.id, "owner")
         db.commit()
