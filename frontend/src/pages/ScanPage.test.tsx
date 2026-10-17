@@ -49,6 +49,17 @@ beforeEach(() => {
 afterEach(async () => { cleanup(); await act(async () => { await Promise.resolve() }); vi.unstubAllGlobals() })
 
 describe('сканер: настоящие callbacks, тестовые camera/API adapters', () => {
+  it('отделяет выбор QR от управления камерой и освобождает поток на паузе', async () => {
+    render(<ScanPage />); await ready()
+    expect(screen.getByRole('button', { name: 'QR-код' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'QR-код' }).hasAttribute('disabled')).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Приостановить камеру' }))
+    await waitFor(() => expect(h.stop).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('status').textContent).toContain('приостановлена')
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить сканирование' }))
+    await ready()
+    expect(h.start).toHaveBeenCalledTimes(2)
+  })
   it('без проекта принимает старый QR и только один callback', async () => {
     h.pid = null
     render(<StrictMode><ScanPage /></StrictMode>); await ready()
@@ -84,7 +95,7 @@ describe('сканер: настоящие callbacks, тестовые camera/AP
     h.getBox.mockRejectedValueOnce(failure)
     render(<ScanPage />); await ready(); scan(url)
     await screen.findByText(new RegExp(message)); expect(h.navigate).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Запустить QR снова' })); await ready(); scan(url)
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить сканирование' })); await ready(); scan(url)
     await waitFor(() => expect(h.navigate).toHaveBeenCalledTimes(1))
   })
   it('сохраняет адрес старого QR при 401 для входа', async () => {
@@ -95,7 +106,7 @@ describe('сканер: настоящие callbacks, тестовые camera/AP
   it('отказ камеры и повторное разрешение', async () => {
     h.start.mockRejectedValueOnce(new DOMException('Denied', 'NotAllowedError'))
     render(<ScanPage />); await screen.findByText(/Доступ к камере запрещён/)
-    fireEvent.click(screen.getByRole('button', { name: 'Запустить QR снова' })); await ready()
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить запуск камеры' })); await ready()
     expect(h.start).toHaveBeenCalledTimes(2)
   })
   it('уход во время старта освобождает поток до следующего старта', async () => {
@@ -136,7 +147,7 @@ describe('сканер: настоящие callbacks, тестовые camera/AP
     Object.defineProperty(document, 'hidden', { configurable: true, value: false })
     fireEvent(document, new Event('visibilitychange'))
     expect(h.start).toHaveBeenCalledTimes(1)
-    fireEvent.click(screen.getByRole('button', { name: 'Запустить QR снова' })); await ready()
+    fireEvent.click(screen.getByRole('button', { name: 'Продолжить сканирование' })); await ready()
     expect(h.start).toHaveBeenCalledTimes(2)
   })
   it('ручной #001 проверяет текущий проект, мусор отклоняется', async () => {

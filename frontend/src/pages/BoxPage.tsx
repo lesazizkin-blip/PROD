@@ -1,23 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Plus, QrCode, Trash2 } from 'lucide-react'
 import { ITEM_STATUSES, type BoxStatus, type Item, type ItemStatus } from '../api/types'
 import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
 import StatusPickerModal, { type StatusOption } from '../components/StatusPickerModal'
 import { boxStatusOptions } from '../components/statusOptions'
 import { useConfirm } from '../state/confirm'
-import BoxVolume from '../components/BoxVolume'
-import PageHeading from '../components/PageHeading'
+import CartonLid from '../components/CartonLid'
+import { useBoxNavigation } from '../features/boxes/BoxNavigation'
+import '../features/boxes/box-workspace.css'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
-import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
 import { roomStyle } from '../ui/roomTheme'
-import { ITEM_STATUS_HINTS, ITEM_STATUS_LABELS, STATUS_LABELS, labelPath, plural } from '../ui/format'
+import { ITEM_STATUS_HINTS, ITEM_STATUS_LABELS, labelPath, plural } from '../ui/format'
 
 // Варианты статуса коробки: любой, шаги можно пропускать и возвращаться
 const boxOptions = boxStatusOptions()
@@ -32,11 +32,15 @@ const itemOptions: StatusOption<ItemStatus>[] = ITEM_STATUSES.map((s) => ({
 // Карточка коробки. Сюда ведёт QR: /projects/{pid}/boxes/{n} (открытие только читает, дублей не создаёт).
 export default function BoxPage() {
   const { pid = '', n = '' } = useParams()
-  const number = Number(n)
+  return <BoxWorkspace key={`${pid}/${n}`} pid={pid} number={Number(n)} />
+}
+
+function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
   const navigate = useNavigate()
+  const navigation = useBoxNavigation()
   const { projects, currentId, select } = useProjects()
   const valid = pid !== '' && Number.isInteger(number) && number >= 1
-  const card = useAsync(() => (valid ? api.getBox(pid, number) : Promise.reject(new Error('Некорректная ссылка на коробку'))), [pid, number], { refreshOnFocus: true })
+  const card = useAsync(() => (valid ? api.getBox(pid, number) : Promise.reject(new Error('Некорректная ссылка на коробку'))), [pid, number], { refreshOnFocus: true, initialData: navigation.cardSeed(pid, number) })
   const { busy: actionBusy, error, run } = useAction(() => card.reload())
   const [packingAnimation, setPackingAnimation] = useState(false)
   const animationTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -84,49 +88,49 @@ export default function BoxPage() {
   const box = card.data
 
   return (
+    <>
+    <Link to="/boxes" className="button back-link carton-back" aria-busy={navigation.pendingPath === '/boxes' || undefined} onClick={(event) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      event.preventDefault()
+      if (navigation.pendingPath !== '/boxes') void navigation.returnToShelf(pid, number)
+    }}><ArrowLeft className="icon-sm" aria-hidden />К коробкам</Link>
     <StateView loading={card.loading && !box} error={card.error} onRetry={card.reload}>
       {box ? (
         <>
-          <PageHeading title={`Коробка ${String(box.number).padStart(3, '0')}`}>{box.room} · {box.items.length} {plural(box.items.length, ['вещь', 'вещи', 'вещей'])} · {STATUS_LABELS[box.status]}</PageHeading>
-          <div className="box-detail-layout">
-          <aside className="box-summary stack" style={roomStyle(box.room)}>
-            <div className="row between">
-              <div>
-                <div className="muted small">Коробка</div>
-                <div className="box-summary-identity"><div className="detail-number">{String(box.number).padStart(3, '0')}</div><BoxVolume status={box.status} closing={packingAnimation} /></div>
-                <div className="summary-room">{box.room}</div>
+          <div className="carton-scene">
+          <article className={`carton-workspace ${box.status === 'packing' || box.status === 'unpacked' ? 'is-open' : 'is-sealed'}${packingAnimation ? ' is-closing' : ''}`} style={{ ...roomStyle(box.room), viewTransitionName: 'carton-zoom' }} aria-labelledby="box-heading">
+            <CartonLid status={box.status} closing={packingAnimation} className="carton-workspace__lid" />
+            <header className="carton-identity">
+              <div className="carton-identity__number" aria-hidden>{String(box.number).padStart(3, '0')}</div>
+              <div className="carton-identity__title">
+                <h1 id="box-heading" tabIndex={-1}>Коробка {String(box.number).padStart(3, '0')}</h1>
+                <p className="carton-identity__room">{box.room}</p>
+                <p className="muted small">{box.items.length} {plural(box.items.length, ['вещь', 'вещи', 'вещей'])}</p>
               </div>
-              <div className="stack" style={{ justifyItems: 'end' }}>
+              <div className="carton-identity__status">
                 <StatusBadge status={box.status} />
                 {box.fill_later && box.items.length === 0 ? <span className="badge st-packed">Заполнить позже</span> : null}
+                <button className="primary" disabled={busy} onClick={() => setPickingBox(true)}>{packingAnimation ? 'Заклеиваем…' : 'Сменить статус'}</button>
               </div>
-            </div>
-            <button className="primary" disabled={busy} onClick={() => setPickingBox(true)}>{packingAnimation ? 'Заклеиваем…' : 'Сменить статус'}</button>
-            <ErrorAlert message={error} />
-            <details className="stack">
-              <summary>Нет принтера?</summary>
-              <p>Напишите маркером на коробке <strong>#{String(box.number).padStart(3, '0')}</strong> и комнату «{box.room}». Лучше подписать с двух сторон.</p>
-              <p>Открыть коробку можно по номеру в выбранном проекте.</p>
-              <Link to="/scan" className="button tonal">Найти по номеру</Link>
-            </details>
-            <div className="row wrap">
-              <Link to={labelPath(pid, number)} className="button tonal">Этикетка</Link>
-              <button className="tonal" onClick={() => setAdding(true)}>+ Вещи</button>
-              <button onClick={() => setEditing(true)}>Изменить</button>
-            </div>
-            <p className="paper-note">Подпишите коробку с двух сторон — так её проще найти в стопке.</p>
-          </aside>
-          <section className="box-contents stack">
-          <SectionTitle>{`Содержимое (${box.items.length})`}</SectionTitle>
+              <div className="carton-identity__actions">
+                <button className="tonal" onClick={() => setAdding(true)}><Plus className="icon-sm" aria-hidden />Вещи</button>
+                <Link to={labelPath(pid, number)} className="button tonal"><QrCode className="icon-sm" aria-hidden />Этикетка</Link>
+                <button onClick={() => setEditing(true)}><Pencil className="icon-sm" aria-hidden />Изменить</button>
+              </div>
+            </header>
+          <ErrorAlert message={error} />
+          <section className="box-manifest" aria-labelledby="manifest-heading">
+          <h2 id="manifest-heading">Содержимое <span>({box.items.length})</span></h2>
           {box.items.length === 0 ? <p className="muted">Пока пусто. Добавьте вещи кнопкой «+ Вещи».</p> : null}
           {box.items.length > 0 ? (
-            <div className="card flush">
+            <div className="manifest-items">
               {box.items.map((item) => (
-                <div key={item.id} className="list-row">
-                  <span className="grow">
+                <div key={item.id} className="manifest-item">
+                  <span className="manifest-item__description">
                     <b>{item.name}</b>
                     {item.lost ? <span className="sub">Ищите в нераспакованных коробках: подсказки на «Прогрессе»</span> : null}
                   </span>
+                  <div className="manifest-item__tools">
                   <button
                     className={item.first_day ? 'chip-toggle on' : 'chip-toggle'}
                     aria-pressed={item.first_day}
@@ -145,16 +149,27 @@ export default function BoxPage() {
                     {ITEM_STATUS_LABELS[item.status]} ▾
                   </button>
                   <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={async () => { if (await confirm({ title: `Удалить «${item.name}»?`, message: 'Вещь пропадёт из коробки и из поиска.' })) void run(() => api.deleteItem(pid, item.id)) }}><Trash2 className="icon-sm" aria-hidden /></button>
+                  </div>
                 </div>
               ))}
-              <button className="list-row add-row" onClick={() => setAdding(true)}><Plus className="icon-sm" aria-hidden />Добавить вещи</button>
             </div>
           ) : null}
 
-          <button className="danger" disabled={busy} onClick={deleteBox}>Удалить коробку</button>
+          <button className="manifest-add" onClick={() => setAdding(true)}><Plus className="icon-sm" aria-hidden />Добавить вещи</button>
           </section>
+          <footer className="carton-footer">
+            <details className="carton-help">
+              <summary>Нет принтера?</summary>
+              <p>Напишите маркером на коробке <strong>#{String(box.number).padStart(3, '0')}</strong> и комнату «{box.room}». Подпишите с двух сторон — так её проще найти в стопке.</p>
+              <p>Открыть коробку можно по номеру в выбранном проекте.</p>
+              <Link to="/scan" className="button tonal">Найти по номеру</Link>
+            </details>
+            <button className="danger" disabled={busy} onClick={deleteBox}><Trash2 className="icon-sm" aria-hidden />Удалить коробку</button>
+          </footer>
+          <span className="carton-workspace__staples" aria-hidden />
+          <div className="carton-workspace__marks" aria-hidden><span>↑↑</span><i /></div>
+          </article>
           </div>
-          <Link to="/boxes" className="button back-link">← К коробкам</Link>
 
           {pickingBox ? (
             <StatusPickerModal
@@ -186,6 +201,7 @@ export default function BoxPage() {
         </>
       ) : null}
     </StateView>
+    </>
   )
 }
 

@@ -11,6 +11,16 @@ function deferred<T>() {
 }
 
 describe('useAsync', () => {
+  it('показывает подготовленные данные сразу и обновляет их ответом сервера', async () => {
+    const response = deferred<string>()
+    const { result } = renderHook(() => useAsync(() => response.promise, ['box'], { initialData: 'подготовленная коробка' }))
+    expect(result.current.data).toBe('подготовленная коробка')
+    expect(result.current.loading).toBe(true)
+    await act(async () => response.resolve('актуальная коробка'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.data).toBe('актуальная коробка')
+  })
+
   it('обновляет данные при возврате, объединяет focus/visibility и удаляет обработчики', async () => {
     const load = vi.fn().mockResolvedValue('данные')
     const { unmount } = renderHook(() => useAsync(load, [], { refreshOnFocus: true }))
