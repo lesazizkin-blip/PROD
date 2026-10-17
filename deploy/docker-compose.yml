@@ -40,6 +40,9 @@ services:
       SAGE_LOGS_URL: "${SAGE_LOGS_URL:-}"
       SAGE_API_KEY: "${SAGE_API_KEY:-}"
       SAGE_TRACES_ENDPOINT: "${SAGE_TRACES_ENDPOINT:-}"
+      # защита от флуда с одного IP (0 - выключить); меняются через scripts/vm-env.sh
+      API_REQUESTS_PER_MINUTE: "${API_REQUESTS_PER_MINUTE:-1200}"
+      REGISTRATIONS_PER_HOUR: "${REGISTRATIONS_PER_HOUR:-30}"
     volumes:
       - movermate-data:/data
 
