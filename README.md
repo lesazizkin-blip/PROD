@@ -44,6 +44,7 @@ cd frontend && npm install && npm run dev                                      #
 cd backend && .venv/bin/python -m pytest --cov=app    # сервер: 96 тестов (+2 пропущены: параллельность проверяется на PostgreSQL в CI, проверка аннотаций — только на Python 3.14), покрытие 98%
 cd frontend && npm test && npm run lint && npm run build   # сайт: 74 теста
 scripts/preflight.sh <адрес>                          # полный сценарий ТЗ на запущенном сайте
+scripts/e2e.sh                                        # весь функционал: прод по API + локально вход, приглашения и проклик интерфейса в Chrome
 ```
 Тесты сервера запускать из папки `backend/` (миграционный тест читает `alembic.ini` по относительному пути).
 
