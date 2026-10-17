@@ -112,6 +112,8 @@ export interface Item {
   status: ItemStatus
   /** то же, что status === "lost" */
   lost: boolean
+  /** понадобится в первый день на новом месте */
+  first_day: boolean
   created_at: string
 }
 

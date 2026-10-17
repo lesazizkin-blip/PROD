@@ -26,7 +26,7 @@ function sectionTitle(pathname: string): string {
   if (box) return `Коробка № ${box[1]}`
   const map: Record<string, string> = {
     '/boxes': 'Коробки', '/labels': 'Этикетки', '/labels/print': 'Печать этикеток', '/progress': 'Прогресс',
-    '/tips': 'Памятки', '/scan': 'Сканер', '/new': 'Новый переезд', '/profile': 'Личный кабинет',
+    '/tips': 'Памятки', '/scan': 'Сканер', '/new': 'Новый переезд', '/profile': 'Личный кабинет', '/about': 'О нас',
   }
   return map[pathname] ?? (pathname.startsWith('/invite/') ? 'Приглашение' : 'MoverMate')
 }
@@ -47,7 +47,7 @@ export default function Shell() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <Link to="/" className="sidebar__brand" aria-label="MoverMate: на главную">
+        <Link to="/about" className="sidebar__brand" aria-label="MoverMate: о нас">
           <BrandMark />
           <span>MoverMate</span>
         </Link>
@@ -69,7 +69,7 @@ export default function Shell() {
 
       <div className="workspace">
         <header className="topbar">
-          <Link to="/" className="topbar__brand" aria-label="MoverMate: на главную"><BrandMark /></Link>
+          <Link to="/about" className="topbar__brand" aria-label="MoverMate: о нас"><BrandMark /></Link>
           <nav className="crumbs" aria-label="Вы здесь">
             <Link to="/profile">Мои проекты</Link>
             <span aria-hidden>/</span>

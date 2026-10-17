@@ -95,6 +95,15 @@ export default function BoxPage() {
                     {item.lost ? <span className="sub">Ищите в нераспакованных коробках: подсказки на «Прогрессе»</span> : null}
                   </span>
                   <button
+                    className={item.first_day ? 'chip-toggle on' : 'chip-toggle'}
+                    aria-pressed={item.first_day}
+                    disabled={busy}
+                    title="Понадобится в первый день на новом месте"
+                    onClick={() => run(() => api.updateItem(pid, item.id, { first_day: !item.first_day }))}
+                  >
+                    {item.first_day ? '✓ ' : ''}Первый день
+                  </button>
+                  <button
                     className={`badge-button badge it-${item.status}`}
                     disabled={busy}
                     aria-label={`Статус «${item.name}»: ${ITEM_STATUS_LABELS[item.status]}. Изменить`}

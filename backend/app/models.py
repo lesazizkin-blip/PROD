@@ -161,6 +161,7 @@ class Item(Base):
     name: Mapped[str] = mapped_column(String(120))
     name_norm: Mapped[str] = mapped_column(String(120), index=True)
     status: Mapped[str] = mapped_column(String(20), default="packed")
+    first_day: Mapped[bool] = mapped_column(Boolean, default=False)  # понадобится в первый день
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

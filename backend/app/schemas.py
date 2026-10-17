@@ -286,6 +286,7 @@ class ItemOut(BaseModel):
     name: str
     status: ItemStatus
     lost: bool  # то же, что status == "lost"; оставлено для совместимости
+    first_day: bool
     created_at: datetime
 
 
@@ -299,6 +300,8 @@ class TransitionIn(BaseModel):
 
 class ItemCreate(BaseModel):
     name: Text120 = Field(examples=["Чайник"])
+    first_day: bool = False
+    status: ItemStatus = ItemStatus.PACKED
 
 
 class ItemsBulkIn(BaseModel):
@@ -312,6 +315,7 @@ class ItemsBulkOut(BaseModel):
 class ItemUpdate(BaseModel):
     name: Text120 | None = None
     status: ItemStatus | None = Field(default=None, examples=["found"])
+    first_day: bool | None = None
     lost: bool | None = Field(
         default=None, description="Устарело: true = status lost, false = status found"
     )
@@ -380,11 +384,16 @@ class FirstDayUpdate(BaseModel):
     done: bool | None = None
 
 
-class LostItemOut(BaseModel):
+class ItemInBoxOut(BaseModel):
+    """Вещь вместе с коробкой, комнатой и статусом коробки (списки потерянных и вещей первого дня)."""
+
     item: ItemOut
     box_number: int
     room: str
     status: BoxStatus
+
+
+LostItemOut = ItemInBoxOut
 
 
 class HintOut(BaseModel):

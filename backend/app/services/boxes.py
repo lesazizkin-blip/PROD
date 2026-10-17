@@ -75,6 +75,7 @@ def _item_out(item: Item, box_number: int) -> ItemOut:
         name=item.name,
         status=item.status,  # type: ignore[arg-type]
         lost=item.status == ItemStatus.LOST,
+        first_day=item.first_day,
         created_at=item.created_at,
     )
 
@@ -248,9 +249,25 @@ class BoxService:
             )
 
     # --- вещи ---
-    def add_items(self, project_id: uuid.UUID, number: int, names: list[str]) -> list[ItemOut]:
+    def add_items(
+        self,
+        project_id: uuid.UUID,
+        number: int,
+        names: list[str],
+        first_day: bool = False,
+        status: ItemStatus = ItemStatus.PACKED,
+    ) -> list[ItemOut]:
         box = self.get_box(project_id, number)
-        items = [Item(box_id=box.id, name=n, name_norm=normalize(n)) for n in names]
+        items = [
+            Item(
+                box_id=box.id,
+                name=n,
+                name_norm=normalize(n),
+                first_day=first_day,
+                status=status.value,
+            )
+            for n in names
+        ]
         self.db.add_all(items)
         self.db.commit()
         return [_item_out(i, box.number) for i in items]
@@ -272,10 +289,13 @@ class BoxService:
         name: str | None,
         status: ItemStatus | None,
         lost: bool | None = None,
+        first_day: bool | None = None,
     ) -> ItemOut:
         item, box = self.get_item(project_id, item_id)
         if name is not None:
             item.name, item.name_norm = name, normalize(name)
+        if first_day is not None:
+            item.first_day = first_day
         if status is None and lost is not None:  # старый формат: флажок «потеряна»
             status = ItemStatus.LOST if lost else ItemStatus.FOUND
         if status is not None and status != item.status:
