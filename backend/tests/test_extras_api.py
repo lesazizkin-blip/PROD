@@ -122,3 +122,33 @@ def test_bulk_transition_moves_all_or_nothing(client, base):
     )
     events = client.get(f"{base}/events?type=box.status_changed").json()["items"]
     assert sum(e["data"]["to"] == "loaded" for e in events) == 2
+
+
+# ---------- вещи первого дня ----------
+def test_first_day_items_are_flagged_listed_and_unflagged(client, base):
+    kitchen = make_box(client, base, room="Кухня", items="Кастрюля")["number"]
+    bath = make_box(client, base, room="Ванная", items="")["number"]
+    kettle = client.post(
+        f"{base}/boxes/{kitchen}/items", json={"name": "Чайник", "first_day": True}
+    ).json()
+    assert kettle["first_day"] is True and kettle["status"] == "packed"
+    brush = client.post(
+        f"{base}/boxes/{bath}/items",
+        json={"name": "Зубная щётка", "first_day": True, "status": "unpacked"},
+    ).json()
+    assert brush["status"] == "unpacked"
+    listed = client.get(f"{base}/items/first-day").json()
+    assert [(x["item"]["name"], x["box_number"], x["room"]) for x in listed] == [
+        ("Чайник", kitchen, "Кухня"),
+        ("Зубная щётка", bath, "Ванная"),
+    ]  # по номеру коробки
+    pot = client.get(f"{base}/boxes/{kitchen}").json()["items"][0]
+    assert pot["first_day"] is False
+    assert client.patch(f"{base}/items/{pot['id']}", json={"first_day": True}).json()["first_day"]
+    client.patch(f"{base}/items/{kettle['id']}", json={"first_day": False})
+    assert {x["item"]["name"] for x in client.get(f"{base}/items/first-day").json()} == {
+        "Кастрюля",
+        "Зубная щётка",
+    }
+    other = client.post("/api/projects", json={"name": "Чужой", "move_date": "2026-12-01"}).json()
+    assert client.get(f"/api/projects/{other['id']}/items/first-day").json() == []

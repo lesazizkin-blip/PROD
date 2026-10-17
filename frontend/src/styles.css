@@ -440,10 +440,40 @@ input[type='color'] { width: 56px; height: 44px; padding: 2px; flex: none; }
 .auth__brand { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.9rem; font-weight: 800; color: var(--heading); letter-spacing: -0.03em; }
 .auth__brand .brand-mark { width: 36px; height: 36px; color: var(--accent); }
 .auth__tagline { text-align: center; margin-top: -8px; }
-.auth__demo { justify-self: center; }
-.auth__privacy { text-align: center; }
 .invite { padding-top: 4px; }
 .invite h3 { margin: 0; font-size: 1rem; }
 .account { padding-top: 12px; border-top: 1px solid var(--border); }
 .members li { min-height: 44px; }
 .invite__revoke { justify-self: start; }
+
+/* переключатель «Первый день» у вещи в коробке */
+button.chip-toggle { min-height: 32px; padding: 2px 10px; font-size: .78rem; font-weight: 600; border-radius: 999px; color: var(--muted); border: 1px dashed var(--border); background: transparent; white-space: nowrap; }
+button.chip-toggle.on { color: var(--primary); border: 1px solid var(--accent); background: var(--primary-soft); }
+
+/* ссылки-кнопки: основная и маленькая */
+a.button.primary { background: var(--primary); border-color: var(--primary); color: var(--on-accent); font-weight: 600; }
+a.button.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+a.button.small { min-height: 36px; padding: 6px 12px; font-size: .9rem; }
+.error-text { color: var(--danger); margin: -4px 0 0; }
+
+/* «О нас» */
+.about { max-width: 1040px; margin: 0 auto; }
+.about__hero { display: grid; gap: 20px; align-items: center; }
+.about__hero h1 { font-size: 1.7rem; margin: 0; color: var(--heading); }
+.about__art { background: linear-gradient(180deg, #e0f2fe, #ecfdf5); border-radius: var(--radius); padding: 16px; }
+.about__grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.about__item h3 { margin: 8px 0 4px; font-size: 1rem; }
+.about__item p { margin: 0; }
+.about__item .icon { color: var(--accent); }
+@media (min-width: 900px) { .about__hero { grid-template-columns: 1fr 1.2fr; } }
+
+/* системное уведомление (гость нажал на раздел) */
+.toast {
+  position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%); z-index: 50; max-width: min(520px, calc(100vw - 32px));
+  background: #0f2d26; color: #fff; padding: 12px 16px; border-radius: 12px; box-shadow: var(--shadow); font-size: .92rem;
+}
+@media (min-width: 900px) { .toast { bottom: 24px; } }
+
+/* вкладки гостя - кнопки, но выглядят как обычные вкладки */
+button.tab { background: transparent; border: 0; box-shadow: none; font-family: inherit; width: 100%; }
+button.tab:hover:not(:disabled) { border: 0; }

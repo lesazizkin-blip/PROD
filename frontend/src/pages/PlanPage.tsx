@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { CalendarDays, Clock, ListPlus, Pencil, Sparkles, Trash2, UserRound } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { CalendarDays, Clock, ListPlus, Package, Pencil, Sparkles, Trash2, UserRound } from 'lucide-react'
 import { api } from '../api/endpoints'
-import type { Stage, Task, TaskCreate } from '../api/types'
+import { ITEM_STATUSES, type ItemStatus, type Stage, type Task, type TaskCreate } from '../api/types'
 import ChecklistModal from '../components/ChecklistModal'
 import Modal from '../components/Modal'
 import RequireProject from '../components/RequireProject'
@@ -10,7 +11,9 @@ import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
 import ProgressBar from '../ui/ProgressBar'
 import StateView from '../ui/StateView'
-import { STAGES, STAGE_LABELS, formatDate, formatTimeRange } from '../ui/format'
+import { ITEM_STATUS_LABELS, STAGES, STAGE_LABELS, boxPath, formatDate, formatTimeRange } from '../ui/format'
+import SectionTitle from '../ui/SectionTitle'
+import { errorMessage } from '../api/client'
 
 // Вкладки плана: три этапа переезда и отдельно коробка первого дня
 type PlanTab = Stage | 'first-day'
@@ -26,8 +29,11 @@ function Plan({ pid }: { pid: string }) {
   const project = useAsync(() => api.getProject(pid), [pid])
   const tasks = useAsync(() => api.tasks(pid), [pid])
   const firstDay = useAsync(() => api.firstDay(pid), [pid])
+  const firstDayItems = useAsync(() => api.firstDayItems(pid), [pid])
   // null - форма закрыта, 'new' - новая задача, Task - правка существующей
   const [form, setForm] = useState<'new' | Task | null>(null)
+  const [addingItem, setAddingItem] = useState(false)
+  const [quickError, setQuickError] = useState<string | null>(null)
   const [smart, setSmart] = useState(false)
   const [tab, setTab] = useState<PlanTab | null>(null)
 
@@ -35,16 +41,42 @@ function Plan({ pid }: { pid: string }) {
     project.reload()
     tasks.reload()
     firstDay.reload()
+    firstDayItems.reload()
   }
   const { busy, error, run: act } = useAction(reloadAll)
 
   const list = tasks.data ?? []
   const done = list.filter((t) => t.done).length
   const first = firstDay.data ?? []
-  // по умолчанию открыт первый этап, где остались невыполненные задачи
+  // по умолчанию открыт первый этап, где остались невыполненные задачи; выбранный один раз этап
+  // дальше не меняется сам, иначе после отметки последней задачи вкладка перепрыгивала бы
   const activeTab: PlanTab = tab ?? STAGES.find((s) => list.some((t) => t.stage === s && !t.done)) ?? 'before'
   const stageTasks = list.filter((t) => t.stage === activeTab)
-  const toggleTask = (t: Task) => act(() => api.updateTask(pid, t.id, { done: !t.done }))
+
+  // Отметки срабатывают сразу на экране, запрос идёт следом; при ошибке данные перечитываются
+  const quick = (apply: () => void, request: () => Promise<unknown>, rollback: () => void) => {
+    setQuickError(null)
+    apply()
+    request().catch((e) => {
+      setQuickError(errorMessage(e))
+      rollback()
+    })
+  }
+  const toggleTask = (t: Task) => {
+    if (tab === null) setTab(activeTab) // закрепляем вкладку до отметки
+    quick(
+      () => tasks.mutate((ts) => ts?.map((x) => (x.id === t.id ? { ...x, done: !t.done } : x)) ?? ts),
+      () => api.updateTask(pid, t.id, { done: !t.done }),
+      tasks.reload,
+    )
+  }
+  const toggleFirstDay = (id: number, done: boolean) =>
+    quick(
+      () => firstDay.mutate((fs) => fs?.map((x) => (x.id === id ? { ...x, done } : x)) ?? fs),
+      () => api.updateFirstDay(pid, id, { done }),
+      firstDay.reload,
+    )
+  const thingsForDay = firstDayItems.data ?? []
 
   return (
     <StateView loading={tasks.loading && !tasks.data} error={tasks.error} onRetry={reloadAll}>
@@ -60,7 +92,7 @@ function Plan({ pid }: { pid: string }) {
         </div>
       </div>
 
-      <ErrorAlert message={error} />
+      <ErrorAlert message={error ?? quickError} />
 
       <div className="segmented stage-tabs" role="tablist" aria-label="Этапы переезда">
         {STAGES.map((s) => {
@@ -72,18 +104,35 @@ function Plan({ pid }: { pid: string }) {
           )
         })}
         <button type="button" role="tab" aria-selected={activeTab === 'first-day'} className={activeTab === 'first-day' ? 'on' : ''} onClick={() => setTab('first-day')}>
-          Первый день <span className="count">{first.filter((f) => f.done).length}/{first.length}</span>
+          Первый день <span className="count">{thingsForDay.length}</span>
         </button>
       </div>
 
       {activeTab === 'first-day' ? (
-        <section role="tabpanel" aria-label="Коробка первого дня">
-          <p className="muted small">Что положить в коробку, которую откроете первой на новом месте.</p>
+        <section role="tabpanel" aria-label="Первый день" className="stack">
+          <SectionTitle>Вещи первого дня</SectionTitle>
+          <div className="card flush">
+            {thingsForDay.length === 0 ? (
+              <div className="list-row muted">Пока нет. Добавьте вещь кнопкой «+ Вещь» или отметьте «Первый день» у вещи в карточке коробки.</div>
+            ) : null}
+            {thingsForDay.map((x) => (
+              <Link key={x.item.id} to={boxPath(pid, x.box_number)} className="list-row">
+                <Package className="icon-sm" aria-hidden />
+                <span className="grow">
+                  <b>{x.item.name}</b>
+                  <span className="sub">Коробка № {x.box_number} · {x.room}</span>
+                </span>
+                <span className={`badge it-${x.item.status}`}>{ITEM_STATUS_LABELS[x.item.status]}</span>
+              </Link>
+            ))}
+          </div>
+
+          <SectionTitle>Не забыть положить</SectionTitle>
           <div className="card flush">
             {first.length === 0 ? <div className="list-row muted">Список пуст</div> : null}
             {first.map((f) => (
               <label key={f.id} className={f.done ? 'list-row done' : 'list-row'}>
-                <input type="checkbox" className="check" checked={f.done} disabled={busy} onChange={() => act(() => api.updateFirstDay(pid, f.id, { done: !f.done }))} />
+                <input type="checkbox" className="check" checked={f.done} onChange={() => toggleFirstDay(f.id, !f.done)} />
                 <span className="grow title">{f.title}</span>
                 <button type="button" className="link small" disabled={busy} aria-label={`Удалить «${f.title}»`} onClick={(e) => { e.preventDefault(); if (window.confirm(`Удалить «${f.title}»?`)) void act(() => api.deleteFirstDay(pid, f.id)) }}><Trash2 className="icon-sm" aria-hidden /></button>
               </label>
@@ -102,7 +151,7 @@ function Plan({ pid }: { pid: string }) {
         ) : stageTasks.length === 0 ? <div className="state"><p>На этом этапе задач нет. Добавьте свою кнопкой «+ Задача».</p></div> : null}
         {stageTasks.map((t) => (
           <label key={t.id} className={`task-card${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
-            <input type="checkbox" className="check" checked={t.done} disabled={busy} onChange={() => toggleTask(t)} />
+            <input type="checkbox" className="check" checked={t.done} onChange={() => toggleTask(t)} />
             <span className="grow">
               <span className="title">{t.title}</span>
               <span className="task-meta">
@@ -123,11 +172,24 @@ function Plan({ pid }: { pid: string }) {
       </section>
       )}
 
-      <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button>
+      {activeTab === 'first-day'
+        ? <button className="primary fab" onClick={() => setAddingItem(true)}>+ Вещь</button>
+        : <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button>}
+      {addingItem ? (
+        <FirstDayItemModal
+          pid={pid}
+          onClose={() => setAddingItem(false)}
+          onSaved={() => {
+            setAddingItem(false)
+            firstDayItems.reload()
+          }}
+        />
+      ) : null}
       {smart ? <ChecklistModal pid={pid} onClose={() => setSmart(false)} onApplied={reloadAll} /> : null}
       {form ? (
         <TaskModal
           initial={form === 'new' ? null : form}
+          defaultStage={activeTab === 'first-day' ? undefined : activeTab}
           onClose={() => setForm(null)}
           categories={categoryColors(list)}
           onDelete={form === 'new' ? undefined : async () => {
@@ -157,10 +219,11 @@ function categoryColors(tasks: Task[]): Map<string, string> {
   return map
 }
 
-export function TaskModal({ initial, onClose, onSave, onDelete, categories }: { initial: Task | null; onClose: () => void; onSave: (body: TaskCreate) => Promise<void>; onDelete?: () => Promise<void>; categories: Map<string, string> }) {
+export function TaskModal({ initial, defaultStage, onClose, onSave, onDelete, categories }: { initial: Task | null; defaultStage?: Stage; onClose: () => void; onSave: (body: TaskCreate) => Promise<void>; onDelete?: () => Promise<void>; categories: Map<string, string> }) {
   const [title, setTitle] = useState(initial?.title ?? '')
   const [assignee, setAssignee] = useState(initial?.assignee ?? '')
-  const [stage, setStage] = useState<Stage>(initial?.stage ?? 'before')
+  // новая задача попадает на этап, открытый сейчас в плане
+  const [stage, setStage] = useState<Stage>(initial?.stage ?? defaultStage ?? 'before')
   const [dueDate, setDueDate] = useState(initial?.due_date ?? '')
   const [startTime, setStartTime] = useState(initial?.start_time?.slice(0, 5) ?? '')
   const [endTime, setEndTime] = useState(initial?.end_time?.slice(0, 5) ?? '')
@@ -246,6 +309,46 @@ export function TaskModal({ initial, onClose, onSave, onDelete, categories }: { 
         <ErrorAlert message={error} />
         <button className="primary" type="submit" disabled={busy || !title.trim()}>{initial ? 'Сохранить' : 'Добавить'}</button>
         {onDelete ? <button type="button" className="danger" disabled={busy} onClick={remove}>Удалить задачу</button> : null}
+      </form>
+    </Modal>
+  )
+}
+
+/** «+ Вещь» на вкладке «Первый день»: вещь сразу кладётся в выбранную коробку и помечается вещью первого дня. */
+function FirstDayItemModal({ pid, onClose, onSaved }: { pid: string; onClose: () => void; onSaved: () => void }) {
+  const boxes = useAsync(() => api.boxes(pid, { page_size: 200 }), [pid])
+  const [name, setName] = useState('')
+  const [box, setBox] = useState('')
+  const [status, setStatus] = useState<ItemStatus>('packed')
+  const { busy, error, submit } = useAction()
+  const list = boxes.data?.items ?? []
+  const invalid = !name.trim() || !box
+
+  return (
+    <Modal title="Вещь первого дня" onClose={onClose} dirty={name.trim() !== ''}>
+      <form className="stack" onSubmit={submit(async () => {
+        await api.createItem(pid, Number(box), { name: name.trim(), first_day: true, status })
+        onSaved()
+      })}>
+        <label>
+          Что это
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="Например: чайник" data-autofocus />
+        </label>
+        <label>
+          В какой коробке
+          <select value={box} onChange={(e) => setBox(e.target.value)} disabled={boxes.loading && !boxes.data}>
+            <option value="">{list.length ? 'Выберите коробку' : 'Сначала создайте коробку на вкладке «Коробки»'}</option>
+            {list.map((b) => <option key={b.number} value={b.number}>№ {b.number} · {b.room}</option>)}
+          </select>
+        </label>
+        <label>
+          Где вещь сейчас
+          <select value={status} onChange={(e) => setStatus(e.target.value as ItemStatus)}>
+            {ITEM_STATUSES.map((s) => <option key={s} value={s}>{ITEM_STATUS_LABELS[s]}</option>)}
+          </select>
+        </label>
+        <ErrorAlert message={error ?? boxes.error} />
+        <button className="primary" type="submit" disabled={busy || invalid}>Добавить</button>
       </form>
     </Modal>
   )

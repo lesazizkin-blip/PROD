@@ -78,6 +78,20 @@ class LostService:
             for i, b in rows
         ]
 
+    def first_day_items(self, project_id: uuid.UUID) -> list[LostItemOut]:
+        rows = self.db.execute(
+            select(Item, Box)
+            .join(Box, Box.id == Item.box_id)
+            .where(Box.project_id == project_id, Item.first_day.is_(True))
+            .order_by(Box.number, Item.id)
+        ).all()
+        return [
+            LostItemOut(
+                item=_item_out(i, b.number), box_number=b.number, room=b.room, status=b.status
+            )  # type: ignore[arg-type]
+            for i, b in rows
+        ]
+
     def hints(self, project_id: uuid.UUID, item_id: int) -> list[HintOut]:
         """В каких НЕраспакованных коробках искать вещь: где записана, где лежит похожее, в той же комнате."""
         item, own = self.boxes.get_item(project_id, item_id)

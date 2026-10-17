@@ -67,15 +67,16 @@ export const api = {
   // Вещи
   items: (pid: string, n: number, params: PageParams = {}) =>
     request<Page<Item>>("GET", `${p(pid)}/boxes/${n}/items`, { query: { ...params } }),
-  createItem: (pid: string, n: number, name: string) =>
-    request<Item>("POST", `${p(pid)}/boxes/${n}/items`, { body: { name } }),
+  createItem: (pid: string, n: number, body: { name: string; first_day?: boolean; status?: ItemStatus }) =>
+    request<Item>("POST", `${p(pid)}/boxes/${n}/items`, { body }),
   createItemsBulk: (pid: string, n: number, text: string) =>
     request<{ created: Item[] }>("POST", `${p(pid)}/boxes/${n}/items/bulk`, { body: { text } }),
-  updateItem: (pid: string, id: number, body: { name?: string; status?: ItemStatus }) =>
+  updateItem: (pid: string, id: number, body: { name?: string; status?: ItemStatus; first_day?: boolean }) =>
     request<Item>("PATCH", `${p(pid)}/items/${id}`, { body }),
   deleteItem: (pid: string, id: number) =>
     request<void>("DELETE", `${p(pid)}/items/${id}`, { query: { confirm: true } }),
   lostItems: (pid: string) => request<LostItem[]>("GET", `${p(pid)}/items/lost`),
+  firstDayItems: (pid: string) => request<LostItem[]>("GET", `${p(pid)}/items/first-day`),
   hints: (pid: string, id: number) => request<Hint[]>("GET", `${p(pid)}/items/${id}/hints`),
 
   // Поиск и этикетки

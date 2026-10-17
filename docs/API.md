@@ -62,7 +62,7 @@ packing (собирается) → packed (собрана) → loaded (погр�
   "created_at": "…Z", "updated_at": "…Z" }
 
 // Item
-{ "id": 77, "box_number": 12, "name": "Чайник", "status": "packed", "lost": false, "created_at": "…Z" }
+{ "id": 77, "box_number": 12, "name": "Чайник", "status": "packed", "lost": false, "first_day": false, "created_at": "…Z" }
 // status вещи: packed (упакована) | unpacked (распакована) | found (найдена) | lost (потеряна) | damaged (повреждена);
 // lost = (status == "lost"), оставлено для совместимости
 
@@ -201,19 +201,22 @@ packing (собирается) → packed (собрана) → loaded (погр�
 Пагинация. Сортировка: `id`. `200` страница Item.
 
 ### `POST /api/projects/{pid}/boxes/{n}/items`
-`{ "name": "Чайник" }`, 1–120 символов. `201` Item.
+`{ "name": "Чайник", "first_day": false, "status": "packed" }`: `name` 1–120 символов, остальное необязательно (вещь первого дня и начальный статус). `201` Item.
 
 ### `POST /api/projects/{pid}/boxes/{n}/items/bulk`
 Быстрый ввод: `{ "text": "Чайник\nКружки (4 шт)\nТостер" }`. Каждая непустая строка = вещь, пробелы по краям срезаются, пустые строки игнорируются, максимум 200 строк за запрос. Дубли внутри коробки не схлопываются (две одинаковые вещи допустимы). `201 { "created": [Item] }`. Сбрасывает «ожидание заполнения» (`fill_later` остаётся флагом, но напоминание исчезает, как только в коробке есть вещь).
 
 ### `PATCH /api/projects/{pid}/items/{id}`
-Любые из `name`, `status`. Статус вещи выбирается свободно, в любом порядке (вещь может найтись или сломаться когда угодно); неизвестный статус — `422`. Старый формат `lost: true|false` принимается как `status: lost|found`. `200` Item. Событие `item.lost`, `item.found` или `item.status_changed` с `from`/`to`.
+Любые из `name`, `status`, `first_day` (понадобится в первый день). Статус вещи выбирается свободно, в любом порядке (вещь может найтись или сломаться когда угодно); неизвестный статус — `422`. Старый формат `lost: true|false` принимается как `status: lost|found`. `200` Item. Событие `item.lost`, `item.found` или `item.status_changed` с `from`/`to`.
 
 ### `DELETE /api/projects/{pid}/items/{id}?confirm=true`
 `204`.
 
 ### `GET /api/projects/{pid}/items/lost`
 Список потерянных вещей проекта, с коробкой, комнатой и статусом. `200 [{ item, box_number, room, status }]`.
+
+### `GET /api/projects/{pid}/items/first-day`
+Вещи с пометкой «первый день» в том же формате, по номеру коробки. Для вкладки «Первый день» в «Плане».
 
 ### `GET /api/projects/{pid}/items/{id}/hints`
 Подсказки: в каких **нераспакованных** коробках искать вещь. Берутся коробки со статусом не `unpacked`, кроме коробки самой вещи, если она уже записана в этой коробке (тогда она первая, `reason: "recorded"`).

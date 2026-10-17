@@ -1,5 +1,6 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
 import { AuthProvider, useAuth } from '../state/AuthContext'
@@ -23,7 +24,7 @@ function Who() {
 }
 
 async function setup() {
-  render(<AuthProvider><Who /><AuthPage /></AuthProvider>)
+  render(<MemoryRouter><AuthProvider><Who /><AuthPage /></AuthProvider></MemoryRouter>)
   await waitFor(() => expect(screen.getByTestId('who').textContent).toBe('никто'))
 }
 
@@ -50,7 +51,7 @@ describe('вход и регистрация', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('Неверный логин или пароль')
   })
 
-  it('регистрация требует пароль от 8 символов', async () => {
+  it('регистрация требует пароль от 8 символов и тот же пароль повторно', async () => {
     register.mockResolvedValue({ id: 2, username: 'boris' })
     await setup()
     await userEvent.click(screen.getByRole('tab', { name: 'Регистрация' }))
@@ -59,15 +60,22 @@ describe('вход и регистрация', () => {
     const submit = screen.getByRole('button', { name: 'Создать аккаунт' }) as HTMLButtonElement
     expect(submit.disabled).toBe(true)
     await userEvent.type(screen.getByLabelText('Пароль'), 'й')
+    await userEvent.type(screen.getByLabelText('Повторите пароль'), 'другой-пароль')
+    expect(screen.getByText('Пароли не совпадают')).toBeTruthy()
+    expect(submit.disabled).toBe(true)
+    await userEvent.clear(screen.getByLabelText('Повторите пароль'))
+    await userEvent.type(screen.getByLabelText('Повторите пароль'), 'коротки' + 'й')
     expect(submit.disabled).toBe(false)
     await userEvent.click(submit)
     expect(register).toHaveBeenCalled()
   })
 
-  it('демо открывается без регистрации', async () => {
-    demoLogin.mockResolvedValue({ id: 3, username: 'demo' })
+  it('кнопки демо без регистрации нет, пароль нельзя скопировать', async () => {
     await setup()
-    await userEvent.click(screen.getByRole('button', { name: 'Посмотреть демо без регистрации' }))
-    await waitFor(() => expect(screen.getByTestId('who').textContent).toBe('demo'))
+    expect(screen.queryByRole('button', { name: /демо/i })).toBeNull()
+    const field = screen.getByLabelText('Пароль')
+    const copy = new Event('copy', { bubbles: true, cancelable: true })
+    field.dispatchEvent(copy)
+    expect(copy.defaultPrevented).toBe(true)
   })
 })
