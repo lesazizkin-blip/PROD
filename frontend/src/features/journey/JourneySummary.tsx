@@ -1,3 +1,4 @@
+import { plural } from '../../ui/format'
 import { Link } from 'react-router-dom'
 import { Calculator, Truck, Wallet } from 'lucide-react'
 import { api } from '../../api/endpoints'
@@ -21,7 +22,7 @@ export default function JourneySummary({ pid, progress, lost }: { pid: string; p
         <div><b>{done} / {list.length}</b><span>задач выполнено</span></div>
         <div><b>{delivered} / {progress.boxes_total}</b><span>коробок доехало</span></div>
         <div><b>{progress.by_status.unpacked}</b><span>распаковано</span></div>
-        <div><b className={lost ? 'over' : ''}>{lost}</b><span>вещей потеряно</span></div>
+        <div><b className={lost ? 'over' : ''}>{lost}</b><span>{plural(lost, ['вещь потеряна', 'вещи потеряно', 'вещей потеряно'])}</span></div>
         <div><b>{b ? rub(b.actual) : '…'}</b><span>{b && b.planned ? `потрачено из ${rub(b.planned)}` : 'бюджет не задан'}</span></div>
       </div>
       <div className="row wrap">

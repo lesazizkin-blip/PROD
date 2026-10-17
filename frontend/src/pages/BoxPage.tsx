@@ -158,8 +158,8 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
                   >
                     {item.first_day ? '✓ ' : ''}Первый день
                   </button>
-                  <button className={item.lost ? 'chip-toggle on' : 'chip-toggle'} disabled={pendingItems.includes(item.id)} aria-pressed={item.lost} onClick={() => patchItem(item.id, { lost: !item.lost })} aria-label={`${item.lost ? 'Нашлась' : 'Не могу найти'}: ${item.name}`}>{item.lost ? 'Нашлась' : 'Не могу найти'}</button>
-                  <button className={item.damaged ? 'chip-toggle on' : 'chip-toggle'} disabled={pendingItems.includes(item.id)} aria-pressed={!!item.damaged} onClick={() => patchItem(item.id, { damaged: !item.damaged })} aria-label={`Повреждена: ${item.name}`}>Повреждена</button>
+                  <button className={item.lost ? 'chip-toggle warn on' : 'chip-toggle warn'} disabled={pendingItems.includes(item.id)} aria-pressed={item.lost} onClick={() => patchItem(item.id, { lost: !item.lost })} aria-label={`${item.lost ? 'Нашлась' : 'Не могу найти'}: ${item.name}`}>{item.lost ? 'Нашлась' : 'Не могу найти'}</button>
+                  <button className={item.damaged ? 'chip-toggle warn on' : 'chip-toggle warn'} disabled={pendingItems.includes(item.id)} aria-pressed={!!item.damaged} onClick={() => patchItem(item.id, { damaged: !item.damaged })} aria-label={`Повреждена: ${item.name}`}>Повреждена</button>
                   <button className="link small item-move" disabled={pendingItems.includes(item.id)} onClick={() => setMovingItem(item)} aria-label={`Переложить «${item.name}»`}><ArrowRightLeft className="icon-sm" aria-hidden />Переложить</button>
                   <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={async () => { if (await confirm({ title: `Удалить «${item.name}»?`, message: 'Вещь пропадёт из коробки и из поиска.' })) removeItem(item.id) }}><Trash2 className="icon-sm" aria-hidden /></button>
                   </div>

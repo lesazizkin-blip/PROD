@@ -15,7 +15,7 @@ import ErrorAlert from '../ui/ErrorAlert'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
-import { STATUS_LABELS, boxPath } from '../ui/format'
+import { STATUS_LABELS, boxPath, plural } from '../ui/format'
 
 const REASONS: Record<string, string> = {
   recorded: 'записана в этой коробке',
@@ -67,7 +67,7 @@ function ProgressView({ pid }: { pid: string }) {
           <section className="room-progress stack">
           <h2>Готовность по комнатам</h2>
           <span className="eyebrow accent">УПАКОВКА → ПОГРУЗКА → РАСПАКОВКА</span>
-          <p className="muted small">Всего {p.boxes_total} коробок · распаковано {Math.round(p.unpacked_percent)}%</p>
+          <p className="muted small">Всего {p.boxes_total} {plural(p.boxes_total, ['коробка', 'коробки', 'коробок'])} · распаковано {Math.round(p.unpacked_percent)}%</p>
           {p.boxes_total === 0 ? <p className="muted">Коробок пока нет. Список первого дня можно подготовить уже сейчас.</p> : null}
           {p.rooms.map((r) => (
             <RoomLoadingChecklist key={r.room} pid={pid} room={r} onChanged={reloadAll} />
@@ -98,7 +98,7 @@ function ProgressView({ pid }: { pid: string }) {
               </div>
             ))}
           </div>
-          <p className="muted small">Пометить вещь потерянной можно в карточке коробки.</p>
+          <p className="muted small">Потерянную вещь отметьте кнопкой «Не могу найти» в карточке коробки.</p>
         </>
       ) : null}
 

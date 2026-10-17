@@ -491,6 +491,9 @@ button.badge-button:hover:not(:disabled) { border-color: currentColor; }
 /* «Первый день» у вещи: не отмечено - горит красным, чтобы вещь не забыли пометить */
 button.chip-toggle { min-height: var(--control-height); padding: 8px 10px; font: 600 var(--control-font)/1.4 var(--font-ui); border-radius: var(--radius-control); color: var(--danger); border: 1px solid var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); white-space: nowrap; }
 button.chip-toggle.on { color: var(--green); border-color: var(--green); background: var(--pale); }
+/* «Не могу найти» и «Повреждена»: у целой вещи спокойные, тревожный цвет - только когда отмечено */
+button.chip-toggle.warn { color: var(--text); border-color: var(--border); background: var(--surface); }
+button.chip-toggle.warn.on { color: var(--danger); border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); }
 
 /* задачи плана и вкладки этапов со счётчиками */
 .task-list { display: grid; gap: 0; }
