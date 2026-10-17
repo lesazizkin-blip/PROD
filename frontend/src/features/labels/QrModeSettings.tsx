@@ -27,7 +27,6 @@ export default function QrModeSettings({ pid, onSaved }: { pid: string; onSaved:
     <p>{mode === 'compact'
       ? 'В QR хранится короткий код. Откройте MoverMate и нажмите «Сканировать QR».'
       : 'В QR хранится ссылка. Наведите обычную камеру телефона или сканер MoverMate.'}</p>
-    <p className="small muted">Настройка общая для проекта. Уже распечатанные этикетки обоих форматов продолжают работать. Размер на бумаге выбирается ниже.</p>
     {!owner ? <p className="small">Изменить формат может владелец проекта.</p> : null}
     <ErrorAlert message={error ?? project.error} />
   </section>

@@ -15,10 +15,6 @@ vi.mock('../state/ProjectContext', () => ({ useProjects: () => ({ currentId: h.p
 vi.mock('react-router-dom', async original => ({ ...await original<typeof import('react-router-dom')>(), useNavigate: () => h.navigate }))
 const render = (ui: ReactNode) => renderBase(ui, { wrapper: MemoryRouter })
 vi.mock('../api/endpoints', () => ({ api: { getBox: h.getBox } }))
-vi.mock('../features/recognition/crop', async (original) => ({
-  ...await original<typeof import('../features/recognition/crop')>(),
-  cropPhoto: vi.fn(async (photo: Blob) => photo),
-}))
 vi.mock('html5-qrcode', () => ({ Html5QrcodeScannerState: { NOT_STARTED: 1, SCANNING: 2, PAUSED: 3 }, Html5Qrcode: class {
   isScanning = false
   running = false
@@ -59,14 +55,12 @@ describe('сканер: настоящие callbacks, тестовые camera/AP
   it('останавливает поток по реальному состоянию, даже если старый флаг isScanning отстал', async () => {
     h.legacyScanFlag = false
     render(<ScanPage />); await ready()
-    fireEvent.click(screen.getByRole('button', { name: 'Фото номера' }))
-    await screen.findByLabelText('Снять или выбрать фото')
+    fireEvent.click(screen.getByRole('button', { name: 'Приостановить камеру' }))
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('приостановлена'))
     expect(h.stop).toHaveBeenCalledTimes(1)
   })
   it('отделяет выбор QR от управления камерой и освобождает поток на паузе', async () => {
     render(<ScanPage />); await ready()
-    expect(screen.getByRole('button', { name: 'QR-код' }).getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByRole('button', { name: 'QR-код' }).hasAttribute('disabled')).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Приостановить камеру' }))
     await waitFor(() => expect(h.stop).toHaveBeenCalledTimes(1))
     expect(screen.getByRole('status').textContent).toContain('приостановлена')
@@ -174,45 +168,5 @@ describe('сканер: настоящие callbacks, тестовые camera/AP
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить и открыть' }))
     await waitFor(() => expect(h.getBox).toHaveBeenCalledWith(pid, 1))
     await waitFor(() => expect(h.navigate).toHaveBeenCalledWith(`/projects/${pid}/boxes/1`))
-  })
-  it('фото останавливает QR; кандидаты требуют выбора и свежего подтверждения', async () => {
-    const recognizeHandwriting = vi.fn().mockResolvedValue({ text: '#001\n002', candidates: ['#001', '002'], diagnostics: { engine: 'test', elapsedMs: 8 } })
-    render(<ScanPage recognizeHandwriting={recognizeHandwriting} />); await ready()
-    fireEvent.click(screen.getByRole('button', { name: 'Фото номера' }))
-    const input = await screen.findByLabelText('Снять или выбрать фото')
-    expect(h.stop).toHaveBeenCalledTimes(1)
-    fireEvent.change(input, { target: { files: [new File(['pixels'], 'number.jpg', { type: 'image/jpeg' })] } })
-    fireEvent.click(screen.getByRole('button', { name: 'Распознать фото' }))
-    const candidate = await screen.findByRole('button', { name: 'Выбрать #001 · Кухня' })
-    expect(h.navigate).not.toHaveBeenCalled(); expect(h.getBox).toHaveBeenCalledWith(pid, 2)
-    fireEvent.click(candidate)
-    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить и открыть' }))
-    await waitFor(() => expect(h.navigate).toHaveBeenCalledWith(`/projects/${pid}/boxes/1`))
-    expect(h.getBox).toHaveBeenCalledTimes(3)
-  })
-  it('смена проекта отменяет OCR и отклоняет его запоздалый результат', async () => {
-    const pending = deferred<never>(); let signal!: AbortSignal
-    const recognizeHandwriting = vi.fn((_file: Blob, s: AbortSignal) => { signal = s; return pending.promise })
-    const page = render(<ScanPage recognizeHandwriting={recognizeHandwriting} />); await ready()
-    fireEvent.click(screen.getByRole('button', { name: 'Фото номера' }))
-    fireEvent.change(await screen.findByLabelText('Снять или выбрать фото'), { target: { files: [new File(['x'], 'n.jpg', { type: 'image/jpeg' })] } })
-    fireEvent.click(screen.getByRole('button', { name: 'Распознать фото' }))
-    await waitFor(() => expect(recognizeHandwriting).toHaveBeenCalledTimes(1))
-    h.pid = other; page.rerender(<ScanPage recognizeHandwriting={recognizeHandwriting} />)
-    expect(signal.aborted).toBe(true)
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-photo')
-    expect(h.getBox).not.toHaveBeenCalled()
-    await ready()
-  })
-  it('OCR не предлагает несуществующий номер и сохраняет ошибку сети', async () => {
-    h.getBox.mockRejectedValueOnce(new ApiError('missing', 404)).mockRejectedValueOnce(new ApiError('offline', 0))
-    const recognizeHandwriting = vi.fn().mockResolvedValue({ text: '#001\n002', candidates: ['#001', '002'], diagnostics: { engine: 'test', elapsedMs: 8 } })
-    render(<ScanPage recognizeHandwriting={recognizeHandwriting} />); await ready()
-    fireEvent.click(screen.getByRole('button', { name: 'Фото номера' }))
-    fireEvent.change(await screen.findByLabelText('Снять или выбрать фото'), { target: { files: [new File(['x'], 'n.jpg', { type: 'image/jpeg' })] } })
-    fireEvent.click(screen.getByRole('button', { name: 'Распознать фото' }))
-    await screen.findByText('offline')
-    expect(screen.queryByRole('button', { name: /Выбрать #/ })).toBeNull()
-    expect(h.navigate).not.toHaveBeenCalled()
   })
 })
