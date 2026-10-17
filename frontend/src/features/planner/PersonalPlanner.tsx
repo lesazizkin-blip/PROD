@@ -36,6 +36,7 @@ export default function PersonalPlanner({ moveDate, plan, onPlan, busy, onBusy }
     try {
       const draft = await request<PersonalPlan>('POST', '/projects/plan-preview', {
         body: { description: description.trim(), move_date: moveDate, consent: true },
+        timeoutMs: 70_000,
       })
       onPlan(draft)
     } catch (e) {
@@ -73,7 +74,7 @@ export default function PersonalPlanner({ moveDate, plan, onPlan, busy, onBusy }
       {generating ? 'Составляем план…' : plan ? 'Составить заново' : 'Предложить персональный план'}
     </button>
     {!moveDate && <small className="muted">Для расчёта сроков выберите дату переезда.</small>}
-    {generating && <span role="status">Обычно это занимает несколько секунд. Проект пока не создаётся.</span>}
+    {generating && <span role="status">Составление плана может занять до минуты. Проект пока не создаётся.</span>}
     <ErrorAlert message={error || undefined} />
     {plan && <div className="stack" aria-label="Предпросмотр плана">
       <h3>Проверьте ваш план</h3>

@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     ai_api_key: SecretStr = SecretStr("")
     ai_base_url: str = ""
     ai_model: str = ""
-    ai_timeout_seconds: float = Field(default=12, gt=0, le=15)
+    ai_timeout_seconds: float = Field(default=45, gt=0, le=60)
     ai_requests_per_hour: int = Field(default=10, ge=1, le=100)
     ai_global_requests_per_day: int = Field(default=50, ge=0, le=10_000)
 

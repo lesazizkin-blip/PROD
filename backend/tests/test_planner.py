@@ -121,15 +121,15 @@ def test_preview_is_private_draft_not_database_mutation(client, provider, db_ses
 
 
 def test_spirit_chat_completions_profile(client, provider):
-    provider[2].ai_base_url = "https://llm-proxy.spirit.t-education.com"
-    provider[2].ai_model = "openrouter/google/gemini-3.1-flash-lite"
+    provider[2].ai_base_url = "https://llm-proxy.spirit.t-education.com/v1"
+    provider[2].ai_model = "openrouter/anthropic/claude-haiku-5.5"
     response = client.post("/api/projects/plan-preview", json=BODY)
     assert response.status_code == 200
     request = provider[1][0]
-    assert str(request.url) == "https://llm-proxy.spirit.t-education.com/chat/completions"
+    assert str(request.url) == "https://llm-proxy.spirit.t-education.com/v1/chat/completions"
     assert request.headers["authorization"] == "Bearer test-server-secret"
     payload = json.loads(request.content)
-    assert payload["model"] == "openrouter/google/gemini-3.1-flash-lite"
+    assert payload["model"] == "openrouter/anthropic/claude-haiku-5.5"
     assert payload["response_format"] == {"type": "json_object"}
     assert payload["max_tokens"] == 3000
 
@@ -279,6 +279,40 @@ def test_provider_timeout(client, provider):
     response = client.post("/api/projects/plan-preview", json=BODY)
     assert response.status_code == 503
     assert "provider details" not in response.text
+
+
+@pytest.mark.parametrize(
+    "status, envelope, code",
+    [
+        (404, {"error": "quota not found"}, "planner_quota_missing"),
+        (404, {"error": {"message": "quota not found"}}, "planner_quota_missing"),
+        (404, {"error": {"message": "Not Found", "code": 404}}, "planner_endpoint_not_found"),
+        (401, {"error": "invalid token"}, "planner_credentials_invalid"),
+        (403, {"error": "apikey blocked"}, "planner_access_denied"),
+        (429, {"error": "rate limit exceeded"}, "planner_provider_limit"),
+    ],
+)
+def test_provider_configuration_errors_are_actionable(client, provider, status, envelope, code):
+    provider[0](status=status, envelope=envelope)
+    response = client.post("/api/projects/plan-preview", json=BODY)
+    assert response.status_code == 503  # не 401 приложения: не разлогиниваем пользователя
+    assert response.json()["code"] == code
+    assert len(provider[1]) == 1
+
+
+def test_unknown_provider_error_never_echoes_body_or_secret(client, provider, monkeypatch):
+    logged = []
+    monkeypatch.setattr(planner, "log", lambda *args, **fields: logged.append(fields))
+    private = "test-server-secret PRIVATE_PROMPT http://private.invalid"
+    provider[0](status=500, envelope={"error": {"message": private}})
+    response = client.post("/api/projects/plan-preview", json=BODY)
+    assert response.status_code == 503
+    assert response.json()["code"] == "planner_unavailable"
+    assert len(logged) == 1
+    assert logged[0]["provider_status"] == 500
+    for token in private.split():
+        assert token not in response.text
+        assert token not in json.dumps(logged)
 
 
 def test_unconfigured_ai(client):

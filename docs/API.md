@@ -40,6 +40,9 @@
 `before` ≤ 0, `moving_day` = 0, `after` ≥ 0. Неизвестные поля в задачах отклоняются.
 Некорректный запрос — `422`, некорректный ответ модели — `502/planner_invalid_response`,
 недоступный/не настроенный провайдер — `503/planner_unavailable`.
+Известные ошибки подключения имеют отдельные коды при HTTP `503`: `planner_quota_missing`,
+`planner_credentials_invalid`, `planner_access_denied`, `planner_provider_limit`,
+`planner_endpoint_not_found`. Сообщения стороннего сервиса напрямую клиенту не передаются.
 Лимиты по умолчанию: 10 попыток на пользователя за календарный час UTC и 50 попыток
 на всё приложение за календарные сутки UTC, далее `429`. Настройки — `AI_REQUESTS_PER_HOUR`
 и `AI_GLOBAL_REQUESTS_PER_DAY`; ноль в последней полностью отключает генерацию.

@@ -35,7 +35,7 @@ function buildUrl(path: string, query?: Query): string {
 export async function request<T>(
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
   path: string,
-  options: { query?: Query; body?: unknown } = {},
+  options: { query?: Query; body?: unknown; timeoutMs?: number } = {},
 ): Promise<T> {
   // Свой контроллер с таймаутом: без него зависший бэкенд даёт вечный спиннер
   const controller = new AbortController()
@@ -43,7 +43,7 @@ export async function request<T>(
   const timer = setTimeout(() => {
     timedOut = true
     controller.abort()
-  }, TIMEOUT_MS)
+  }, options.timeoutMs ?? TIMEOUT_MS)
 
   let res: Response
   try {
