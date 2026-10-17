@@ -207,12 +207,12 @@ async def main():
             # ---- задача на открытом этапе ----
             await js("__click('День переезда', '[role=tab]')")
             await asyncio.sleep(0.4)
-            await js("__click('Добавить задачу', '.add-task')")
+            await js("__click('+ Задача')")
             await wait("__has('Название')")
             stage = await js(
                 "[...document.querySelectorAll('dialog select')][0]?.value"
             )
-            await step("«+ Добавить задачу» в этапе выбирает этот этап", stage == "moving_day")
+            await step("«+ Задача» выбирает открытый этап", stage == "moving_day")
             await js(
                 "__type('Что сделать', 'Проверить счётчики') || __type('Задача', 'Проверить счётчики') || __type('Название', 'Проверить счётчики')"
             )
