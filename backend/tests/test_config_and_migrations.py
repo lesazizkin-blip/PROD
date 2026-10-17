@@ -8,6 +8,7 @@ from app.config import Settings
 from app.db import Base
 
 TABLES = {
+    "ai_usage_budgets",
     "projects",
     "task_templates",
     "tasks",

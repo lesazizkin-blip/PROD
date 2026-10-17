@@ -26,8 +26,9 @@ from app.schemas import (
     TaskOut,
     TaskUpdate,
 )
+from app.services.ai_budget import reserve_attempt
 from app.services.auth import AuthService
-from app.services.planner import generate_plan, limiter
+from app.services.planner import ensure_planner_configured, generate_plan
 from app.services.projects import ProjectService
 from app.services.tasks import TaskService
 
@@ -43,8 +44,10 @@ def plan_preview(
     body: PlanRequest,
     user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
 ):
-    limiter.take(user.id, settings.ai_requests_per_hour)
+    ensure_planner_configured(settings)
+    reserve_attempt(db, user.id, settings)
     return generate_plan(body, settings)
 
 

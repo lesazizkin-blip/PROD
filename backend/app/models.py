@@ -50,6 +50,15 @@ class AuthSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class AiUsageBudget(Base):
+    """Попытки генерации: общий дневной и персональный часовой счётчики, без текстов."""
+
+    __tablename__ = "ai_usage_budgets"
+
+    bucket: Mapped[str] = mapped_column(String(100), primary_key=True)
+    used: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class ProjectMember(Base):
     """Кто видит проект: владелец (создал) и участники (пришли по приглашению)."""
 
