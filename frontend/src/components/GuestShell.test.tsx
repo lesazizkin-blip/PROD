@@ -27,7 +27,7 @@ describe('гость', () => {
     expect(screen.queryByRole('link', { name: 'Регистрация' })).toBeNull()
     // вход - только на странице «О нас», в шапке кнопки «Войти» нет
     expect(screen.queryByRole('link', { name: 'Войти' })).toBeNull()
-    await userEvent.click(screen.getByRole('button', { name: 'Вопросы' }))
+    await userEvent.click(screen.getAllByRole('button', { name: 'Вопросы' })[0]) // слева и в шапке телефона
     expect(screen.getByRole('heading', { name: 'Вопросы и ответы' })).toBeTruthy()
     expect(screen.getByText('Нужно ли что-то устанавливать?')).toBeTruthy()
   })

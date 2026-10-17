@@ -18,11 +18,10 @@ def test_deleted_number_is_not_reused(client, base):
     make_box(client, base)
     make_box(client, base)
     assert client.delete(f"{base}/boxes/2?confirm=true").status_code == 204
-    assert (
-        make_box(client, base)["number"] == 2
-    )  # max+1: после удаления последней номер освобождается
+    # номер удалённой коробки не выдаётся снова: старая наклейка с QR не откроет чужую коробку
+    assert make_box(client, base)["number"] == 3
     client.delete(f"{base}/boxes/1?confirm=true")
-    assert make_box(client, base)["number"] == 3  # дыра в начале не заполняется
+    assert make_box(client, base)["number"] == 4
 
 
 def test_create_box_with_quick_input_and_defaults(client, base):

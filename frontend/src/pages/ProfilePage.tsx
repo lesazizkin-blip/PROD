@@ -1,6 +1,6 @@
 import { useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, KeyRound, LogOut, Plus, ShieldCheck } from 'lucide-react'
+import { Calendar, KeyRound, LogOut, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { api } from '../api/endpoints'
 import type { Project } from '../api/types'
 import AddressInput from '../components/AddressInput'
@@ -8,6 +8,7 @@ import Avatar from '../components/Avatar'
 import MembersPanel from '../components/MembersPanel'
 import PasswordModal from '../components/PasswordModal'
 import { useAuth } from '../state/AuthContext'
+import { useConfirm } from '../state/confirm'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
@@ -18,6 +19,8 @@ import { formatDate, plural } from '../ui/format'
 
 // логин демо-входа для жюри: пароль у него сменить нельзя (сервер запрещает)
 const DEMO_LOGIN = 'demo'
+// общий демо-проект жюри удалить нельзя (сервер отвечает 403), поэтому кнопку не показываем
+const DEMO_PROJECT_ID = '00000000-0000-4000-8000-000000000001'
 
 /** Project selection and settings live in the account, outside the main navigation. */
 export default function ProfilePage() {
@@ -98,6 +101,9 @@ export default function ProfilePage() {
               }}
             />
           </div>
+          {selected.role === 'owner' && selected.id !== DEMO_PROJECT_ID ? (
+            <DeleteProject project={selected} onDeleted={() => { setSelectedId(null); void reload() }} />
+          ) : null}
         </>
       ) : null}
 
@@ -175,5 +181,24 @@ function ProjectForm({ project, onSaved }: { project: Project; onSaved: () => vo
         {saved ? <span className="muted small" role="status">Сохранено</span> : null}
       </div>
     </form>
+  )
+}
+
+/** Удалить проект со всем содержимым может только владелец; перед этим - подтверждение. */
+function DeleteProject({ project, onDeleted }: { project: { id: string; name: string }; onDeleted: () => void }) {
+  const confirm = useConfirm()
+  const { busy, error, run } = useAction()
+  return (
+    <div className="card stack">
+      <ErrorAlert message={error} />
+      <button type="button" className="danger" disabled={busy} onClick={async () => {
+        const ok = await confirm({
+          title: `Удалить проект «${project.name}»?`,
+          message: 'Пропадут все коробки, вещи, задачи и бюджет. Участники потеряют доступ. Отменить нельзя.',
+          confirmLabel: 'Удалить проект',
+        })
+        if (ok) void run(async () => { await api.deleteProject(project.id); onDeleted() })
+      }}><Trash2 className="icon-sm" aria-hidden />Удалить проект</button>
+    </div>
   )
 }

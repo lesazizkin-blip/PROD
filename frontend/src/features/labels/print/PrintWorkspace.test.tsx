@@ -40,7 +40,7 @@ describe('A4 printing', () => {
     fireEvent.change(screen.getByLabelText('Экземпляров каждой'), { target: { value: '2' } })
     fireEvent.change(screen.getByLabelText('Шаблон'), { target: { value: 'notes' } })
     fireEvent.click(screen.getByRole('link', { name: 'Предпросмотр →' }))
-    expect(screen.getByRole('status').textContent).toContain('1 коробок · 2 этикеток · 1 листов')
+    expect(screen.getByRole('status').textContent).toContain('1 коробка · 2 этикетки · 1 лист')
     expect(screen.getAllByLabelText('Поле для заметок от руки')).toHaveLength(2)
     fireEvent.click(screen.getByRole('link', { name: 'К выбору коробок' }))
     expect((screen.getByLabelText('Экземпляров каждой') as HTMLSelectElement).value).toBe('2')

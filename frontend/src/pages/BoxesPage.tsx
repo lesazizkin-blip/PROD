@@ -42,7 +42,8 @@ function Boxes({ pid }: { pid: string }) {
   const [adding, setAdding] = useState(false)
 
   const boxes = useAsync(() => api.boxes(pid, { page_size: 36, page, ...(room ? { room } : {}) }), [pid, room, page], { refreshOnFocus: true, initialData: saved?.boxes })
-  const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 50, page, ...(room ? { room } : {}) }) : Promise.resolve(null)), [pid, q, room, page], { refreshOnFocus: true, initialData: saved?.hits })
+  // поиск вещи идёт по всем комнатам: чипы комнат при поиске скрыты, и фильтр был бы незаметен
+  const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 50, page }) : Promise.resolve(null)), [pid, q, page], { refreshOnFocus: true, initialData: saved?.hits })
   const summary = useAsync(() => api.progress(pid), [pid], { refreshOnFocus: true, initialData: saved?.summary })
   // Поиск коробки по номеру: если запрос - число, показываем коробку с этим номером
   const byNumber = useAsync(() => (/^\d+$/.test(q) ? api.boxes(pid, { number: Number(q) }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true, initialData: saved?.byNumber })
@@ -69,7 +70,7 @@ function Boxes({ pid }: { pid: string }) {
 
   return (
     <>
-      <PageHeading title="Коробки и вещи" mobileTitle="Коробки">{summary.data?.boxes_total ?? '…'} коробок · {summary.data?.by_status.packing ?? '…'} ещё собираются</PageHeading>
+      <PageHeading title="Коробки и вещи" mobileTitle="Коробки">{summary.data ? <>{summary.data.boxes_total} {plural(summary.data.boxes_total, ['коробка', 'коробки', 'коробок'])} · {summary.data.by_status.packing} ещё {plural(summary.data.by_status.packing, ['собирается', 'собираются', 'собираются'])}</> : '…'}</PageHeading>
       <ErrorAlert message={summary.error} />
       <div className="search-tools"><input type="search" maxLength={120} placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} aria-label="Поиск" /><Link to="/scan" className="button">Сканировать QR</Link><button onClick={() => setRoomPhoto(true)}><Camera className="icon-sm" aria-hidden />Комната по фото</button><button className="primary" onClick={() => setAdding(true)}>+ Коробка</button></div>
 

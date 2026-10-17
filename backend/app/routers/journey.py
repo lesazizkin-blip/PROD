@@ -7,7 +7,7 @@ from app.db import get_db
 from app.deps import get_current_user, get_project
 from app.errors import ValidationFailed
 from app.models import CityPrice, Project, User
-from app.routers.common import confirm_param
+from app.routers.common import Id, confirm_param
 from app.schemas import (
     BudgetOut,
     CalculatorIn,
@@ -79,7 +79,7 @@ def add_expense(
     summary="Изменить статью или внести факт",
 )
 def update_expense(
-    expense_id: int,
+    expense_id: Id,
     body: ExpenseUpdate,
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),
@@ -94,7 +94,7 @@ def update_expense(
     summary="Удалить статью (?confirm=true)",
 )
 def delete_expense(
-    expense_id: int, project: Project = Depends(get_project), db: Session = Depends(get_db)
+    expense_id: Id, project: Project = Depends(get_project), db: Session = Depends(get_db)
 ):
     BudgetService(db).delete(project.id, expense_id)
     return Response(status_code=204)

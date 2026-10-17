@@ -289,9 +289,13 @@ class QrMode(StrEnum):
     COMPACT = "compact"
 
 
+# дата переезда: от 2000 до 2100 года (дата 1900 года давала сроки задач в XIX веке)
+MoveDate = Annotated[date, Field(ge=date(2000, 1, 1), le=date(2100, 12, 31))]
+
+
 class ProjectCreate(BaseModel):
     name: Text120 = Field(examples=["Переезд на Лесную"])
-    move_date: date = Field(examples=["2026-11-01"])
+    move_date: MoveDate = Field(examples=["2026-11-01"])
     address_from: str | None = Field(default=None, max_length=300)
     address_to: str | None = Field(default=None, max_length=300)
     qr_mode: QrMode = QrMode.UNIVERSAL
@@ -327,7 +331,7 @@ class ProjectUpdate(BaseModel):
         }
     )
     name: Text120 | None = None
-    move_date: date | None = None
+    move_date: MoveDate | None = None
     address_from: str | None = Field(default=None, max_length=300)
     address_to: str | None = Field(default=None, max_length=300)
     qr_mode: QrMode | None = None
@@ -606,7 +610,7 @@ class StatusCorrectionIn(BaseModel):
 
 
 class FirstDayBindIn(BaseModel):
-    box_number: int = Field(ge=1, examples=[1])
+    box_number: int = Field(ge=1, le=2_147_483_647, examples=[1])
     name: Text120 | None = None
 
 
@@ -776,7 +780,9 @@ class BulkTransitionIn(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={"examples": [{"numbers": [1, 2, 3], "to": "loaded"}]}
     )
-    numbers: list[int] = Field(min_length=1, max_length=200)
+    numbers: list[Annotated[int, Field(ge=1, le=2_147_483_647)]] = Field(
+        min_length=1, max_length=200
+    )
     to: BoxStatus
 
 

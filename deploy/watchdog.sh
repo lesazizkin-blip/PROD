@@ -2,8 +2,14 @@
 # Сторож MoverMate: cron раз в минуту (/etc/cron.d/movermate-watchdog ставит пайплайн, deploy:vm).
 # - контейнер app или caddy не запущен (упал, ВМ перезагрузилась, кто-то остановил) -> поднимаем стек;
 # - app три проверки подряд «unhealthy» (завис, не отвечает на /api/health) -> перезапускаем app.
+# Не вмешивается во время выкатки (flock) и обслуживания (файл .maintenance).
 # Docker сам перезапускает только упавший процесс, зависший - нет; это и закрывает сторож.
 cd "$(dirname "$0")" || exit 1
+# обслуживание (восстановление базы и т. п.): `touch .maintenance` в этой папке - сторож не вмешивается
+[ -f .maintenance ] && exit 0
+# идёт выкатка из CI (она держит ту же блокировку) - ничего не трогаем, проверим через минуту
+exec 9>/run/movermate.lock
+flock -n 9 || exit 0
 STATE=/var/tmp/movermate-unhealthy
 for c in deploy-app-1 deploy-caddy-1; do
   if [ "$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null)" != "true" ]; then

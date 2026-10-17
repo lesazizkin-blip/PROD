@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import type { Label } from '../../../api/types'
 import LabelSheet from '../../../components/LabelSheet'
 import PageHeading from '../../../components/PageHeading'
-import { boxPath, labelPath } from '../../../ui/format'
+import { boxPath, labelPath, plural } from '../../../ui/format'
 import { paginateLabels, PRESETS, QR_SIZES, readSettings, TEMPLATES } from './layout'
 import './print.css'
 
@@ -65,7 +65,7 @@ export default function PrintWorkspace({ labels, pid, preview = false, single = 
         {preview ? <Link className="button" to={`/labels?${query}`}>К выбору коробок</Link> : null}
         {single ? <Link className="button" to={boxPath(pid, labels[0].number)}>К коробке</Link> : null}
       </div>
-      <p role="status">{selected.length} коробок · {selected.length * copies} этикеток · {pages.length} листов A4</p>
+      <p role="status">{selected.length} {plural(selected.length, ['коробка', 'коробки', 'коробок'])} · {selected.length * copies} {plural(selected.length * copies, ['этикетка', 'этикетки', 'этикеток'])} · {pages.length} {plural(pages.length, ['лист', 'листа', 'листов'])} A4</p>
       <p className="small">В диалоге печати: A4, масштаб 100% («Фактический размер»), колонтитулы отключены. Можно сохранить PDF. Линии обозначают края для вырезания.</p>
       {template !== 'qr-only' ? <p className="small muted">Длинная комната сокращается на этикетке; полное название видно в выборе коробок и карточке.</p> : null}
     </div>

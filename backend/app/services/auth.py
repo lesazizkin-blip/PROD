@@ -153,15 +153,18 @@ class AuthService:
         target_role = self.role(project_id, user_id)
         if target_role is None:
             raise NotFoundError("Участник не найден")
-        if target_role == "owner":
-            raise ConflictError("Владельца нельзя убрать из проекта")
         if actor_role != "owner" and actor.id != user_id:
             raise ForbiddenError("Убрать другого участника может только владелец")
+        if target_role == "owner":
+            raise ConflictError("Владельца нельзя убрать из проекта")
         self.db.execute(
             delete(ProjectMember).where(
                 ProjectMember.project_id == project_id, ProjectMember.user_id == user_id
             )
         )
+        if actor.id != user_id:
+            # иначе убранный участник вернулся бы по той же ссылке (она живёт 7 дней)
+            self.db.execute(delete(Invite).where(Invite.project_id == project_id))
         self.db.commit()
         audit("member.removed", project_id=project_id, user_id=user_id, by=actor.id)
 

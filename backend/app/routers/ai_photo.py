@@ -11,6 +11,7 @@ from app.db import get_db
 from app.deps import get_current_user, get_project
 from app.logging_setup import audit
 from app.models import Project, User
+from app.routers.common import Id
 from app.schemas import PhotoInventory, PhotoRequest, RoomPhotoRequest, RoomPlan
 from app.services.ai_budget import reserve_attempt
 from app.services.boxes import BoxService
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/projects/{pid}", tags=["ai-photo"])
     summary="Опись коробки по фото (черновик модели, в коробку не записывается)",
 )
 def photo_inventory(
-    number: int,
+    number: Id,
     body: PhotoRequest,
     project: Project = Depends(get_project),
     user: User = Depends(get_current_user),

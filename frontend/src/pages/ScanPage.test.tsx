@@ -51,8 +51,9 @@ afterEach(async () => { cleanup(); await act(async () => { await Promise.resolve
 describe('сканер: настоящие callbacks, тестовые camera/API adapters', () => {
   it('отделяет выбор QR от управления камерой и освобождает поток на паузе', async () => {
     render(<ScanPage />); await ready()
-    expect(screen.getByRole('button', { name: 'QR-код' }).getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByRole('button', { name: 'QR-код' }).hasAttribute('disabled')).toBe(true)
+    // без локального OCR (обычная сборка) выбора способа нет: только QR и ручной номер
+    expect(screen.queryByRole('button', { name: 'Фото номера' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Камера номера' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Приостановить камеру' }))
     await waitFor(() => expect(h.stop).toHaveBeenCalledTimes(1))
     expect(screen.getByRole('status').textContent).toContain('приостановлена')

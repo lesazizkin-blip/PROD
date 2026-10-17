@@ -1,12 +1,12 @@
 import re
 import uuid
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import Integer, case, cast, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.errors import ConflictError, NotFoundError, ValidationFailed
-from app.models import Box, Item, Project
+from app.models import Box, Event, Item, Project
 from app.schemas import (
     BoxCardOut,
     BoxCreate,
@@ -47,6 +47,19 @@ def check_transition(current: str, target: str) -> None:
 def normalize(text: str) -> str:
     """Для поиска: без регистра, ё = е, лишние пробелы схлопнуты."""
     return re.sub(r"\s+", " ", text.strip().lower().replace("ё", "е"))
+
+
+_ENDING = re.compile(r"[аяыиуюеоьй]{1,2}$")
+
+
+def search_stem(needle: str) -> str:
+    """Основа последнего слова запроса без окончания: «зарядки», «зарядку» -> «зарядк».
+    Только для слов от 5 букв, основа не короче 4: короткие запросы ищутся как есть."""
+    head, _, last = needle.rpartition(" ")
+    stem = _ENDING.sub("", last) if len(last) >= 5 else last
+    if len(stem) < 4:
+        stem = last
+    return f"{head} {stem}" if head else stem
 
 
 def parse_lines(text: str) -> list[str]:
@@ -146,9 +159,15 @@ class BoxService:
     def _next_number(self, project_id: uuid.UUID) -> int:
         # блокировка проекта: на PostgreSQL параллельные запросы получают номера по очереди
         self.db.execute(select(Project.id).where(Project.id == project_id).with_for_update())
-        return (
-            self.db.scalar(select(func.max(Box.number)).where(Box.project_id == project_id)) or 0
-        ) + 1
+        # номер удалённой коробки не выдаётся снова: на старой наклейке он открыл бы чужую коробку.
+        # Все выданные номера есть в журнале (box.created), поэтому берём максимум и оттуда
+        current = self.db.scalar(select(func.max(Box.number)).where(Box.project_id == project_id))
+        issued = self.db.scalar(
+            select(func.max(cast(Event.entity_id, Integer))).where(
+                Event.project_id == project_id, Event.type == "box.created"
+            )
+        )
+        return max(current or 0, issued or 0) + 1
 
     def create(self, project_id: uuid.UUID, data: BoxCreate) -> BoxOut:
         names = parse_lines(data.items_text or "")
@@ -354,7 +373,12 @@ class BoxService:
         needle = normalize(q)
         if not needle:
             raise ValidationFailed("Пустой поисковый запрос")
-        match = Item.name_norm.contains(needle, autoescape=True)
+        stem = search_stem(needle)
+        # формы слова: «зарядка» находит и «Зарядки для телефонов»; точные совпадения всё равно выше
+        match = or_(
+            Item.name_norm.contains(needle, autoescape=True),
+            Item.name_norm.contains(stem, autoescape=True),
+        )
         where = [Box.project_id == project_id, match]
         if room:
             where.append(Box.room == room.strip())

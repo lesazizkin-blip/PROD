@@ -150,6 +150,8 @@ build:image:
 # ---------------------------------------------------------------- деплой на ВМ (только master)
 .ssh_vm:
   image: $DEPLOY_IMG
+  # выкатку нельзя оборвать посередине (образ скачан, а стек не перезапущен), даже если пришёл новый пайплайн
+  interruptible: false
   variables:
     SSH: "ssh -i /tmp/vm_key -o StrictHostKeyChecking=accept-new"
     SCP: "scp -i /tmp/vm_key -o StrictHostKeyChecking=accept-new"
@@ -205,18 +207,25 @@ deploy:vm:
     - $SSH $VM "chmod +x $DEPLOY_DIR/watchdog.sh && echo '* * * * * root $DEPLOY_DIR/watchdog.sh >> /var/log/movermate-watchdog.log 2>&1' | sudo tee /etc/cron.d/movermate-watchdog >/dev/null"
     # цены на переезд по городам раз в сутки в 04:30 (python -m app.price_update; без сети - остаются прежние)
     - $SSH $VM "echo '30 4 * * * root docker exec deploy-app-1 python -m app.price_update >> /var/log/movermate-prices.log 2>&1' | sudo tee /etc/cron.d/movermate-prices >/dev/null"
+    # Блокировка /run/movermate.lock общая со сторожем (deploy/watchdog.sh): пока идёт выкатка, сторож
+    # не перезапускает стек. APP_IMAGE пишется в .env ДО перезапуска, чтобы любой `compose up` взял новый
+    # образ. Ключ сервис-аккаунта удаляется при любом исходе (trap). Старые образы prod_1 удаляются,
+    # кроме текущего и одного предыдущего (для отката), иначе диск ВМ заполняется.
     - |
-      $SSH $VM "set -e; cd $DEPLOY_DIR &&
-        ($DEPLOY_DIR/backup.sh ci || true) &&
-        sudo dp auth service-acc --key-file spirit-sa-key.json &&
-        sudo dp auth configure-docker &&
-        rm -f spirit-sa-key.json &&
-        sudo APP_IMAGE=$IMAGE_NAME docker compose pull app &&
-        sudo APP_IMAGE=$IMAGE_NAME docker compose up -d --no-build &&
-        (grep -q '^APP_IMAGE=' .env && sed -i 's#^APP_IMAGE=.*#APP_IMAGE=$IMAGE_NAME#' .env || echo 'APP_IMAGE=$IMAGE_NAME' >> .env) &&
+      $SSH $VM "set -e; cd $DEPLOY_DIR; trap 'rm -f spirit-sa-key.json' EXIT;
+        exec 9>/run/movermate.lock; flock -w 180 9;
+        ($DEPLOY_DIR/backup.sh ci || true);
+        sudo dp auth service-acc --key-file spirit-sa-key.json;
+        sudo dp auth configure-docker;
+        rm -f spirit-sa-key.json;
+        (grep -q '^APP_IMAGE=' .env && sed -i 's#^APP_IMAGE=.*#APP_IMAGE=$IMAGE_NAME#' .env || echo 'APP_IMAGE=$IMAGE_NAME' >> .env);
+        sudo APP_IMAGE=$IMAGE_NAME docker compose pull app;
+        sudo APP_IMAGE=$IMAGE_NAME docker compose up -d --no-build;
         (sudo docker compose exec -T caddy cat /etc/caddy/Caddyfile | cmp -s - Caddyfile ||
-          sudo docker compose up -d --no-deps --force-recreate caddy) &&
-        docker image prune -f >/dev/null"
+          sudo docker compose up -d --no-deps --force-recreate caddy);
+        docker image prune -f >/dev/null;
+        (docker images --format '{{.Repository}}:{{.Tag}}' | grep '/prod_1:' | grep -v ':${IMAGE_NAME##*:}\$' |
+          tail -n +2 | xargs -r docker rmi >/dev/null 2>&1 || true)"
   environment:
     name: production
     url: $APP_URL
@@ -225,6 +234,7 @@ deploy:vm:
 preflight:prod:
   stage: deploy
   extends: .rules-master
+  interruptible: false
   image: mirror.gcr.io/library/python:3.12-slim
   needs: [deploy:vm]
   script:
