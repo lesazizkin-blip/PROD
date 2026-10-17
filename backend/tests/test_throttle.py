@@ -18,7 +18,9 @@ def test_window_limiter_counts_per_ip_and_resets_with_new_window():
 @pytest.fixture()
 def limits(monkeypatch):
     def set_limits(api: int, register: int):
-        monkeypatch.setattr(main, "api_limiter", WindowLimiter(api, 60))
+        monkeypatch.setattr(
+            main, "api_limiter", WindowLimiter(api, 3600)
+        )  # окно часа: граница окна не попадёт в тест
         monkeypatch.setattr(main, "register_limiter", WindowLimiter(register, 3600))
 
     return set_limits

@@ -293,3 +293,10 @@ def test_login_limiter_memory_stays_bounded_when_logins_are_enumerated(monkeypat
         limiter.fail(("1.2.3.4", f"user{i}"))
         clock[0] += 60  # каждая неудача старше окна для следующих
     assert len(limiter._fails) <= 50
+
+
+def test_owner_cannot_be_removed(make_client):
+    anna, _, pid, _, _ = _project_with_member(make_client)
+    anna_id = anna.get("/api/auth/me").json()["id"]
+    assert anna.delete(f"/api/projects/{pid}/members/{anna_id}?confirm=true").status_code == 409
+    assert anna.get(f"/api/projects/{pid}").status_code == 200

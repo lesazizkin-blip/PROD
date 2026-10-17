@@ -253,3 +253,19 @@ def test_changing_move_date_shifts_open_template_tasks(client):
         if t["due_date"]:
             shifted = date.fromisoformat(t["due_date"]).toordinal() + 30
             assert date.fromisoformat(after[t["id"]]).toordinal() == shifted
+
+
+def test_health_reports_db_down(anon_client):
+    from app.db import get_db
+    from app.main import app
+
+    class Down:
+        def execute(self, *args, **kwargs):
+            raise RuntimeError("db down")
+
+    app.dependency_overrides[get_db] = lambda: Down()
+    try:
+        r = anon_client.get("/api/health")
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+    assert r.status_code == 503 and r.json()["db"] == "down"

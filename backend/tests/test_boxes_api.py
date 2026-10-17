@@ -83,6 +83,9 @@ def test_status_change_is_logged(client, base):
     events = client.get(f"{base}/events?type=box.status_changed").json()["items"]
     assert events[0]["data"] == {"from": "packing", "to": "packed"}
     assert client.get(f"{base}/events?type=box.created").json()["total"] == 1
+    client.post(f"{base}/boxes/{n}/transitions", json={"to": "packing"})  # назад тоже в журнале
+    events = client.get(f"{base}/events?type=box.status_changed").json()["items"]
+    assert events[0]["data"] == {"from": "packed", "to": "packing"}
 
 
 def test_list_filters_and_pagination(client, base):
@@ -306,3 +309,14 @@ def test_search_finds_other_word_forms(client, base):
     ]
     assert names[0] == "Зарядка для ноутбука" and "Зарядки для телефонов" in names
     assert "Чайник" not in names and n == 1
+
+
+def test_renamed_item_is_found_by_new_name(client, base):
+    n = make_box(client, base, items="Чайник")["number"]
+    item = client.get(f"{base}/boxes/{n}").json()["items"][0]
+    assert (
+        client.patch(f"{base}/items/{item['id']}", json={"name": "Термос"}).json()["name"]
+        == "Термос"
+    )
+    assert client.get(f"{base}/search?q=термос").json()["total"] == 1
+    assert client.get(f"{base}/search?q=чайник").json()["total"] == 0
