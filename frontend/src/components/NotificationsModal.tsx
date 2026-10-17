@@ -1,33 +1,11 @@
 import { Link } from 'react-router-dom'
 import { api } from '../api/endpoints'
-import type { AppEvent, Reminder } from '../api/types'
+import type { Reminder } from '../api/types'
 import { useAsync } from '../state/useAsync'
-import { STATUS_LABELS, boxPath } from '../ui/format'
+import { boxPath } from '../ui/format'
+import { describeEvent } from './eventText'
 import StateView from '../ui/StateView'
 import Modal from './Modal'
-
-const text = (v: unknown) => (typeof v === 'string' ? v : '')
-const status = (v: unknown) => STATUS_LABELS[v as keyof typeof STATUS_LABELS] ?? text(v)
-
-/** Человеческое описание записи журнала событий. */
-function describeEvent(e: AppEvent): string {
-  const d = e.data
-  switch (e.type) {
-    case 'project.created': return `Создан проект «${text(d.name)}»`
-    case 'project.updated': return 'Изменены настройки проекта'
-    case 'task.created': return `Новая задача «${text(d.title)}»`
-    case 'task.completed': return `Выполнена задача «${text(d.title)}»`
-    case 'task.reopened': return `Задача снова в работе: «${text(d.title)}»`
-    case 'box.created': return `Создана коробка № ${e.entity_id}${d.room ? ` (${text(d.room)})` : ''}`
-    case 'box.deleted': return `Удалена коробка № ${e.entity_id}`
-    case 'box.status_changed': return `Коробка № ${e.entity_id}: ${status(d.from)} → ${status(d.to)}`
-    case 'item.lost': return `Вещь потеряна${d.name ? `: «${text(d.name)}»` : ''}`
-    case 'item.found': return `Вещь нашлась${d.name ? `: «${text(d.name)}»` : ''}`
-    case 'item.status_changed': return `Изменён статус вещи${d.name ? ` «${text(d.name)}»` : ''}`
-    case 'assistant.checklist_applied': return 'Умный чек-лист добавлен в план'
-    default: return e.type
-  }
-}
 
 const when = (iso: string) => new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 

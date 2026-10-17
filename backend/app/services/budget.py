@@ -42,7 +42,14 @@ class BudgetService:
         self.db.add(expense)
         self.db.flush()
         log_event(
-            self.db, project_id, "expense.created", "expense", expense.id, category=body.category
+            self.db,
+            project_id,
+            "expense.created",
+            "expense",
+            expense.id,
+            category=body.category,
+            title=expense.title,
+            planned=expense.planned,
         )
         self.db.commit()
         return ExpenseOut.model_validate(expense)
@@ -59,5 +66,7 @@ class BudgetService:
     def delete(self, project_id: uuid.UUID, expense_id: int) -> None:
         expense = self._get(project_id, expense_id)
         self.db.delete(expense)
-        log_event(self.db, project_id, "expense.deleted", "expense", expense_id)
+        log_event(
+            self.db, project_id, "expense.deleted", "expense", expense_id, title=expense.title
+        )
         self.db.commit()

@@ -25,9 +25,18 @@ from app.services.qr_codes import assign_code
 
 ORDER = [s.value for s in BoxStatus]
 
-# Ordinary lifecycle actions advance exactly one stage. Corrections are separate.
+# Вперёд - только на следующий этап (этапы не перескакивают); назад - на любой более ранний этап
+# свободно и без причины (решение владельца 18.10: ошибочную отметку исправляют одним нажатием)
 TRANSITIONS: dict[str, frozenset[str]] = {
-    status: frozenset(ORDER[i + 1 : i + 2]) for i, status in enumerate(ORDER)
+    status: frozenset(ORDER[i + 1 : i + 2]) | frozenset(ORDER[:i]) for i, status in enumerate(ORDER)
+}
+
+STATUS_RU = {
+    "packing": "Собирается",
+    "packed": "Собрана",
+    "loaded": "Погружена",
+    "delivered": "Доставлена",
+    "unpacked": "Распакована",
 }
 
 MAX_BULK_LINES = 200
@@ -35,12 +44,13 @@ MAX_NAME = 120
 
 
 def check_transition(current: str, target: str) -> None:
-    """Чистая функция: бросает ConflictError, если это не следующий этап жизненного цикла."""
+    """Чистая функция: бросает ConflictError, если переход не из таблицы TRANSITIONS."""
     if current == target:
-        raise ConflictError(f"Коробка уже в статусе «{current}»")
+        raise ConflictError(f"Коробка уже в статусе «{STATUS_RU.get(current, current)}»")
     if target not in TRANSITIONS.get(current, frozenset()):
         raise ConflictError(
-            "Недопустимый переход. Проходите этапы по порядку; ошибочную отметку исправляйте отдельно."
+            "Вперёд этапы идут по порядку: сначала отметьте "
+            f"«{STATUS_RU[ORDER[ORDER.index(current) + 1]]}». Назад можно вернуть на любой этап."
         )
 
 
@@ -230,6 +240,7 @@ class BoxService:
             raise ConflictError(
                 "Исправление может только вернуть коробку на предыдущий этап. Для движения вперёд используйте обычную смену статуса."
             )
+        # совместимость: то же, что обычный переход назад; причина необязательна
         old = box.status
         box.status = target.value
         log_event(

@@ -88,7 +88,15 @@ class FirstDayService:
         else:
             item.first_day = True
         self.db.flush()
-        log_event(self.db, project_id, "first_day.bound", "item", item.id, box_number=number)
+        log_event(
+            self.db,
+            project_id,
+            "first_day.bound",
+            "item",
+            item.id,
+            box_number=number,
+            name=item.name,
+        )
         self.db.commit()
         return _item_out(item, number)
 

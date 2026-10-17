@@ -37,11 +37,12 @@ def test_correction_is_backward_audited_and_not_a_forward_bypass(
     assert client.post(url + "/transitions", json={"to": "loaded"}).status_code == 409
     for status in ["packed", "loaded"]:
         assert client.post(url + "/transitions", json={"to": status}).status_code == 200
-    assert client.post(url + "/transitions", json={"to": "packed"}).status_code == 409
-    assert (
-        client.post(url + "/status-corrections", json={"to": "packed", "reason": "x"}).status_code
-        == 422
-    )
+    # назад - обычным переходом, без причины; в журнале обычное событие смены статуса
+    assert client.post(url + "/transitions", json={"to": "packed"}).json()["status"] == "packed"
+    assert client.post(url + "/transitions", json={"to": "loaded"}).status_code == 200
+    # старая ручка исправления: причина теперь необязательна
+    assert client.post(url + "/status-corrections", json={"to": "packed"}).status_code == 200
+    assert client.post(url + "/transitions", json={"to": "loaded"}).status_code == 200
     assert make_client("outsider").post(
         url + "/status-corrections", json={"to": "packed", "reason": "Ошибочная отметка"}
     ).status_code in (403, 404)
@@ -50,7 +51,9 @@ def test_correction_is_backward_audited_and_not_a_forward_bypass(
     )
     assert response.status_code == 200
     assert response.json()["status"] == "packed"
-    event = db_session.scalar(select(Event).where(Event.type == "box.status_corrected"))
+    event = db_session.scalar(
+        select(Event).where(Event.type == "box.status_corrected").order_by(Event.id.desc())
+    )
     assert event.data["from"] == "loaded" and event.data["to"] == "packed"
     assert event.data["actor_id"] and event.data["reason"] == "Погрузку отметили ошибочно"
     assert client.post(url + "/transitions", json={"to": "unpacked"}).status_code == 409
