@@ -77,8 +77,6 @@ def make_client(db_session):
 def project(client):
     r = client.post("/api/projects", json={"name": "Переезд", "move_date": "2026-11-01"})
     assert r.status_code == 201, r.text
-    # план не заполняется сам; большинству тестов нужен план из шаблонов, как после кнопки
-    client.post(f"/api/projects/{r.json()['id']}/tasks/apply-templates")
     return r.json()
 
 

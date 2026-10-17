@@ -21,8 +21,6 @@ import StatusBadge from '../ui/StatusBadge'
 import { roomStyle } from '../ui/roomTheme'
 import { ITEM_STATUS_HINTS, ITEM_STATUS_LABELS, labelPath, plural } from '../ui/format'
 
-// Обычная смена статуса проходит по порядку; исправление вынесено отдельно.
-
 const itemOptions: StatusOption<ItemStatus>[] = ITEM_STATUSES.map((s) => ({
   value: s,
   label: ITEM_STATUS_LABELS[s],
@@ -56,7 +54,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
     }
   }, [pid, number])
 
-  // Любой статус выбирается в окне; при «Собрана» коробка заклеивается (только после подтверждённого сохранения)
+  // Вперёд - на следующий этап, назад - на любой; при «Собрана» коробка заклеивается (только после подтверждённого сохранения)
   async function changeStatus(to: BoxStatus) {
     const key = `${pid}/${number}`
     await api.transition(pid, number, to)

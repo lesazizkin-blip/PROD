@@ -11,7 +11,7 @@
 .recognition-crop-preview { position: relative; }
 .recognition-crop-preview > span { position: absolute; border: 3px solid #e96645; pointer-events: none; }
 .recognition-crop input[type=range] { width: 100%; }
-.recognition-page .heading-stripe { display: none; }
+
 .recognition-page output { white-space: pre-wrap; overflow-wrap: anywhere; }
 .recognition-page input[type=file] { max-width: 100%; }
 .recognition-page .scan-stage button, .recognition-page .scan-stage input { color: #27251f; }

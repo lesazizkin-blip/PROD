@@ -15,7 +15,7 @@ export interface StatusOption<T extends string> {
 
 interface Props<T extends string> {
   title: string
-  /** Текущий статус: отмечен и недоступен. Не задан - для группы коробок с разными статусами */
+  /** Текущий статус: отмечен и недоступен */
   current?: T
   options: StatusOption<T>[]
   /** Сохранить выбор; окно закроется после успеха, ошибка останется в окне */

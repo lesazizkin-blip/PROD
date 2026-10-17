@@ -1,4 +1,5 @@
 import uuid
+from datetime import date, timedelta
 
 from app.reference_data import TASK_TEMPLATES
 
@@ -35,9 +36,11 @@ def test_explicit_empty_plan_and_default_templates_with_relative_dates(client, b
     }
     tasks = client.get(f"{base}/tasks").json()
     assert len(tasks) == len(TASK_TEMPLATES)
-    movers = next(t for t in tasks if t["title"] == "Заказать грузчиков")
-    assert movers["due_date"] == "2026-10-18"
-    assert all(t["due_date"] is not None for t in tasks)
+    for stage, title, offset in TASK_TEMPLATES:  # этап и срок каждой задачи - от даты переезда
+        task = next(t for t in tasks if t["title"] == title)
+        assert task["stage"] == stage
+        assert task["due_date"] == (date(2026, 11, 1) + timedelta(days=offset)).isoformat()
+    assert len(client.get(f"{base}/first-day").json()) == 4  # заготовки первого дня
     assert [t["stage"] for t in tasks] == sorted(
         (t["stage"] for t in tasks), key=["before", "moving_day", "after"].index
     )
@@ -223,3 +226,30 @@ def test_client_config_hides_empty_maps_key(client, monkeypatch):
         "maps_api_key": "mt-key",
         "maps_provider": "maptiler",
     }
+
+
+def test_move_date_must_be_plausible(client):
+    assert (
+        client.post("/api/projects", json={"name": "Старый", "move_date": "1900-01-01"}).status_code
+        == 422
+    )
+    pid = client.post("/api/projects", json={"name": "Норм", "move_date": "2026-11-16"}).json()[
+        "id"
+    ]
+    assert client.patch(f"/api/projects/{pid}", json={"move_date": "1900-01-01"}).status_code == 422
+
+
+def test_changing_move_date_shifts_open_template_tasks(client):
+    pid = client.post("/api/projects", json={"name": "Сдвиг", "move_date": "2026-11-16"}).json()[
+        "id"
+    ]
+    tasks = client.get(f"/api/projects/{pid}/tasks").json()
+    done, rest = tasks[0], tasks[1:]
+    client.patch(f"/api/projects/{pid}/tasks/{done['id']}", json={"done": True})
+    client.patch(f"/api/projects/{pid}", json={"move_date": "2026-12-16"})
+    after = {t["id"]: t["due_date"] for t in client.get(f"/api/projects/{pid}/tasks").json()}
+    assert after[done["id"]] == done["due_date"]  # выполненную не трогаем
+    for t in rest:
+        if t["due_date"]:
+            shifted = date.fromisoformat(t["due_date"]).toordinal() + 30
+            assert date.fromisoformat(after[t["id"]]).toordinal() == shifted

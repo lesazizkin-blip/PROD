@@ -55,6 +55,8 @@ def test_transitions_follow_the_rules(client, base):
     assert client.post(url, json={"to": "packing"}).status_code == 409
     for status in ["packed", "loaded", "delivered", "unpacked"]:
         assert client.post(url, json={"to": status}).json()["status"] == status
+    for status in ["loaded", "packing"]:  # назад - на любой ранний этап, без причины
+        assert client.post(url, json={"to": status}).json()["status"] == status
     assert client.post(url, json={"to": "weird"}).status_code == 422
     assert client.post(f"{base}/boxes/99/transitions", json={"to": "packed"}).status_code == 404
 
@@ -274,3 +276,33 @@ def test_parallel_box_creation_gives_unique_numbers(client, base):
     assert all(c in (201, 409) for c in codes)
     numbers = [b["number"] for b in client.get(f"{base}/boxes?page_size=200").json()["items"]]
     assert len(numbers) == len(set(numbers)) == codes.count(201)
+
+
+def test_huge_id_is_not_found_not_server_error(client, base):
+    big = 99999999999999999999
+    for path in (f"{base}/boxes/{big}", f"{base}/items/{big}/hints", f"{base}/boxes?number={big}"):
+        r = client.get(path)
+        assert r.status_code in (404, 422), (path, r.status_code)
+    assert client.patch(f"{base}/tasks/{big}", json={"done": True}).status_code in (404, 422)
+
+
+def test_empty_quick_input_is_rejected(client, base):
+    n = client.post(f"{base}/boxes", json={"room": "Кухня"}).json()["number"]
+    for text in ("", "\n\n  \n"):
+        r = client.post(f"{base}/boxes/{n}/items/bulk", json={"text": text})
+        assert r.status_code == 422
+
+
+def test_search_finds_other_word_forms(client, base):
+    from app.services.boxes import search_stem
+
+    assert search_stem("зарядки") == "зарядк" and search_stem("кот") == "кот"
+    n = client.post(
+        f"{base}/boxes",
+        json={"room": "Кухня", "items_text": "Зарядки для телефонов\nЗарядка для ноутбука\nЧайник"},
+    ).json()["number"]
+    names = [
+        h["name"] for h in client.get(f"{base}/search", params={"q": "зарядка"}).json()["items"]
+    ]
+    assert names[0] == "Зарядка для ноутбука" and "Зарядки для телефонов" in names
+    assert "Чайник" not in names and n == 1

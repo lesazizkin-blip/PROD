@@ -262,3 +262,18 @@ def test_demo_account_is_protected(anon_client, db_session, monkeypatch):
     r = anon_client.delete(f"/api/projects/{seed.DEMO_ID}?confirm=true")
     assert r.status_code == 403 and r.json()["code"] == "forbidden"
     assert anon_client.get(f"/api/projects/{seed.DEMO_ID}").status_code == 200
+
+
+def test_removed_member_cannot_come_back_with_old_link(make_client):
+    owner, helper = make_client(), make_client()
+    owner.post("/api/auth/register", json={"username": "own_a", "password": "пароль-123456"})
+    helper.post("/api/auth/register", json={"username": "help_a", "password": "пароль-123456"})
+    pid = owner.post("/api/projects", json={"name": "Семья", "move_date": "2026-11-16"}).json()[
+        "id"
+    ]
+    token = owner.post(f"/api/projects/{pid}/invites").json()["token"]
+    assert helper.post(f"/api/invites/{token}/accept").status_code == 200
+    helper_id = helper.get("/api/auth/me").json()["id"]
+    assert owner.delete(f"/api/projects/{pid}/members/{helper_id}?confirm=true").status_code == 204
+    assert helper.post(f"/api/invites/{token}/accept").status_code == 404
+    assert helper.get(f"/api/projects/{pid}").status_code == 404

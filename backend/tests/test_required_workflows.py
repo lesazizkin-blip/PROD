@@ -1,82 +1,35 @@
-from datetime import date, timedelta
-
 from sqlalchemy import select
 
 from app.models import Box, Event, Item
-from app.reference_data import FIRST_DAY_BASICS, TASK_TEMPLATES
+from app.reference_data import FIRST_DAY_BASICS
 
 
-def test_default_and_explicit_empty_plans(client):
-    for mode, count in [("standard", len(TASK_TEMPLATES)), ("empty", 0)]:
-        body = {"name": mode, "move_date": "2026-12-01"}
-        if mode == "empty":
-            body["plan_mode"] = mode
-        result = client.post("/api/projects", json=body)
-        assert result.status_code == 201
-        base = "/api/projects/" + result.json()["id"]
-        tasks = client.get(base + "/tasks").json()
-        assert len(tasks) == count
-        assert len(client.get(base + "/first-day").json()) == (4 if count else 0)
-        for stage, title, offset in TASK_TEMPLATES if count else []:
-            task = next(t for t in tasks if t["title"] == title)
-            assert task["stage"] == stage
-            assert task["due_date"] == (date(2026, 12, 1) + timedelta(days=offset)).isoformat()
-
-
-def test_correction_is_backward_audited_and_not_a_forward_bypass(
+def test_old_correction_endpoint_goes_back_only_and_is_audited(
     client, base, make_client, db_session
 ):
     box = client.post(base + "/boxes", json={"room": "Кухня", "items_text": "Чайник"}).json()
     url = base + f"/boxes/{box['number']}"
-    assert (
-        client.post(
-            url + "/status-corrections", json={"to": "unpacked", "reason": "Хотим пропустить этапы"}
-        ).status_code
-        == 409
-    )
-    assert client.post(url + "/transitions", json={"to": "loaded"}).status_code == 409
     for status in ["packed", "loaded"]:
         assert client.post(url + "/transitions", json={"to": status}).status_code == 200
-    # назад - обычным переходом, без причины; в журнале обычное событие смены статуса
-    assert client.post(url + "/transitions", json={"to": "packed"}).json()["status"] == "packed"
-    assert client.post(url + "/transitions", json={"to": "loaded"}).status_code == 200
-    # старая ручка исправления: причина теперь необязательна
-    assert client.post(url + "/status-corrections", json={"to": "packed"}).status_code == 200
-    assert client.post(url + "/transitions", json={"to": "loaded"}).status_code == 200
-    assert make_client("outsider").post(
-        url + "/status-corrections", json={"to": "packed", "reason": "Ошибочная отметка"}
-    ).status_code in (403, 404)
-    response = client.post(
-        url + "/status-corrections", json={"to": "packed", "reason": "Погрузку отметили ошибочно"}
+    forward = {"to": "unpacked", "reason": "Хотим пропустить этапы"}
+    assert client.post(url + "/status-corrections", json=forward).status_code == 409
+    back = {"to": "packed", "reason": "Ошибочная отметка"}
+    assert make_client("outsider").post(url + "/status-corrections", json=back).status_code in (
+        403,
+        404,
     )
-    assert response.status_code == 200
-    assert response.json()["status"] == "packed"
+    response = client.post(url + "/status-corrections", json=back)
+    assert response.status_code == 200 and response.json()["status"] == "packed"
     event = db_session.scalar(
         select(Event).where(Event.type == "box.status_corrected").order_by(Event.id.desc())
     )
     assert event.data["from"] == "loaded" and event.data["to"] == "packed"
-    assert event.data["actor_id"] and event.data["reason"] == "Погрузку отметили ошибочно"
-    assert client.post(url + "/transitions", json={"to": "unpacked"}).status_code == 409
-
-
-def test_bulk_rejects_skip_without_partial_updates(client, base):
-    numbers = [
-        client.post(base + "/boxes", json={"room": "Кухня", "items_text": "Чайник"}).json()[
-            "number"
-        ]
-        for _ in range(2)
-    ]
-    client.post(base + f"/boxes/{numbers[0]}/transitions", json={"to": "packed"})
+    assert event.data["actor_id"] and event.data["reason"] == "Ошибочная отметка"
+    # причина необязательна
     assert (
-        client.post(
-            base + "/boxes/bulk-transitions", json={"numbers": numbers, "to": "loaded"}
-        ).status_code
-        == 409
+        client.post(url + "/status-corrections", json={"to": "packing"}).json()["status"]
+        == "packing"
     )
-    assert [client.get(base + f"/boxes/{n}").json()["status"] for n in numbers] == [
-        "packed",
-        "packing",
-    ]
 
 
 def test_300_boxes_and_search_pages_include_last_room(client, base, project, db_session):
