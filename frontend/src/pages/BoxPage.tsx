@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Plus, Trash2 } from 'lucide-react'
 import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
 import StatusPickerModal, { type StatusOption } from '../components/StatusPickerModal'
@@ -74,12 +75,12 @@ export default function BoxPage() {
             <div className="row between">
               <div>
                 <div className="muted small">Коробка</div>
-                <h1 style={{ fontSize: '2.4rem', margin: 0 }}>№ {box.number}</h1>
-                <div style={{ fontSize: '1.2rem' }}>{box.room}</div>
+                <h1 className="box-title">№ {box.number}</h1>
+                <span className="room-tag room-tag--lg">{box.room}</span>
               </div>
               <div className="stack" style={{ justifyItems: 'end' }}>
                 <StatusBadge status={box.status} />
-                {box.fill_later && box.items.length === 0 ? <span className="badge st-packed">Заполнить позже</span> : null}
+                {box.fill_later && box.items.length === 0 ? <span className="awaiting">⚠️ Ожидает описи</span> : null}
               </div>
             </div>
             <button className="primary" disabled={busy} onClick={() => setPickingBox(true)}>Сменить статус</button>
@@ -109,9 +110,10 @@ export default function BoxPage() {
                   >
                     {ITEM_STATUS_LABELS[item.status]} ▾
                   </button>
-                  <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={() => window.confirm(`Удалить вещь «${item.name}»?`) && run(() => api.deleteItem(pid, item.id))}>✕</button>
+                  <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={() => window.confirm(`Удалить вещь «${item.name}»?`) && run(() => api.deleteItem(pid, item.id))}><Trash2 className="icon-sm" aria-hidden /></button>
                 </div>
               ))}
+              <button className="list-row add-row" onClick={() => setAdding(true)}><Plus className="icon-sm" aria-hidden />Добавить вещи</button>
             </div>
           ) : null}
 

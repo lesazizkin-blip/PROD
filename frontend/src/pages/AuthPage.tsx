@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import BrandMark from '../components/BrandMark'
 import { useAuth } from '../state/AuthContext'
 import { useAction } from '../state/useAction'
 import ErrorAlert from '../ui/ErrorAlert'
@@ -20,8 +21,9 @@ export default function AuthPage({ note }: { note?: string }) {
   }
 
   return (
+    <div className="workspace auth-page">
     <div className="auth">
-      <div className="auth__brand">MoverMate</div>
+      <div className="auth__brand"><BrandMark />MoverMate</div>
       <p className="muted auth__tagline">Переезд без хаоса: план, коробки и поиск любой вещи</p>
       {note ? <div className="banner" role="status">{note}</div> : null}
       <form className="card stack" onSubmit={submit(enter)}>
@@ -45,6 +47,7 @@ export default function AuthPage({ note }: { note?: string }) {
         Посмотреть демо без регистрации
       </button>
       <p className="muted small auth__privacy">Мы храним только логин и хэш пароля: ни почты, ни телефона.</p>
+    </div>
     </div>
   )
 }

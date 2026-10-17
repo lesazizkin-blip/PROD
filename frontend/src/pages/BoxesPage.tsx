@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Search } from 'lucide-react'
 import { api } from '../api/endpoints'
 import type { Box } from '../api/types'
 import Modal from '../components/Modal'
@@ -16,19 +17,36 @@ export default function BoxesPage() {
   return <RequireProject>{(pid) => <Boxes pid={pid} />}</RequireProject>
 }
 
-function BoxRow({ pid, box }: { pid: string; box: Box }) {
+// номер коробки крупно и моноширинно: #014
+const boxNo = (n: number) => `#${String(n).padStart(3, '0')}`
+
+function BoxCard({ pid, box }: { pid: string; box: Box }) {
+  const waiting = box.fill_later && box.items_count === 0
   return (
-    <Link to={boxPath(pid, box.number)} className="list-row">
-      <span aria-hidden>📦</span>
-      <span className="grow">
-        <b>№ {box.number} · {box.room}</b>
-        <span className="sub">
-          {box.items_count} {plural(box.items_count, ['вещь', 'вещи', 'вещей'])}{box.fill_later && box.items_count === 0 ? ' · заполнить позже' : ''}
-        </span>
+    <Link to={boxPath(pid, box.number)} className={`box-card st-card-${box.status}`} aria-label={`Коробка № ${box.number}, ${box.room}`}>
+      <span className="row between">
+        <span className="box-card__no">{boxNo(box.number)}</span>
+        <StatusBadge status={box.status} />
       </span>
-      <StatusBadge status={box.status} />
+      <span className="room-tag" style={{ ['--tag' as string]: roomHue(box.room) }}>{box.room}</span>
+      <span className="muted small">{box.items_count} {plural(box.items_count, ['вещь', 'вещи', 'вещей'])}</span>
+      {waiting ? <span className="awaiting">⚠️ Ожидает описи</span> : null}
     </Link>
   )
+}
+
+/** Пастельный цвет метки комнаты: одна и та же комната всегда одного цвета. */
+function roomHue(room: string): string {
+  let h = 0
+  for (const ch of room) h = (h * 31 + ch.charCodeAt(0)) % 360
+  return `${h}`
+}
+
+/** Подсветка найденного фрагмента в названии вещи. */
+function Highlight({ text, query }: { text: string; query: string }) {
+  const at = text.toLowerCase().indexOf(query.toLowerCase())
+  if (at < 0 || !query) return <>{text}</>
+  return <>{text.slice(0, at)}<mark>{text.slice(at, at + query.length)}</mark>{text.slice(at + query.length)}</>
 }
 
 function Boxes({ pid }: { pid: string }) {
@@ -52,11 +70,14 @@ function Boxes({ pid }: { pid: string }) {
 
   return (
     <>
-      <input type="search" placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Поиск" />
+      <div className="search-bar">
+        <Search className="icon" aria-hidden />
+        <input type="search" placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Поиск" />
+      </div>
 
       {q ? (
         <>
-          {numberMatch ? <div className="card flush"><BoxRow pid={pid} box={numberMatch} /></div> : null}
+          {numberMatch ? <div className="box-grid"><BoxCard pid={pid} box={numberMatch} /></div> : null}
           <StateView
             loading={hits.loading && !hits.data}
             error={hits.error}
@@ -71,7 +92,7 @@ function Boxes({ pid }: { pid: string }) {
                   <Link key={h.item_id} to={boxPath(pid, h.box_number)} className="list-row">
                     <span aria-hidden>{h.lost ? '⚠️' : '🔎'}</span>
                     <span className="grow">
-                      <b>{h.name}</b>
+                      <b><Highlight text={h.name} query={q} /></b>
                       <span className="sub">Коробка № {h.box_number} · {h.room}</span>
                     </span>
                     <StatusBadge status={h.status} />
@@ -97,7 +118,7 @@ function Boxes({ pid }: { pid: string }) {
               ))}
             </div>
           ) : null}
-          <div className="card flush">{visible.map((b) => <BoxRow key={b.number} pid={pid} box={b} />)}</div>
+          <div className="box-grid">{visible.map((b) => <BoxCard key={b.number} pid={pid} box={b} />)}</div>
           <p className="muted small">Статусы: {Object.values(STATUS_LABELS).join(' → ')}</p>
         </StateView>
       )}

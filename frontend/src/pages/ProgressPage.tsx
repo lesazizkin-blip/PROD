@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { CircleCheck, Circle } from 'lucide-react'
 import { api } from '../api/endpoints'
 import type { BoxStatus, Hint, LostItem } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
@@ -69,7 +70,7 @@ function ProgressView({ pid }: { pid: string }) {
 
           <div className="stat-grid">
             {BOX_STATUSES.map((s) => (
-              <div key={s} className="stat" style={{ borderLeftColor: `var(--st-${s})` }}>
+              <div key={s} className={`stat st-${s}`}>
                 <b>{p.by_status[s]}</b>
                 <span>{STATUS_LABELS[s]}</span>
               </div>
@@ -81,9 +82,9 @@ function ProgressView({ pid }: { pid: string }) {
             <div key={r.room} className="card stack">
               <b>{r.room} · {r.total} кор.</b>
               <div className="small muted">Погружено {r.loaded} из {r.total}</div>
-              <ProgressBar value={r.loaded_percent} label={`${r.room}: погружено`} color="var(--st-loaded)" />
+              <ProgressBar value={r.loaded_percent} label={`${r.room}: погружено`} color="var(--st-loaded-fg)" />
               <div className="small muted">Распаковано {r.unpacked} из {r.total}</div>
-              <ProgressBar value={r.unpacked_percent} label={`${r.room}: распаковано`} color="var(--st-unpacked)" />
+              <ProgressBar value={r.unpacked_percent} label={`${r.room}: распаковано`} />
               <div className="row wrap">
                 {ROOM_STEPS.filter((s) => r.by_status[s.from] > 0).map((s) => (
                   <button key={s.to} className="tonal small" disabled={busy} onClick={() => moveRoom(r.room, s.from, s.to)}>
@@ -93,6 +94,8 @@ function ProgressView({ pid }: { pid: string }) {
               </div>
             </div>
           ))}
+
+          <FirstDayWidget pid={pid} />
 
           <SectionTitle>Потерянные вещи</SectionTitle>
           <div className="card flush">
@@ -129,5 +132,31 @@ function ProgressView({ pid }: { pid: string }) {
         </Modal>
       ) : null}
     </StateView>
+  )
+}
+
+/** Виджет «Чек-лист первого дня» (раздел 5.4 ТЗ): что уже собрано в коробку первого дня. Отмечать - на «Плане». */
+function FirstDayWidget({ pid }: { pid: string }) {
+  const items = useAsync(() => api.firstDay(pid), [pid])
+  const list = items.data ?? []
+  const done = list.filter((i) => i.done).length
+  if (!items.data) return null
+  return (
+    <section className="card stack first-day">
+      <div className="row between">
+        <b>Чек-лист первого дня</b>
+        <span className="muted small">{done} из {list.length}</span>
+      </div>
+      <ProgressBar value={done} max={list.length} label="Чек-лист первого дня" />
+      <ul className="plain first-day__list">
+        {list.map((i) => (
+          <li key={i.id} className={i.done ? 'done' : ''}>
+            {i.done ? <CircleCheck className="icon-sm" aria-hidden /> : <Circle className="icon-sm" aria-hidden />}
+            {i.title}
+          </li>
+        ))}
+      </ul>
+      <Link to="/" className="small">Отметить на «Плане» →</Link>
+    </section>
   )
 }
