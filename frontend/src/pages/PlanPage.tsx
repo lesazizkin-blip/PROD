@@ -49,11 +49,11 @@ function Plan({ pid }: { pid: string }) {
 
   return (
     <StateView loading={tasks.loading && !tasks.data} error={tasks.error} onRetry={reloadAll}>
-      <PageHeading title="Всё идёт по плану.">Новый дом начинается с маленьких шагов. {days !== null && days > 0 ? `До переезда — ${days} дн.` : 'Каждая вещь на своём месте.'}</PageHeading>
+      <PageHeading title="План переезда">{project.data ? formatDate(project.data.move_date) : '…'} · {days !== null && days > 0 ? `${days} дн. до переезда` : 'Ваш переезд'}</PageHeading>
       <div className="move-ticket">
         <div className="stack">
           <span className="eyebrow">МАРШРУТ / {project.data?.name ?? 'ВАШ ПЕРЕЕЗД'}</span>
-          <h2>Собираем вещи.<br />Сохраняем спокойствие.</h2>
+          <h2>Упаковка вещей<br />{progress.data ? `${progress.data.boxes_total - progress.data.by_status.packing} из ${progress.data.boxes_total} коробок готовы` : 'Загружаем прогресс…'}</h2>
           <p className="small">{[project.data?.address_from, project.data?.address_to].filter(Boolean).join(' → ') || 'Впереди — новый дом.'}</p>
         </div>
         <div className="date-stamp"><strong>{dateStamp}</strong><span>ДАТА ПЕРЕЕЗДА</span><span className="stamp-arrows">↑↑ THIS SIDE UP</span></div>
@@ -104,7 +104,7 @@ function Plan({ pid }: { pid: string }) {
       </div>
       <aside className="first-day stack">
         <span className="eyebrow accent">ОТКРЫТЬ ПЕРВОЙ</span>
-        <h2>Первый вечер<br />без поисков.</h2>
+        <h2>Коробка<br />первого дня</h2>
         <p>Чайник, зарядки, зубные щётки и постельное бельё — в одну коробку.</p>
       <section>
         <SectionTitle>Коробка первого дня</SectionTitle>

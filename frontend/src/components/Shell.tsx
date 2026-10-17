@@ -38,7 +38,7 @@ export default function Shell() {
           <img src="/assets/box-mark.svg" width="36" height="36" alt="" />
           <span>MoverMate</span>
         </Link>
-        <p className="brand-caption">ПЕРЕЕЗД ПО<br />КОРОБОЧКАМ</p>
+        <p className="brand-caption">УЧЁТ ВЕЩЕЙ<br />И ПЛАН ПЕРЕЕЗДА</p>
         <button className="project-switch" onClick={() => setSwitching(true)} aria-label={`Проект: ${current?.name ?? 'нет'}. Сменить`}>
           <span>{current?.name ?? 'Нет проекта'}</span>
           <span className="project-date">{project.data ? new Date(`${project.data.move_date}T12:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : 'Создайте свой переезд'} <Icon name="swap" /></span>
@@ -52,7 +52,7 @@ export default function Shell() {
             </NavLink>
           ))}
         </nav>
-        <p className="sidebar-note">↑↑ БЕРЕЖНО<br />Внутри — ваш дом.</p>
+        <p className="sidebar-note">↑↑ БЕРЕЖНО<br />Каждая вещь на месте.</p>
       </aside>
       <header className="topbar">
         <span className="breadcrumb">ЛИЧНОЕ ПРОСТРАНСТВО / {current?.name ?? 'НОВЫЙ ПЕРЕЕЗД'}</span>

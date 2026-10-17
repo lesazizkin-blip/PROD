@@ -1,13 +1,14 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import type { Label } from '../../../api/types'
 import LabelSheet from '../../../components/LabelSheet'
+import PageHeading from '../../../components/PageHeading'
 import { boxPath, labelPath } from '../../../ui/format'
 import { paginateLabels, PRESETS, QR_SIZES, readSettings, TEMPLATES } from './layout'
 import './print.css'
 
-export default function PrintWorkspace({ labels, pid, preview = false, single = false }: {
-  labels: Label[]; pid: string; preview?: boolean; single?: boolean
+export default function PrintWorkspace({ labels, pid, preview = false, single = false, extraSettings }: {
+  labels: Label[]; pid: string; preview?: boolean; single?: boolean; extraSettings?: ReactNode
 }) {
   const [params, setParams] = useSearchParams()
   const settings = readSettings(params)
@@ -39,11 +40,13 @@ export default function PrintWorkspace({ labels, pid, preview = false, single = 
   query.set('project', pid)
   const previewPath = single ? labelPath(pid, labels[0].number) : '/labels/print'
   return <div className="mm-print-workspace">
+    <PageHeading title={single ? `Этикетка · коробка ${String(labels[0].number).padStart(3, '0')}` : preview ? 'Предпросмотр печати' : 'QR-этикетки'}>{single ? 'Приклейте на две стороны коробки' : 'Выберите коробки и формат листа для печати.'}</PageHeading>
     <div className="mm-print-controls no-print">
-      <h1>{single ? `Этикетка · коробка ${String(labels[0].number).padStart(3, '0')}` : preview ? 'Предпросмотр печати' : 'Этикетки для коробок'}</h1>
+      <h2>{single ? 'Параметры этикетки' : 'Подготовка к печати'}</h2>
       <p>{import.meta.env.VITE_COMPACT_QR_ENABLED !== 'false' && selected.some(l => l.qr_payload?.startsWith('MM1:'))
         ? 'Компактный QR сканируется внутри MoverMate. Универсальные этикетки открываются и обычной камерой телефона.'
         : 'Универсальный QR открывает карточку обычной камерой телефона или сканером MoverMate.'}</p>
+      {extraSettings}
       <div className="mm-print-settings">
         <label>Шаблон<select value={template} onChange={e => update({ template: e.target.value })}>{Object.entries(TEMPLATES).map(([key, title]) => <option key={key} value={key}>{title}</option>)}</select></label>
         <label>Раскладка A4<select value={preset} onChange={e => update({ layout: e.target.value, qr: null })}>{Object.entries(PRESETS).map(([key, p]) => <option key={key} value={key}>{p.title}</option>)}</select></label>

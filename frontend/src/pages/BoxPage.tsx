@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
+import BoxVolume from '../components/BoxVolume'
 import PageHeading from '../components/PageHeading'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
@@ -10,6 +11,7 @@ import ErrorAlert from '../ui/ErrorAlert'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
+import { roomStyle } from '../ui/roomTheme'
 import { STATUS_LABELS, labelPath, nextStatus, prevStatus } from '../ui/format'
 
 // Карточка коробки. Сюда ведёт QR: /projects/{pid}/boxes/{n} (открытие только читает, дублей не создаёт).
@@ -20,7 +22,32 @@ export default function BoxPage() {
   const { projects, currentId, select } = useProjects()
   const valid = pid !== '' && Number.isInteger(number) && number >= 1
   const card = useAsync(() => (valid ? api.getBox(pid, number) : Promise.reject(new Error('Некорректная ссылка на коробку'))), [pid, number], { refreshOnFocus: true })
-  const { busy, error, run } = useAction(() => card.reload())
+  const { busy: actionBusy, error, run } = useAction(() => card.reload())
+  const [packingAnimation, setPackingAnimation] = useState(false)
+  const animationTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const routeKey = useRef(`${pid}/${number}`)
+  const busy = actionBusy || packingAnimation
+  useEffect(() => {
+    routeKey.current = `${pid}/${number}`
+    setPackingAnimation(false)
+    return () => {
+      routeKey.current = ''
+      if (animationTimer.current) clearTimeout(animationTimer.current)
+    }
+  }, [pid, number])
+
+  function advanceStatus() {
+    if (!next) return
+    const key = `${pid}/${number}`
+    void run(async () => {
+      await api.transition(pid, number, next)
+      // Only animate a confirmed save; failed requests leave the box open.
+      if (next === 'packed' && routeKey.current === key && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setPackingAnimation(true)
+        animationTimer.current = setTimeout(() => setPackingAnimation(false), 1600)
+      }
+    })
+  }
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
 
@@ -48,12 +75,12 @@ export default function BoxPage() {
         <>
           <PageHeading title={`Коробка ${String(box.number).padStart(3, '0')}`}>{box.room} · {box.items.length} вещей · {STATUS_LABELS[box.status]}</PageHeading>
           <div className="box-detail-layout">
-          <aside className="box-summary stack">
+          <aside className="box-summary stack" style={roomStyle(box.room)}>
             <div className="row between">
               <div>
                 <div className="muted small">Коробка</div>
-                <div className="detail-number">{String(box.number).padStart(3, '0')}</div>
-                <div style={{ fontSize: '1.2rem' }}>{box.room}</div>
+                <div className="box-summary-identity"><div className="detail-number">{String(box.number).padStart(3, '0')}</div><BoxVolume status={box.status} closing={packingAnimation} /></div>
+                <div className="summary-room">{box.room}</div>
               </div>
               <div className="stack" style={{ justifyItems: 'end' }}>
                 <StatusBadge status={box.status} />
@@ -62,7 +89,7 @@ export default function BoxPage() {
             </div>
             <div className="row wrap">
               {prev ? <button disabled={busy} onClick={() => run(() => api.transition(pid, number, prev))}>↩ {STATUS_LABELS[prev]}</button> : null}
-              {next ? <button className="primary" disabled={busy} onClick={() => run(() => api.transition(pid, number, next))}>{STATUS_LABELS[next]} →</button> : null}
+              {next ? <button className="primary" disabled={busy} onClick={advanceStatus}>{packingAnimation ? 'Заклеиваем…' : `${STATUS_LABELS[next]} →`}</button> : null}
             </div>
             <ErrorAlert message={error} />
             <details className="stack">
@@ -76,6 +103,7 @@ export default function BoxPage() {
               <button className="tonal" onClick={() => setAdding(true)}>+ Вещи</button>
               <button onClick={() => setEditing(true)}>Изменить</button>
             </div>
+            <p className="paper-note">Подпишите коробку с двух сторон — так её проще найти в стопке.</p>
           </aside>
           <section className="box-contents stack">
           <SectionTitle>{`Содержимое (${box.items.length})`}</SectionTitle>

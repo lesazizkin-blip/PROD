@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/endpoints'
 import type { Box } from '../api/types'
 import Modal from '../components/Modal'
+import BoxVolume from '../components/BoxVolume'
 import PageHeading from '../components/PageHeading'
 import RequireProject from '../components/RequireProject'
 import { useAction } from '../state/useAction'
@@ -11,6 +12,7 @@ import { useDebounced } from '../state/useDebounced'
 import ErrorAlert from '../ui/ErrorAlert'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
+import { roomStyle, roomTheme } from '../ui/roomTheme'
 import { STATUS_LABELS, boxPath, plural } from '../ui/format'
 
 export default function BoxesPage() {
@@ -19,12 +21,14 @@ export default function BoxesPage() {
 
 function BoxRow({ pid, box }: { pid: string; box: Box }) {
   return (
-    <Link to={boxPath(pid, box.number)} className="box-card">
+    <Link to={boxPath(pid, box.number)} className={`box-card ${box.status === 'packing' || box.status === 'unpacked' ? 'carton-open' : 'carton-sealed'}`} style={roomStyle(box.room)}>
+      <span className="carton-lid" aria-hidden="true"><span /></span>
+      <BoxVolume status={box.status} />
       <div className="box-card-header"><span className="box-number">{String(box.number).padStart(3, '0')}</span><StatusBadge status={box.status} /></div>
       <h2>{box.room}</h2>
       <p className="muted small">{box.items_count} {plural(box.items_count, ['вещь', 'вещи', 'вещей'])}{box.fill_later && box.items_count === 0 ? ' · заполнить позже' : ' · посмотреть содержимое →'}</p>
       <span className="eyebrow muted">↑↑ ВЕРХ</span>
-      <img className="packing-tape" src="/assets/packing-tape.svg" alt="" />
+      <img className="packing-tape" src={`/assets/${roomTheme(box.room).tape}`} alt="" />
       <img className="packing-bars" src="/assets/packing-bars.svg" alt="" />
     </Link>
   )
@@ -51,7 +55,7 @@ function Boxes({ pid }: { pid: string }) {
 
   return (
     <>
-      <PageHeading title="Каждой вещи — своё место." mobileTitle="Коробки">{boxes.data?.total ?? '…'} коробок · ни одной загадочной коробки</PageHeading>
+      <PageHeading title="Коробки и вещи" mobileTitle="Коробки">{boxes.data?.total ?? '…'} коробок · {all.filter((b) => b.status === 'packing').length} ещё собираются</PageHeading>
       <div className="search-tools"><input type="search" placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Поиск" /><Link to="/scan" className="button">Сканировать QR</Link><button className="primary" onClick={() => setAdding(true)}>+ Коробка</button></div>
 
       {q ? (
@@ -93,7 +97,7 @@ function Boxes({ pid }: { pid: string }) {
             <div className="chips" role="group" aria-label="Фильтр по комнатам">
               <button className={room === null ? 'chip on' : 'chip'} onClick={() => setRoom(null)}>Все комнаты · {all.length}</button>
               {rooms.map((r) => (
-                <button key={r} className={room === r ? 'chip on' : 'chip'} onClick={() => setRoom(room === r ? null : r)}>{r} · {all.filter((b) => b.room === r).length}</button>
+                <button key={r} className={room === r ? 'chip room-chip on' : 'chip room-chip'} style={roomStyle(r)} onClick={() => setRoom(room === r ? null : r)}>{r} · {all.filter((b) => b.room === r).length}</button>
               ))}
             </div>
           ) : null}
@@ -102,7 +106,7 @@ function Boxes({ pid }: { pid: string }) {
         </StateView>
       )}
 
-      <div className="packing-tip"><span aria-hidden>↑↑</span><p>Совет: подпишите коробку с двух сторон — её будет проще найти в стопке.</p></div>
+      <div className="packing-tip"><span aria-hidden>↑↑</span><p>Одну кружку оставьте снаружи. Кофе ещё понадобится.</p></div>
       {adding ? (
         <AddBoxModal
           rooms={rooms}

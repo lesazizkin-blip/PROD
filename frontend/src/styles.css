@@ -416,3 +416,49 @@ button.primary, a.button { font-weight: 700; }
   .mobile-title { display: inline; }
   .desktop-title { display: none; }
 }
+
+/* Packing details: restrained room cues and neutral paper notes. */
+.topbar { border-bottom: 1px solid var(--border); }
+.move-ticket { border: 1px solid #746348; }
+.date-stamp { border: 1px dashed #9d917a; }
+.page-heading .heading-stripe { display: block; }
+.box-card { position: relative; border: 1px solid var(--kraft); border-radius: 3px; background: var(--primary-soft); }
+.box-card-header { background: var(--surface); border: 0; margin: 0; padding: 0 12px; min-height: 58px; }
+.box-card h2 { border-top: 1px solid var(--border); padding-top: 12px; color: var(--room-color, var(--text)); }
+.box-card > .small { padding-right: 2px; }
+.box-card > .eyebrow { padding-right: 74px; }
+.packing-tape { display: block; position: absolute; top: -10px; right: 20px; }
+.packing-bars { display: block; position: absolute; bottom: 18px; right: 24px; }
+.box-grid { row-gap: 24px; }
+.room-chip { color: var(--room-color, var(--text)); border-color: var(--room-color, var(--border)); border-radius: 0; font-size: 11px; }
+.room-chip.on { background: var(--room-color, var(--text)); border-color: var(--room-color, var(--text)); color: var(--surface); }
+.packing-tip, .paper-note { background: var(--primary-soft); color: var(--muted); }
+.paper-note { padding: 16px; font-size: 12px; line-height: 1.6; }
+.summary-room { color: var(--text); font-size: 18px; font-weight: 700; }
+.box-summary .paper-note { margin-top: 20px; }
+.qr-mode-details { border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.qr-mode-details > summary { cursor: pointer; color: var(--muted); font-size: 12px; padding: 8px 0; }
+.qr-mode-details > .card { margin-top: 12px; }
+.qr-mode-details > .card h2 { font-size: 18px; }
+@media (max-width: 599px) {
+  .topbar { border-bottom: 0; }
+  .box-grid { row-gap: 20px; }
+  .box-card-header { min-height: 58px; }
+  .room-chip { font-size: 11px; }
+  .box-detail-layout .detail-number { font-size: 64px; }
+  .page-heading:has(.mobile-title) { min-height: 91px; }
+}
+
+/* Keep the visual language quiet outside the carton itself. */
+.page-heading .heading-stripe { display: none; }
+.packing-bars, .box-card > .eyebrow { display: none; }
+.box-card h2 { color: var(--text); border: 0; padding-top: 0; font-size: 18px; }
+.box-card h2::before { content: ''; display: inline-block; width: 5px; height: 14px; margin-right: 9px; background: var(--room-color, var(--muted)); border-radius: 2px; vertical-align: -1px; opacity: .65; }
+.room-chip { color: var(--muted); border-color: var(--border); }
+.room-chip.on { background: var(--text); border-color: var(--text); color: var(--surface); }
+.move-ticket { border-color: var(--border); }
+.date-stamp { border: 0; }
+.packing-tip { gap: 12px; padding: 14px 18px; font-size: 12px; }
+.packing-tip > span { font-size: 14px; opacity: .65; }
+.box-summary .paper-note { margin-top: 4px; padding: 12px 0; border-top: 1px solid var(--border); }
+.carton-lid { display: none; }
