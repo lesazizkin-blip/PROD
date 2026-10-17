@@ -32,6 +32,6 @@ fi
 
 echo
 echo "Сайт: http://localhost:$PORT   (Swagger: http://localhost:$PORT/api/docs)"
-echo "На экране входа нажмите «Посмотреть демо без регистрации». Остановить: Ctrl+C."
-# SEED_DEMO=true включает вход в демо-аккаунт кнопкой на экране входа
+echo "Демо: «Войти», логин demo, пароль demo-pereezd. Остановить: Ctrl+C."
+# SEED_DEMO=true создаёт демо-аккаунт и демо-проект
 SEED_DEMO=true STATIC_DIR="$SITE" exec .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port "$PORT"
