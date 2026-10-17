@@ -198,7 +198,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
               footer={<button className="link" onClick={() => { setPickingBox(false); setCorrecting(true) }}>Исправить ошибочный статус</button>}
             />
           ) : null}
-          {correcting ? <CorrectBoxStatusModal current={box.status} number={box.number} onSave={async (to, reason) => { await api.correctBoxStatus(pid, number, to, reason); card.reload() }} onClose={() => setCorrecting(false)} /> : null}
+          {correcting ? <CorrectBoxStatusModal current={box.status} number={box.number} onSave={async to => { await api.correctBoxStatus(pid, number, to); card.reload() }} onClose={() => setCorrecting(false)} /> : null}
           {pickingItem ? (
             <StatusPickerModal
               title={`«${pickingItem.name}»`}
