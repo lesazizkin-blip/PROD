@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Clock, Package, Pencil, Plus, Sparkles, UserRound } from 'lucide-react'
+import { CalendarDays, Clock, Package, Pencil, Sparkles, UserRound } from 'lucide-react'
 import { api } from '../api/endpoints'
 import { ITEM_STATUSES, type ItemStatus, type Stage, type Task, type TaskCreate } from '../api/types'
 import ChecklistModal from '../components/ChecklistModal'
@@ -139,7 +139,7 @@ function Plan({ pid }: { pid: string }) {
       ) : (
       <section className="task-list" role="tabpanel" aria-label={STAGE_LABELS[activeTab]}>
         {list.length === 0 ? (
-          <div className="state"><p>Пока задач нет. Добавьте свою кнопкой ниже или выберите готовые в «Умном чек-листе».</p></div>
+          <div className="state"><p>Пока задач нет. Добавьте свою кнопкой «+ Задача» или выберите готовые в «Умном чек-листе».</p></div>
         ) : stageTasks.length === 0 ? <div className="state"><p>На этом этапе задач нет.</p></div> : null}
         {stageTasks.map((t) => (
           <label key={t.id} className={`task-card${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
@@ -161,15 +161,13 @@ function Plan({ pid }: { pid: string }) {
             <button type="button" className="link small icon-btn" aria-label={`Изменить «${t.title}»`} onClick={(e) => { e.preventDefault(); setForm(t) }}><Pencil className="icon-sm" aria-hidden /></button>
           </label>
         ))}
-        <button type="button" className="add-task" onClick={() => setForm('new')}>
-          <Plus className="icon-sm" aria-hidden />Добавить задачу: {STAGE_LABELS[activeTab].toLowerCase()}
-        </button>
       </section>
       )}
       </div>
 
-      {/* задачи добавляются кнопкой в конце этапа; плавающая кнопка осталась только для вещей первого дня */}
-      {activeTab === 'first-day' ? <button className="primary fab" onClick={() => setAddingItem(true)}>+ Вещь</button> : null}
+      {activeTab === 'first-day'
+        ? <button className="primary fab" onClick={() => setAddingItem(true)}>+ Вещь</button>
+        : <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button>}
       {addingItem ? (
         <FirstDayItemModal
           pid={pid}

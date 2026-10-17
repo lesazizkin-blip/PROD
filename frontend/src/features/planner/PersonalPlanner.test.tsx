@@ -22,7 +22,8 @@ function Harness() {
 beforeEach(() => {
   fetchMock.mockReset()
   vi.stubGlobal('fetch', fetchMock)
-  fetchMock.mockResolvedValue(new Response(JSON.stringify(draft), { status: 200 }))
+  // новый ответ на каждый вызов: тело Response читается один раз, а запросов два (вопросы и план)
+  fetchMock.mockImplementation(async () => new Response(JSON.stringify(draft), { status: 200 }))
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
@@ -44,10 +45,43 @@ it('does not transmit description until explicit consent and click', async () =>
   expect(fetchMock).not.toHaveBeenCalled()
   await userEvent.click(screen.getByRole('button', { name: 'Предложить персональный план' }))
   await screen.findByLabelText('Предпросмотр плана')
-  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
-    description: 'Переезжаем с кошкой в другой город', move_date: '2026-11-01', consent: true,
-  })
-  expect(fetchMock.mock.calls[0][0]).toBe('/api/projects/plan-preview')
+  const body = { description: 'Переезжаем с кошкой в другой город', move_date: '2026-11-01', consent: true }
+  // шаг 1 - вопросы; модели нечего уточнить, поэтому сразу шаг 2 - план, ответов нет
+  expect(fetchMock.mock.calls[0][0]).toBe('/api/projects/plan-questions')
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(body)
+  expect(fetchMock.mock.calls[1][0]).toBe('/api/projects/plan-preview')
+  expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual(body)
+})
+
+it('asks clarifying questions first and sends the chosen answers with the plan', async () => {
+  const questions = { questions: [
+    { id: 'q1', question: 'Есть ли грузовой лифт?', options: ['Да', 'Нет лифта'] },
+    { id: 'q2', question: 'Нужно разбирать шкафы?', options: ['Да', 'Нет'] },
+  ] }
+  fetchMock.mockImplementation(async (url: string) =>
+    new Response(JSON.stringify(url.endsWith('plan-questions') ? questions : draft), { status: 200 }))
+  render(<Harness />)
+  await generate()
+  await screen.findByLabelText('Уточняющие вопросы')
+  await userEvent.click(screen.getByRole('button', { name: 'Нет лифта' }))
+  await userEvent.type(screen.getByLabelText('Свой ответ: Нужно разбирать шкафы?'), 'Два шкафа-купе')
+  await userEvent.click(screen.getByRole('button', { name: 'Составить план' }))
+  await screen.findByLabelText('Предпросмотр плана')
+  expect(screen.queryByLabelText('Уточняющие вопросы')).toBeNull()
+  expect(JSON.parse(fetchMock.mock.calls[1][1].body).answers).toEqual([
+    { question: 'Есть ли грузовой лифт?', answer: 'Нет лифта' },
+    { question: 'Нужно разбирать шкафы?', answer: 'Два шкафа-купе' },
+  ])
+})
+
+it('skipping questions builds the plan without answers', async () => {
+  fetchMock.mockImplementation(async (url: string) => new Response(JSON.stringify(url.endsWith('plan-questions')
+    ? { questions: [{ id: 'q1', question: 'Есть ли лифт?', options: ['Да'] }] } : draft), { status: 200 }))
+  render(<Harness />)
+  await generate()
+  await userEvent.click(await screen.findByRole('button', { name: 'Пропустить вопросы' }))
+  await screen.findByLabelText('Предпросмотр плана')
+  expect(JSON.parse(fetchMock.mock.calls[1][1].body).answers).toBeUndefined()
 })
 
 it('allows reviewing, editing and discarding the draft', async () => {
@@ -74,7 +108,7 @@ it('invalidates preview when requirements change', async () => {
 })
 
 it('unlocks the form after provider failure and keeps entered text', async () => {
-  fetchMock.mockResolvedValue(new Response(JSON.stringify({ detail: 'Модель недоступна' }), { status: 503 }))
+  fetchMock.mockImplementation(async () => new Response(JSON.stringify({ detail: 'Модель недоступна' }), { status: 503 }))
   render(<Harness />)
   await generate()
   expect((await screen.findByRole('alert')).textContent).toBe('Модель недоступна')
@@ -84,14 +118,14 @@ it('unlocks the form after provider failure and keeps entered text', async () =>
 
 it('locks repeated generation and requirement editing while waiting', async () => {
   let resolve!: (response: Response) => void
-  fetchMock.mockReturnValue(new Promise<Response>((r) => { resolve = r }))
+  fetchMock.mockReturnValueOnce(new Promise<Response>((r) => { resolve = r }))
   render(<Harness />)
   await generate()
-  expect((screen.getByRole('button', { name: 'Составляем план…' }) as HTMLButtonElement).disabled).toBe(true)
+  expect((screen.getByRole('button', { name: 'Готовим вопросы…' }) as HTMLButtonElement).disabled).toBe(true)
   expect((screen.getByLabelText('Особенности и пожелания') as HTMLTextAreaElement).disabled).toBe(true)
-  resolve(new Response(JSON.stringify(draft)))
+  resolve(new Response(JSON.stringify({ questions: [] })))
   await screen.findByLabelText('Предпросмотр плана')
-  expect(fetchMock).toHaveBeenCalledTimes(1)
+  expect(fetchMock).toHaveBeenCalledTimes(2) // вопросы + план, повторных запросов нет
 })
 
 it('offers text input when speech recognition is unsupported', () => {

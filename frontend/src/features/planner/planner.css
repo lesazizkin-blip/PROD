@@ -12,3 +12,9 @@
 .planner-task-meta input, .planner-task-meta select { min-width: 0; }
 .planner-first-day { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
 @media (max-width: 380px) { .planner-task-meta { grid-template-columns: minmax(0, 1fr); } }
+
+/* шаг 1 AI-плана: уточняющие вопросы с вариантами */
+.planner-questions { padding: 14px 16px; background: var(--bg); border-left: 3px solid var(--primary); }
+.planner-question { border: 0; padding: 0; margin: 0; gap: 8px; }
+.planner-question legend { font-weight: 700; padding: 0; margin-bottom: 6px; }
+.planner-question .chips { flex-wrap: wrap; }

@@ -32,7 +32,9 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 describe('создание проекта', () => {
   it('сохраняет проверенный персональный план одним запросом создания', async () => {
     const draft = { tasks: [{ title: 'Переноска для кошки', stage: 'before', offset_days: -3 }], first_day: ['Корм'] }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(draft))))
+    // шаг 1 (вопросы) - модели нечего уточнить, шаг 2 - черновик плана; новый Response на каждый вызов
+    vi.stubGlobal('fetch', vi.fn(async (url: string) =>
+      new Response(JSON.stringify(url.endsWith('plan-questions') ? { questions: [] } : draft))))
     createProject.mockResolvedValue({ id: 'p1', name: 'Переезд' })
     await setup()
     await userEvent.type(screen.getByLabelText('Название переезда'), 'Переезд')
