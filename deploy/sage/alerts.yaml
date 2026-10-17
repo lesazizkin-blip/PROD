@@ -1,0 +1,64 @@
+# Алерты MoverMate для Sage (формат «Алерты YAML Git», документация Sage → Алертинг → Алерты в Git).
+# Источник данных: логи приложения, которые аппендер шлёт в группу hack-led-20 (backend/app/sage_appender.py).
+# Поля логов: msg="request" (status, latency_ms, path), msg="audit" (action), level, env="production".
+# Адрес доставки (receivers) создаётся заранее в интерфейсе Sage: Алертинг → Адреса; подставьте его имя.
+# Без подключения Git те же алерты заводятся в интерфейсе как «Алерт MageQL»: запрос из expr, интервал из for.
+apiVersion: v1
+labels:
+  - name: movermate
+    rules:
+      - alert: "[MoverMate] Ошибки сервера"
+        expr: group="hack-led-20" system="movermate" env="production" level="ERROR" | stats count | where count > 0
+        for: 5m
+        enabled: true
+        metrics_enabled: false
+        annotations:
+          summary: В логах MoverMate появились ошибки (5xx, необработанные исключения)
+          description: |
+            За последние 5 минут в логах MoverMate есть записи уровня ERROR.
+            По полю request_id из ответа сервера найдите запись со стеком: group="hack-led-20" system="movermate" request_id="<id>".
+            Поиск: {{query.link}}
+          receivers:
+            - name: <адрес из Sage>
+
+      - alert: "[MoverMate] Подбор паролей"
+        expr: group="hack-led-20" system="movermate" env="production" msg="audit" action="auth.login_failed" | stats count | where count > 20
+        for: 10m
+        enabled: true
+        metrics_enabled: false
+        annotations:
+          summary: Много неудачных входов в MoverMate
+          description: |
+            Больше 20 неудачных входов за 10 минут. Сервер уже ограничивает попытки (429, запись auth.login_blocked);
+            проверьте IP в записях: group="hack-led-20" system="movermate" action="auth.login_failed" | stats count by ip
+            Поиск: {{query.link}}
+          receivers:
+            - name: <адрес из Sage>
+
+      - alert: "[MoverMate] Медленные ответы"
+        expr: group="hack-led-20" system="movermate" env="production" msg="request" | stats avg(latency_ms) as avg_ms | where avg_ms > 1000
+        for: 5m
+        enabled: true
+        metrics_enabled: false
+        annotations:
+          summary: Среднее время ответа MoverMate больше секунды
+          description: |
+            Среднее время ответа API за 5 минут выше 1000 мс. Самые медленные адреса:
+            group="hack-led-20" system="movermate" msg="request" | stats avg(latency_ms) as avg_ms by path | sort -avg_ms
+            Поиск: {{query.link}}
+          receivers:
+            - name: <адрес из Sage>
+
+      - alert: "[MoverMate] Сервис молчит"
+        # Docker (HEALTHCHECK в Dockerfile) раз в 15 с вызывает /api/health, поэтому запросы в логах есть всегда, пока сервис жив
+        expr: group="hack-led-20" system="movermate" env="production" msg="request" | stats count | where count < 1
+        for: 10m
+        enabled: true
+        metrics_enabled: false
+        annotations:
+          summary: От MoverMate нет логов 10 минут
+          description: |
+            Нет ни одной записи request за 10 минут: контейнер упал, аппендер выключен или ВМ недоступна.
+            Проверьте https://hack-led-20-vm1-12902f.vmaas-spirit.t-education.com/api/health и docker ps на ВМ.
+          receivers:
+            - name: <адрес из Sage>
