@@ -47,5 +47,5 @@ docker compose start app
 Затем с компьютера: `scripts/preflight.sh https://hack-led-20-vm1-12902f.vmaas-spirit.t-education.com`.
 
 ## Заголовки безопасности
-Caddy добавляет `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` (камера только для самого сайта) и скрывает заголовок `Server`. `preflight.sh` проверяет их на HTTPS-адресе; при выкатке Caddy перечитывает `Caddyfile` (`caddy reload`).
+Caddy добавляет `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` (камера только для самого сайта) и скрывает заголовок `Server`. `preflight.sh` проверяет их на HTTPS-адресе; при выкатке, если `Caddyfile` изменился, контейнер Caddy пересоздаётся (файл примонтирован отдельно, и `caddy reload` видел бы старую версию; сертификаты в томе `caddy-data` сохраняются).
 
