@@ -40,6 +40,8 @@ services:
       SAGE_LOGS_URL: "${SAGE_LOGS_URL:-}"
       SAGE_API_KEY: "${SAGE_API_KEY:-}"
       SAGE_TRACES_ENDPOINT: "${SAGE_TRACES_ENDPOINT:-}"
+      # метрики в Sage (Remote Write) раз в 30 с; работают, когда задан SAGE_API_KEY
+      SAGE_METRICS_URL: "${SAGE_METRICS_URL:-https://sage.spirit.t-education.com/frost_remote_write/api/v1/write}"
       # защита от флуда с одного IP (0 - выключить); меняются через scripts/vm-env.sh
       API_REQUESTS_PER_MINUTE: "${API_REQUESTS_PER_MINUTE:-1200}"
       REGISTRATIONS_PER_HOUR: "${REGISTRATIONS_PER_HOUR:-30}"

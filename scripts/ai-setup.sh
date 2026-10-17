@@ -18,6 +18,7 @@ printf 'Ключ аккаунта LLM-прокси Spirit (символы не �
 read -rs TOKEN || true
 echo
 printf '%s\n' "${TOKEN:-}" | ssh -i "$KEY" -o BatchMode=yes "root@$VM" "set -eu; cd $DIR
+  exec 9>/run/movermate.lock; flock -w 120 9 || { echo 'Идёт выкатка или работа сторожа, повторите через пару минут'; exit 1; }
   read -r token || true
   touch .env; chmod 600 .env
   grep -v -e '^AI_BASE_URL=' -e '^AI_MODEL=' .env > .env.new || true

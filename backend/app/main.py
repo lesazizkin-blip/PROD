@@ -1,6 +1,7 @@
 """Точка входа. Swagger: /api/docs, OpenAPI: /api/openapi.json"""
 
 import logging
+import re
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -16,6 +17,7 @@ from app.config import get_settings
 from app.db import SessionLocal, engine
 from app.errors import AppError, NotFoundError
 from app.logging_setup import close_logging, log, setup_logging
+from app.metrics import MetricsPusher, group_from_logs_url, observe_request
 from app.reference_data import ensure_reference_data
 from app.routers import (
     ai_photo,
@@ -46,14 +48,27 @@ async def lifespan(app: FastAPI):
         from app.seed import run as seed_demo
 
         seed_demo()
+    pusher = None
+    if settings.sage_metrics_url and settings.sage_api_key:
+        pusher = MetricsPusher(
+            settings.sage_metrics_url,
+            settings.sage_api_key,
+            group=group_from_logs_url(settings.sage_logs_url),
+            env=settings.app_env,
+            interval=settings.sage_metrics_interval,
+        )
+        pusher.start()
     log(
         logger,
         "startup",
         message="MoverMate запущен",
         sage_appender=bool(settings.sage_logs_url and settings.sage_api_key),
         sage_traces=bool(settings.sage_traces_endpoint and settings.sage_api_key),
+        sage_metrics=pusher is not None,
     )
     yield
+    if pusher:
+        pusher.stop()
     log(logger, "shutdown", message="MoverMate остановлен")
     tracer_provider.shutdown()  # досылает накопленные спаны
     close_logging()
@@ -81,7 +96,17 @@ api_limiter = WindowLimiter(settings.api_requests_per_minute, 60)
 register_limiter = WindowLimiter(settings.registrations_per_hour, 3600)
 
 
+# токен приглашения - пропуск в чужой проект на 7 дней: в логи и Sage он не попадает
+_INVITE_TOKEN = re.compile(r"(/invites?/)[^/]+")
+
+
+def _safe_path(path: str) -> str:
+    return _INVITE_TOKEN.sub(r"\1***", path)
+
+
 # Защита от флуда. Объявлена до access_log, поэтому лежит внутри неё: отказ 429 попадает в журнал запросов.
+
+
 @app.middleware("http")
 async def throttle(request: Request, call_next):
     path = request.url.path
@@ -147,14 +172,16 @@ async def access_log(request: Request, call_next):
     # уровень по ответу: 5xx - ошибка сервера, 4xx - ошибка запроса клиента, остальное - обычная запись
     level = logging.ERROR if status >= 500 else logging.WARNING if status >= 400 else logging.INFO
     latency = round((time.perf_counter() - t0) * 1000, 2)
+    path = _safe_path(request.url.path)
+    observe_request(request.method, status, latency)
     log(
         logger,
         "request",
         level=level,
-        message=f"{request.method} {request.url.path} → {status} за {latency} мс",
+        message=f"{request.method} {path} → {status} за {latency} мс",
         request_id=request_id,
         method=request.method,
-        path=request.url.path,
+        path=path,
         status=status,
         latency_ms=latency,
         user_id=getattr(request.state, "user_id", None),

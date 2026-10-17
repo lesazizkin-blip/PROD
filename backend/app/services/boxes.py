@@ -1,7 +1,7 @@
 import re
 import uuid
 
-from sqlalchemy import Integer, case, cast, func, or_, select
+from sqlalchemy import Integer, case, cast, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
@@ -54,9 +54,15 @@ def check_transition(current: str, target: str) -> None:
         )
 
 
+def lock_project(db, project_id) -> None:
+    """Блокировка проекта до конца транзакции (номера коробок, шаблоны, умный чек-лист)."""
+    db.execute(update(Project).where(Project.id == project_id).values(name=Project.name))
+
+
 def normalize(text: str) -> str:
     """Для поиска: без регистра, ё = е, лишние пробелы схлопнуты."""
-    return re.sub(r"\s+", " ", text.strip().lower().replace("ё", "е"))
+    # lower() у редких букв удлиняет строку («İ» -> 2 символа), а name_norm - не длиннее 120
+    return re.sub(r"\s+", " ", text.strip().lower().replace("ё", "е"))[:120]
 
 
 _ENDING = re.compile(r"[аяыиуюеоьй]{1,2}$")
@@ -103,6 +109,7 @@ def _item_out(item: Item, box_number: int) -> ItemOut:
         name=item.name,
         status=item.status,  # type: ignore[arg-type]
         lost=item.status == ItemStatus.LOST,
+        damaged=item.damaged,
         first_day=item.first_day,
         created_at=item.created_at,
     )
@@ -167,8 +174,9 @@ class BoxService:
 
     # --- запись ---
     def _next_number(self, project_id: uuid.UUID) -> int:
-        # блокировка проекта: на PostgreSQL параллельные запросы получают номера по очереди
-        self.db.execute(select(Project.id).where(Project.id == project_id).with_for_update())
+        # блокировка проекта: параллельные запросы получают номера по очереди. Пустой UPDATE открывает
+        # пишущую транзакцию и на SQLite (FOR UPDATE там ничего не делает), на PostgreSQL блокирует строку
+        lock_project(self.db, project_id)
         # номер удалённой коробки не выдаётся снова: на старой наклейке он открыл бы чужую коробку.
         # Все выданные номера есть в журнале (box.created), поэтому берём максимум и оттуда
         current = self.db.scalar(select(func.max(Box.number)).where(Box.project_id == project_id))
@@ -322,6 +330,7 @@ class BoxService:
                 name_norm=normalize(n),
                 first_day=first_day,
                 status=status.value,
+                damaged=status == ItemStatus.DAMAGED,
             )
             for n in names
         ]
@@ -347,12 +356,26 @@ class BoxService:
         status: ItemStatus | None,
         lost: bool | None = None,
         first_day: bool | None = None,
+        damaged: bool | None = None,
     ) -> ItemOut:
         item, box = self.get_item(project_id, item_id)
         if name is not None:
             item.name, item.name_norm = name, normalize(name)
         if first_day is not None:
             item.first_day = first_day
+        if damaged is not None and damaged != item.damaged:
+            item.damaged = damaged
+            log_event(
+                self.db,
+                project_id,
+                "item.damage_changed",
+                "item",
+                item.id,
+                damaged=damaged,
+                name=item.name,
+            )
+        if status == ItemStatus.DAMAGED:
+            item.damaged = True
         if status is None and lost is not None:  # старый формат: флажок «потеряна»
             status = ItemStatus.LOST if lost else ItemStatus.FOUND
         if status is not None and status != item.status:
@@ -371,6 +394,40 @@ class BoxService:
             )
         self.db.commit()
         return _item_out(item, box.number)
+
+    def move_item(
+        self, project_id: uuid.UUID, item_id: int, from_number: int, to_number: int, actor_id: int
+    ) -> ItemOut:
+        item, source = self.get_item(project_id, item_id)
+        target = self.get_box(project_id, to_number)
+        if source.id == target.id:
+            return _item_out(item, target.number)
+        if source.number != from_number:
+            raise ConflictError("Вещь уже переложили в другую коробку. Обновите карточку.")
+        moved = self.db.execute(
+            update(Item)
+            .where(Item.id == item_id, Item.box_id == source.id)
+            .values(box_id=target.id)
+            .returning(Item.id),
+            execution_options={"synchronize_session": False},
+        ).scalar_one_or_none()
+        if moved is None:
+            self.db.rollback()
+            raise ConflictError("Вещь уже переложили в другую коробку. Обновите карточку.")
+        log_event(
+            self.db,
+            project_id,
+            "item.moved",
+            "item",
+            item_id,
+            from_box=source.number,
+            to_box=target.number,
+            actor_id=actor_id,
+            name=item.name,
+        )
+        self.db.commit()
+        self.db.refresh(item)
+        return _item_out(item, target.number)
 
     def delete_item(self, project_id: uuid.UUID, item_id: int) -> None:
         item, _ = self.get_item(project_id, item_id)

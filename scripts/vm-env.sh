@@ -15,6 +15,7 @@ printf 'Значение %s (символы не видны, пусто - уда
 read -rs VALUE || true
 echo
 printf '%s\n' "${VALUE:-}" | ssh -i "$KEY" -o BatchMode=yes "root@$VM" "set -eu; cd $DIR
+  exec 9>/run/movermate.lock; flock -w 120 9 || { echo 'Идёт выкатка или работа сторожа, повторите через пару минут'; exit 1; }
   read -r value || true
   touch .env; chmod 600 .env
   grep -v '^$NAME=' .env > .env.new || true

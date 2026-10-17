@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.errors import NotFoundError, ValidationFailed
 from app.models import Project, Task, TaskTemplate
 from app.schemas import Stage, TaskCreate, TaskUpdate
+from app.services.boxes import lock_project
 from app.services.events import log_event
 
 _STAGE_ORDER = case(
@@ -90,6 +91,9 @@ class TaskService:
 
     def apply_templates(self, project: Project) -> int:
         """Добавляет шаблонные задачи, которых ещё нет (идемпотентно, по template_id)."""
+        lock_project(
+            self.db, project.id
+        )  # два одновременных нажатия идут по очереди, без дублей и 500
         have = set(
             self.db.scalars(
                 select(Task.template_id).where(

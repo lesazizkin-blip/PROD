@@ -20,6 +20,7 @@ from app.schemas import (
     FirstDayUpdate,
     HintOut,
     ItemCreate,
+    ItemMoveIn,
     ItemOut,
     ItemsBulkIn,
     ItemsBulkOut,
@@ -188,7 +189,24 @@ def update_item(
     db: Session = Depends(get_db),
 ):
     return BoxService(db).update_item(
-        project.id, item_id, body.name, body.status, body.lost, body.first_day
+        project.id, item_id, body.name, body.status, body.lost, body.first_day, body.damaged
+    )
+
+
+@router.post(
+    "/items/{item_id}/move",
+    response_model=ItemOut,
+    summary="Переложить вещь в другую коробку проекта",
+)
+def move_item(
+    item_id: Id,
+    body: ItemMoveIn,
+    project: Project = Depends(get_project),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return BoxService(db).move_item(
+        project.id, item_id, body.from_box_number, body.to_box_number, user.id
     )
 
 

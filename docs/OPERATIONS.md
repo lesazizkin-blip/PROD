@@ -46,11 +46,12 @@ CI-переменные: `SSH_PRIVATE_KEY` (тип «Файл», содержи�
 rsync -az --delete -e "ssh -i ~/.ssh/vm1.pem" \
   --exclude=.git --exclude=docs --exclude=node_modules --exclude=dist \
   --exclude=.venv --exclude='*.db' --exclude=.env --exclude=__pycache__ \
+  --exclude=docker-compose.override.yml --exclude=.maintenance --exclude=spirit-sa-key.json \
   ./ root@178.72.185.97:/opt/movermate/
 ssh -i ~/.ssh/vm1.pem root@178.72.185.97 'cd /opt/movermate/deploy && docker compose up -d --build'
 scripts/preflight.sh https://hack-led-20-vm1-12902f.vmaas-spirit.t-education.com
 ```
-`--exclude=.env` сохраняет настройки на ВМ, база в томе сохраняется. Состояние: `ssh … 'docker ps; docker logs --tail 50 deploy-app-1'`.
+`--exclude=.env` сохраняет настройки на ВМ, база в томе сохраняется; override и `.maintenance` на ВМ не удаляются. Пока на ВМ есть `docker-compose.override.yml` с `image:`, `--build` перезапишет закреплённый образ — передеплой только по согласованию с Фёдором. Без сети (после 16:00) — только `docker compose up -d --no-build` или `docker start deploy-app-1`, никаких `pull` и `--build`. Состояние: `ssh … 'docker ps; docker logs --tail 50 deploy-app-1'`.
 
 ## 4. Копии базы и восстановление
 
@@ -71,7 +72,7 @@ rm .maintenance
 
 ## 5. Безопасность на границе
 
-Caddy добавляет `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` (камера только для самого сайта) и скрывает `Server`; `preflight.sh` их проверяет.
+Caddy добавляет `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` (камера и микрофон только для самого сайта: сканер QR и голосовой ввод) и скрывает `Server`; `preflight.sh` их проверяет.
 
 ## 5а. Защита от перегрузки и злоупотреблений
 
@@ -116,6 +117,18 @@ group="hack-led-20" system="movermate" trace_id="<trace_id>"
 
 **Трейсы** (`backend/app/tracing.py`, OpenTelemetry): спан запроса по шаблону маршрута (у Sage лимит 300 операций), внутри SQL без значений параметров и вызов модели `ai.chat_completion`; 5xx помечает спан ERROR. Отправка (OTLP gRPC) включается адресом коллектора `scripts/vm-env.sh SAGE_TRACES_ENDPOINT` (`https://<хост>:4319`). **Не включено:** на `sage.spirit.t-education.com` порты 4317–4319 закрыты (17.10), хост уточнить у организаторов.
 
+**Метрики** (`backend/app/metrics.py`) уходят в Sage по Prometheus Remote Write раз в 30 с на `https://sage.spirit.t-education.com/frost_remote_write/api/v1/write` (`SAGE_METRICS_URL`, ключ тот же `SAGE_API_KEY`, без ключа выключены). Лейблы `group`, `system="movermate"`, `env`, `dc`, `inst`. Отправка в фоне: ошибки Sage пишутся в лог не чаще раза в 10 минут и сайт не трогают.
+
+| Метрика | Что показывает |
+|---|---|
+| `movermate_http_requests_total{method,code}` | запросы по классу ответа (2xx/4xx/5xx) |
+| `movermate_http_request_duration_ms_sum/_count/_bucket{le}` | время ответа (среднее, гистограмма) |
+| `movermate_actions_total{action}` | действия из аудита: входы, регистрации, коробки, приглашения |
+| `movermate_users`, `movermate_projects`, `movermate_items`, `movermate_items_lost` | состояние данных |
+| `movermate_boxes{status}` | коробки по статусам: сколько собирается, погружено, доставлено, распаковано |
+
+Запросы (Поиск, MageQL): `pql rate(movermate_http_requests_total{system="movermate",code="5xx"}[5m])` — доля ошибок; `pql movermate_boxes{system="movermate"}` — коробки по статусам; `pql rate(movermate_http_request_duration_ms_sum[5m]) / rate(movermate_http_request_duration_ms_count[5m])` — среднее время ответа. Если Remote Write не принят (в логе `metrics_push_failed`), те же числа строятся из логов через Logs2Metrics: Метрики → Logs2Metrics → «+ Метрика», запрос `group="hack-led-20" system="movermate" msg="request"`, поле `latency_ms`, лейблы `status`, `method`.
+
 **Алерты** — `deploy/sage/alerts.yaml`: ошибки сервера, подбор паролей, медленные ответы, сервис молчит. В интерфейсе Sage: Алертинг → «+ Алерт» → MageQL; запрос из `expr`, интервал из `for`, адрес доставки — заранее в «Алертинг → Адреса». **В интерфейсе пока не заведены.**
 
 **Дашборд** — запросы для панелей (Поиск → «Визуализация», ось X `@timestamp`):
@@ -141,3 +154,11 @@ group="hack-led-20" system="movermate" trace_id="<trace_id>"
 Чтобы снова брать интерфейс из образа, после проверки его сборки уберите только это подключение `site` из override и пересоздайте `app`. Производственные override и `.env` хранятся на ВМ; резервная копия перед восстановлением — `/root/movermate-ui-restore`, памятка — `/opt/movermate-ui/README.txt`.
 
 18 октября: frontend обновлён до `f48d2cc` — исправление статуса без ручного ввода причины, печать этикеток без отдельной кнопки предпросмотра, QR-сканер и ручной ввод без распознавания рукописи. Активный mount в override: `/opt/movermate-ui/f48d2cc/site:/app/site:ro`. Серверный образ продолжает обновляться из Spirit; фактические образ и путь интерфейса проверяйте через `docker inspect deploy-app-1`.
+
+### Согласованный релиз описи и переноса вещей: 894a21b
+
+Активный production-релиз: `registry.spirit.t-education.com/hack-led-20/prod_1:inventory-894a21b` (digest `sha256:376f5434a9b0e279251ab2bb658d9bc381280bd5c1a418633622902ca119c183`). Базовый серверный образ Spirit — `d7b93a08`; поверх него добавлены изменения описи/переноса из GitHub `894a21b`, миграция `0010_item_damage` и собранный frontend. Полный Dockerfile и контекст сборки сохранены на ВМ в `/opt/movermate-builds/inventory-894a21b`. Образ опубликован в существующем Spirit registry, его можно подтянуть обычным `docker compose pull app`.
+
+В production override теперь закреплены **образ app и интерфейс** `/opt/movermate-ui/894a21b/site:/app/site:ro`. Это сохраняет совместимость API, схемы базы и UI при независимых деплоях Spirit. Для следующего согласованного релиза необходимо явно обновить `image` и путь `site` в `/opt/movermate/deploy/docker-compose.override.yml`, а также `APP_IMAGE` в `.env`; затем пересоздать только app. Сначала проверьте миграции и запуск на копии базы. Старый образ без `0010_item_damage` не является совместимым откатом для новой базы.
+
+Перед выкладкой проверена копия production-базы: все исходные записи сохранены, две старые отметки `status=damaged` перенесены в независимый признак. Копии до и после: `/root/movermate-inventory-backup`. Исходники production backend, миграции и frontend в `/opt/movermate` синхронизированы с релизом. Экспериментальные локальные серверы и worktree не являются источником production-образа без проверки этого override.

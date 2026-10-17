@@ -20,13 +20,13 @@
 {$SITE_ADDRESS::80} {
 	encode gzip
 	# заголовки безопасности: только HTTPS (HSTS), без угадывания типов, сайт нельзя встроить в чужую рамку,
-	# ссылка на другой сайт не уносит полный адрес; камера разрешена только самому сайту (сканер QR)
+	# ссылка на другой сайт не уносит полный адрес; камера и микрофон - только самому сайту (сканер QR, голосовой ввод)
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
-		Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+		Permissions-Policy "camera=(self), microphone=(self), geolocation=()"
 		-Server
 	}
 	# больше 8 МБ телу запроса не нужно (фото для ИИ - до 4 МБ в base64); гигантские тела отсекаются здесь

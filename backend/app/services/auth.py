@@ -62,6 +62,7 @@ class LoginLimiter:
 
 
 login_limiter = LoginLimiter()
+_DUMMY_HASH = hash_password("timing-equalizer")
 
 
 class AuthService:
@@ -90,7 +91,8 @@ class AuthService:
             audit("auth.login_blocked", level=logging.WARNING, ip=ip)  # перебор пароля
             raise
         user = self.db.scalar(select(User).where(User.username == username))
-        if not user or not verify_password(password, user.password_hash):
+        # хэш считаем и для несуществующего логина: по времени ответа не узнать, какие логины есть
+        if not verify_password(password, user.password_hash if user else _DUMMY_HASH) or not user:
             login_limiter.fail(key)
             audit("auth.login_failed", level=logging.WARNING, ip=ip, known_user=bool(user))
             # одна формулировка для «нет логина» и «не тот пароль»: не подсказываем, какие логины есть
@@ -218,6 +220,11 @@ class AuthService:
     def accept_invite(self, token: str, user: User) -> Project:
         invite, project = self.invite(token)
         self.add_member(project.id, user.id, "member")
-        self.db.commit()
+        try:
+            self.db.commit()
+        except (
+            IntegrityError
+        ):  # тот же человек принял ссылку параллельно (двойной клик, две вкладки)
+            self.db.rollback()
         audit("invite.accepted", project_id=project.id, user_id=user.id)
         return project

@@ -16,8 +16,27 @@ from sqlalchemy import (
     Uuid,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import TypeDecorator
 
 from app.db import Base
+
+
+class UTCDateTime(TypeDecorator):
+    """Время в UTC с поясом и на SQLite (он хранит без пояса): пишем в UTC, читаем как UTC.
+    Иначе GET отдаёт метку без «Z», браузер читает её как местное время, а сравнения сдвигаются."""
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        return (value if value.tzinfo else value.replace(tzinfo=UTC)).astimezone(UTC)
+
+    def process_result_value(self, value, dialect):
+        if value is None or value.tzinfo:
+            return value
+        return value.replace(tzinfo=UTC)
 
 
 def _now() -> datetime:
@@ -36,7 +55,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(40), unique=True)
     password_hash: Mapped[str] = mapped_column(String(200))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_now)
 
 
 class AuthSession(Base):
@@ -46,8 +65,8 @@ class AuthSession(Base):
 
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_now)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
 class AiUsageBudget(Base):
@@ -69,7 +88,7 @@ class ProjectMember(Base):
     project_id: Mapped[uuid.UUID] = _fk("projects.id")
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     role: Mapped[str] = mapped_column(String(10))  # owner | member
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_now)
 
 
 class Invite(Base):
@@ -82,8 +101,8 @@ class Invite(Base):
     created_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_now)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
 
 class Project(Base):
@@ -97,7 +116,7 @@ class Project(Base):
     qr_mode: Mapped[str] = mapped_column(
         String(12), default="universal", server_default="universal"
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_now)
 
     tasks: Mapped[list["Task"]] = relationship(cascade="all, delete-orphan", passive_deletes=True)
     boxes: Mapped[list["Box"]] = relationship(cascade="all, delete-orphan", passive_deletes=True)
@@ -135,7 +154,7 @@ class Task(Base):
     category: Mapped[str | None] = mapped_column(String(40), nullable=True)
     category_color: Mapped[str | None] = mapped_column(String(7), nullable=True)
     done: Mapped[bool] = mapped_column(Boolean, default=False)
-    done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    done_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     template_id: Mapped[int | None] = mapped_column(
         ForeignKey("task_templates.id", ondelete="SET NULL"), nullable=True
     )
@@ -154,11 +173,9 @@ class Box(Base):
     room: Mapped[str] = mapped_column(String(60))
     status: Mapped[str] = mapped_column(String(20), default="packing")
     fill_later: Mapped[bool] = mapped_column(Boolean, default=False)
-    remind_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_now, onupdate=_now
-    )
+    remind_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_now, onupdate=_now)
 
     items: Mapped[list["Item"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True, order_by="Item.id"
@@ -184,9 +201,10 @@ class Item(Base):
     box_id: Mapped[int] = _fk("boxes.id")
     name: Mapped[str] = mapped_column(String(120))
     name_norm: Mapped[str] = mapped_column(String(120), index=True)
+    damaged: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     status: Mapped[str] = mapped_column(String(20), default="packed")
     first_day: Mapped[bool] = mapped_column(Boolean, default=False)  # понадобится в первый день
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_now)
 
 
 class Expense(Base):
@@ -200,7 +218,7 @@ class Expense(Base):
     title: Mapped[str] = mapped_column(String(120))
     planned: Mapped[int] = mapped_column(Integer, default=0)
     actual: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_now)
 
 
 class FirstDayItem(Base):
@@ -224,7 +242,7 @@ class Event(Base):
     entity: Mapped[str] = mapped_column(String(20))
     entity_id: Mapped[str] = mapped_column(String(40))
     data: Mapped[dict] = mapped_column(JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=_now)
 
 
 class Tip(Base):

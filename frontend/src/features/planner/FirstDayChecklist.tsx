@@ -9,7 +9,6 @@ import { useAsync } from '../../state/useAsync'
 import { useAction } from '../../state/useAction'
 import { useConfirm } from '../../state/confirm'
 import ErrorAlert from '../../ui/ErrorAlert'
-import ProgressBar from '../../ui/ProgressBar'
 import { boxPath } from '../../ui/format'
 import { FIRST_DAY_BASICS, firstDayLines, normalizeTitle } from './firstDayDefaults'
 import './first-day.css'
@@ -26,16 +25,10 @@ export default function FirstDayChecklist({ pid }: { pid: string }) {
   const confirm = useConfirm()
   const list = planned.data ?? []
   const packed = inventory.data ?? []
-  const unpacked = packed.filter(x => x.item.status === 'unpacked').length
   const ready = list.filter(x => x.done).length
   function togglePlanned(item: FirstDayItem) {
     planned.mutate(items => items?.map(x => x.id === item.id ? { ...x, done: !item.done } : x) ?? items)
     void run(async () => { try { await api.updateFirstDay(pid, item.id, { done: !item.done }) } catch (e) { planned.reload(); throw e } })
-  }
-  function togglePacked(id: number, unpacked: boolean) {
-    const status = unpacked ? 'packed' : 'unpacked'
-    inventory.mutate(items => items?.map(x => x.item.id === id ? { ...x, item: { ...x.item, status } } : x) ?? items)
-    void run(async () => { try { await api.updateItem(pid, id, { status }) } catch (e) { inventory.reload(); throw e } })
   }
   async function addLines(text: string) {
     const titles = firstDayLines(text)
@@ -67,12 +60,11 @@ export default function FirstDayChecklist({ pid }: { pid: string }) {
         </div>
       </li>)}</ul> : <div className="stack"><p className="muted small">Добавьте щётки, зарядки, чайник и бельё — или составьте свой список.</p><button onClick={() => setAdding(FIRST_DAY_BASICS.join('\n'))}>Подготовить базовый список</button></div>}
     </> : null}
-    <h3>В коробках <span className="muted small">распаковано {unpacked} из {packed.length}</span></h3>
+    <h3>В коробках <span className="muted small">{packed.length ? `распаковано ${packed.filter((x) => x.status === 'unpacked').length} из ${packed.length}` : 'пока пусто'}</span></h3>
     {inventory.loading && !inventory.data ? <p role="status">Загружаем вещи…</p> : null}
     {packed.length ? <>
-      <ProgressBar value={unpacked} max={packed.length} label="Распаковано вещей первого дня" />
       <ul className="plain preparation-list">{packed.map(x => <li key={x.item.id} className="preparation-row">
-        <label className="preparation-title"><input className="check" type="checkbox" checked={x.item.status === 'unpacked'} disabled={busy} aria-label={`Распаковано: ${x.item.name}`} onChange={() => togglePacked(x.item.id, x.item.status === 'unpacked')} /><span>{x.item.name}</span></label>
+        <span className={`preparation-title${x.status === 'unpacked' ? ' done' : ''}`}><span>{x.status === 'unpacked' ? '✓ ' : ''}{x.item.name}{x.status === 'unpacked' ? ' · распакована' : ''}{x.item.lost ? ' · Не могу найти' : ''}{x.item.damaged ? ' · Повреждена' : ''}</span></span>
         <Link to={boxPath(pid, x.box_number)} className="button small">№ {x.box_number} · {x.room}</Link>
       </li>)}</ul>
     </> : inventory.data ? <p className="muted small">Вещей в коробках пока нет. Нажмите «В коробку» у пункта выше или отметьте «Первый день» в карточке коробки.</p> : null}

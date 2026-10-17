@@ -102,4 +102,7 @@ def audit(action: str, level: int = logging.INFO, **fields) -> None:
     """Запись о действии пользователя (вход, создание коробки, смена статуса...).
     Поле `action` по одному названию находит все такие действия: `action="box.status_changed"`."""
     clean = {k: v for k, v in fields.items() if k not in _CONTENT_KEYS}
+    from app.metrics import observe_action  # счётчик действий для метрик Sage
+
+    observe_action(action)
     log(logging.getLogger("app"), "audit", level=level, action=action, **clean)

@@ -16,11 +16,13 @@ import './loading-checklist.css'
 export default function RoomLoadingChecklist({ pid, room, onChanged }: { pid: string; room: RoomProgress; onChanged: () => void }) {
   const [open, setOpen] = useState(false)
   return <details className="card room-loading stack" onToggle={e => setOpen(e.currentTarget.open)}>
-    <summary><b>{room.room} · {room.total} кор.</b><span className="muted small">Открыть чек-лист коробок</span></summary>
-    <div className="small muted">Погружено {room.loaded} из {room.total}</div>
-    <ProgressBar value={room.loaded_percent} label={`${room.room}: погружено`} color="var(--st-loaded)" />
-    <div className="small muted">Распаковано {room.unpacked} из {room.total}</div>
-    <ProgressBar value={room.unpacked_percent} label={`${room.room}: распаковано`} color="var(--st-unpacked)" />
+    <summary>
+      <b>{room.room} · {room.total} кор.</b>
+      <span className="small muted">Погружено {room.loaded} из {room.total} · распаковано {room.unpacked} из {room.total}</span>
+      <ProgressBar value={room.loaded_percent} label={`${room.room}: погружено`} color="var(--st-loaded)" />
+      <ProgressBar value={room.unpacked_percent} label={`${room.room}: распаковано`} color="var(--st-unpacked)" />
+      <span className="muted small">Открыть чек-лист коробок</span>
+    </summary>
     {open ? <RoomBoxes pid={pid} room={room.room} onChanged={onChanged} /> : null}
   </details>
 }

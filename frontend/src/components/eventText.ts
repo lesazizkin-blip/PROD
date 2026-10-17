@@ -33,6 +33,8 @@ export function describeEvent(e: AppEvent): string {
       return `${box} возвращена на этап «${status(d.to)}» (была «${status(d.from)}»)${text(d.reason) ? `: ${text(d.reason)}` : ''}`
     case 'item.lost': return `Вещь потеряна${d.name ? `: «${text(d.name)}»` : ''}`
     case 'item.found': return `Вещь нашлась${d.name ? `: «${text(d.name)}»` : ''}`
+    case 'item.moved': return `${d.name ? `«${text(d.name)}»` : 'Вещь'} переложили из коробки № ${String(d.from_box ?? '?')} в № ${String(d.to_box ?? '?')}`
+    case 'item.damage_changed': return `${d.damaged ? 'Отмечено повреждение' : 'Снята отметка о повреждении'}${d.name ? `: «${text(d.name)}»` : ''}`
     case 'item.status_changed': {
       const to = ITEM_STATUS_LABELS[d.to as ItemStatus]
       return `${d.name ? `«${text(d.name)}»` : 'Вещь'}: ${to ? `теперь «${to.toLowerCase()}»` : 'изменён статус'}`

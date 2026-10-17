@@ -451,7 +451,7 @@ class TaskCreate(BaseModel):
     )
     stage: Stage
     title: Text200
-    due_date: date | None = None
+    due_date: MoveDate | None = None
     start_time: NaiveTime | None = None
     end_time: NaiveTime | None = None
     category: str | None = Field(default=None, max_length=40)
@@ -470,7 +470,7 @@ class TaskUpdate(BaseModel):
     model_config = ConfigDict(json_schema_extra={"examples": [{"done": True}]})
     stage: Stage | None = None
     title: Text200 | None = None
-    due_date: date | None = None
+    due_date: MoveDate | None = None
     start_time: NaiveTime | None = None
     end_time: NaiveTime | None = None
     category: str | None = Field(default=None, max_length=40)
@@ -593,6 +593,7 @@ class ItemOut(BaseModel):
     box_number: int
     name: str
     status: ItemStatus
+    damaged: bool = False
     lost: bool  # то же, что status == "lost"; оставлено для совместимости
     first_day: bool
     created_at: datetime
@@ -637,7 +638,16 @@ class ItemsBulkOut(BaseModel):
     created: list[ItemOut]
 
 
+class ItemMoveIn(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"from_box_number": 1, "to_box_number": 2}]}
+    )
+    from_box_number: int = Field(ge=1, le=2_147_483_647)
+    to_box_number: int = Field(ge=1, le=2_147_483_647)
+
+
 class ItemUpdate(BaseModel):
+    damaged: bool | None = None
     model_config = ConfigDict(json_schema_extra={"examples": [{"status": "found"}]})
     name: Text120 | None = None
     status: ItemStatus | None = Field(default=None, examples=["found"])

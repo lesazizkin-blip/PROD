@@ -9,8 +9,11 @@ def advance(client, base, n, path):
 
 
 # ---------- чек-лист первого дня ----------
-def test_first_day_checklist_starts_empty_and_crud_works(client, base):
-    assert len(client.get(f"{base}/first-day").json()) == 4  # базовый список доступен до коробок
+def test_first_day_checklist_has_basics_and_crud_works(client, base):
+    basics = client.get(f"{base}/first-day").json()
+    assert len(basics) == 4  # базовый список доступен до коробок
+    titles = " ".join(x["title"].lower() for x in basics)
+    assert all(w in titles for w in ("щётк", "зарядк", "чайник", "бель"))
     new = client.post(f"{base}/first-day", json={"title": " Тапочки "}).json()
     assert new["title"] == "Тапочки" and new["done"] is False
     assert client.patch(f"{base}/first-day/{new['id']}", json={"done": True}).json()["done"] is True
@@ -101,6 +104,9 @@ def test_bulk_transition_moves_all_or_nothing(client, base):
     r = client.post(f"{base}/boxes/bulk-transitions", json={"numbers": [a, c], "to": "delivered"})
     assert r.status_code == 409 and f"№{c}" in r.json()["detail"]  # c пустая
     assert client.get(f"{base}/boxes/{a}").json()["status"] == "loaded"  # ничего не изменилось
+    r = client.post(f"{base}/boxes/bulk-transitions", json={"numbers": [a, b], "to": "delivered"})
+    assert r.status_code == 200 and [x["status"] for x in r.json()["updated"]] == ["delivered"] * 2
+    advance(client, base, a, ["loaded"])  # для проверок ниже коробка a снова «погружена»
     d = make_box(client, base, room="Кухня")["number"]  # «собирается»: в «доставлена» - перескок
     r = client.post(f"{base}/boxes/bulk-transitions", json={"numbers": [a, d], "to": "delivered"})
     assert r.status_code == 409 and client.get(f"{base}/boxes/{a}").json()["status"] == "loaded"
@@ -124,7 +130,7 @@ def test_bulk_transition_moves_all_or_nothing(client, base):
         == 422
     )
     events = client.get(f"{base}/events?type=box.status_changed").json()["items"]
-    assert sum(e["data"]["to"] == "loaded" for e in events) == 2
+    assert sum(e["data"]["to"] == "loaded" for e in events) == 3  # 2 массово + возврат a
 
 
 # ---------- вещи первого дня ----------
@@ -155,3 +161,12 @@ def test_first_day_items_are_flagged_listed_and_unflagged(client, base):
     }
     other = client.post("/api/projects", json={"name": "Чужой", "move_date": "2026-12-01"}).json()
     assert client.get(f"/api/projects/{other['id']}/items/first-day").json() == []
+
+
+def test_hints_ignore_service_words(client, base):
+    lost = make_box(client, base, room="Спальня", items="Зарядка для телефона")["number"]
+    make_box(client, base, room="Ванная", items="Крем для рук")
+    item = client.get(f"{base}/boxes/{lost}").json()["items"][0]
+    client.patch(f"{base}/items/{item['id']}", json={"status": "lost"})
+    hints = client.get(f"{base}/items/{item['id']}/hints").json()
+    assert all(h["room"] != "Ванная" for h in hints)  # общий только предлог «для»

@@ -114,11 +114,12 @@ def test_first_day_binding_rolls_back_preparation_and_inventory_on_failure(
     entry = client.get(base + "/first-day").json()[0]
     box = client.post(base + "/boxes", json={"room": "Кухня", "items_text": ""}).json()
 
-    def failed_flush(*args, **kwargs):
+    def failed_log(*args, **kwargs):
         raise RuntimeError("simulated storage failure")
 
     with monkeypatch.context() as m:
-        m.setattr(db_session, "flush", failed_flush)
+        # сбой на последнем шаге: если сервис закоммитил раньше, вещь и пункт останутся в базе
+        m.setattr("app.services.extras.log_event", failed_log)
         with pytest.raises(RuntimeError, match="storage failure"):
             FirstDayService(db_session).bind(
                 __import__("uuid").UUID(base.split("/")[-1]),

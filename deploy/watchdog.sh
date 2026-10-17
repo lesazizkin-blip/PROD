@@ -13,8 +13,9 @@ flock -n 9 || exit 0
 STATE=/var/tmp/movermate-unhealthy
 for c in deploy-app-1 deploy-caddy-1; do
   if [ "$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null)" != "true" ]; then
-    echo "$(date -Is) $c не запущен, поднимаю стек"
-    docker compose up -d --no-build
+    echo "$(date -Is) $c не запущен, поднимаю"
+    # существующий контейнер запускаем как есть: тот же образ, без registry и сети; нет контейнера - compose
+    docker start "$c" >/dev/null 2>&1 || docker compose up -d --no-build
     exit 0
   fi
 done
