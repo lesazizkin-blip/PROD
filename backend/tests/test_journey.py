@@ -10,8 +10,9 @@ from app.services.calculator import estimate
 BASE_CALC = {"rooms": 2, "people": 2, "distance_km": 10}
 
 
-def test_calculator_is_public_and_saves_nothing(anon_client):
-    r = anon_client.post("/api/calculator", json=BASE_CALC)
+def test_calculator_requires_login_and_saves_nothing(make_client, client):
+    assert make_client().post("/api/calculator", json=BASE_CALC).status_code == 401
+    r = client.post("/api/calculator", json=BASE_CALC)
     assert r.status_code == 200, r.text
     d = r.json()
     assert 0 < d["boxes"]["low"] < d["boxes"]["high"]
@@ -64,8 +65,8 @@ def test_good_date_is_praised():
 
 
 @pytest.mark.parametrize("bad", [{"rooms": 0}, {"rooms": 9}, {"rooms": 2, "distance_km": -1}, {}])
-def test_calculator_validation(anon_client, bad):
-    assert anon_client.post("/api/calculator", json=bad).status_code == 422
+def test_calculator_validation(client, bad):
+    assert client.post("/api/calculator", json=bad).status_code == 422
 
 
 @pytest.mark.parametrize("flag", ["renting", "paperwork", "declutter", "settling"])

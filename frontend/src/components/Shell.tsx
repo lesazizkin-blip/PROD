@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
-import { Bell, ScanLine } from 'lucide-react'
+import { Bell, Route, ScanLine } from 'lucide-react'
 import { api } from '../api/endpoints'
 import { useAuth } from '../state/AuthContext'
 import { useProjects } from '../state/ProjectContext'
@@ -21,7 +21,7 @@ function sectionTitle(pathname: string): string {
   if (box) return `Коробка № ${box[1]}`
   const map: Record<string, string> = {
     '/boxes': 'Коробки', '/labels': 'Этикетки', '/labels/print': 'Печать этикеток', '/progress': 'Прогресс',
-    '/tips': 'Памятки', '/calculator': 'Калькулятор', '/budget': 'Бюджет', '/scan': 'Сканер', '/new': 'Новый переезд', '/profile': 'Личный кабинет', '/about': 'О нас',
+    '/tips': 'Памятки', '/calculator': 'Калькулятор', '/journey': 'Путь переезда', '/budget': 'Бюджет', '/scan': 'Сканер', '/new': 'Новый переезд', '/profile': 'Личный кабинет', '/about': 'О нас',
   }
   return map[pathname] ?? (pathname.startsWith('/invite/') ? 'Приглашение' : 'MoverMate')
 }
@@ -47,6 +47,12 @@ export default function Shell() {
           <span>MoverMate</span>
         </Link>
         <p className="brand-caption">УЧЁТ ВЕЩЕЙ<br />И ПЛАН ПЕРЕЕЗДА</p>
+        <nav className="tabs tabs-journey tabs-top" aria-label="Путь переезда">
+          <Link to="/journey" aria-current={pathname === '/journey' ? 'page' : undefined} aria-label="Путь переезда" title={sidebarCompact ? 'Путь переезда' : undefined} className={pathname === '/journey' ? 'tab active' : 'tab'}>
+            <Route className="icon" aria-hidden />
+            <span className="tab-label">Путь переезда</span>
+          </Link>
+        </nav>
         <nav id="sidebar-navigation" className="tabs" aria-label="Разделы">
           {NAV_TABS.map((t, i) => {
             const active = pathname === t.to || (!t.end && pathname.startsWith(`${t.to}/`)) || boxSection === t.to

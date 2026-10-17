@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
-import { CircleHelp } from 'lucide-react'
+import { CircleHelp, Route } from 'lucide-react'
 import FaqModal from './FaqModal'
 import BrandMark from './BrandMark'
 import SidebarToggle from './SidebarToggle'
-import { JOURNEY_TABS, NAV_TABS, tabNumber } from './navTabs'
+import { NAV_TABS, tabNumber } from './navTabs'
 
 /** Каркас для гостя: те же разделы слева, но вместо перехода - уведомление, что сначала нужна регистрация. */
 export default function GuestShell() {
@@ -28,6 +28,12 @@ export default function GuestShell() {
           <span>MoverMate</span>
         </Link>
         <p className="brand-caption">УЧЁТ ВЕЩЕЙ<br />И ПЛАН ПЕРЕЕЗДА</p>
+        <nav className="tabs tabs-journey tabs-top" aria-label="Путь переезда">
+          <Link to="/journey" className="tab" aria-label="Путь переезда">
+            <Route className="icon" aria-hidden />
+            <span className="tab-label">Путь переезда</span>
+          </Link>
+        </nav>
         <nav id="sidebar-navigation" className="tabs" aria-label="Разделы">
           {NAV_TABS.map((t, i) => (
             <button key={t.label} type="button" className="tab" aria-label={t.label} title={sidebarCompact ? t.label : undefined} onClick={() => needAccount(t.label)}>
@@ -36,15 +42,6 @@ export default function GuestShell() {
               <span className="tab-label">{t.label}</span>
               <span className="tab-short">{t.short}</span>
             </button>
-          ))}
-        </nav>
-        <p className="sidebar-group">Бюджет и расчёты</p>
-        <nav className="tabs tabs-journey" aria-label="Бюджет и расчёты">
-          {JOURNEY_TABS.filter((t) => t.guest).map((t) => (
-            <Link key={t.to} to={t.to} className="tab" aria-label={t.label}>
-              <t.icon className="icon" aria-hidden />
-              <span className="tab-label">{t.label}</span>
-            </Link>
           ))}
         </nav>
         <div className="guest-faq">

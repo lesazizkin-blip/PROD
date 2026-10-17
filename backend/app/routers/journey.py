@@ -1,11 +1,11 @@
-"""Полный путь переезда: калькулятор (до регистрации) и бюджет «план–факт» проекта."""
+"""Полный путь переезда: калькулятор (только после входа) и бюджет «план–факт» проекта."""
 
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_project
-from app.models import Project
+from app.deps import get_current_user, get_project
+from app.models import Project, User
 from app.routers.common import confirm_param
 from app.schemas import (
     BudgetOut,
@@ -24,9 +24,9 @@ router = APIRouter(tags=["journey"])
 @router.post(
     "/calculator",
     response_model=CalculatorOut,
-    summary="Оценка переезда: коробки, машина, грузчики, время, бюджет и сроки (без входа, ничего не сохраняет)",
+    summary="Оценка переезда: коробки, машина, грузчики, время, бюджет и сроки (после входа, ничего не сохраняет)",
 )
-def calculator(body: CalculatorIn):
+def calculator(body: CalculatorIn, _user: User = Depends(get_current_user)):
     return estimate(body)
 
 

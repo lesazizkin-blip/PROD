@@ -14,6 +14,6 @@ export const tabNumber = (i: number) => String(i + 1).padStart(2, '0')
 /** Группа «Бюджет и расчёты» в меню слева (только на ноутбуке: нижняя панель телефона рассчитана на 4 вкладки).
  *  guest: страница открыта и без входа. */
 export const JOURNEY_TABS = [
-  { to: '/calculator', label: 'Калькулятор', icon: Calculator, guest: true },
+  { to: '/calculator', label: 'Калькулятор', icon: Calculator, guest: false },
   { to: '/budget', label: 'Бюджет', icon: Wallet, guest: false },
 ] as const

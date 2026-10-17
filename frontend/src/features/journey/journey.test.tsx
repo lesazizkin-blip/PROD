@@ -62,15 +62,6 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('калькулятор', () => {
-  it('гость получает оценку и приглашение начать переезд', async () => {
-    me.mockRejectedValue(new Error('401'))
-    setup(<CalculatorPage />)
-    await userEvent.click(screen.getByRole('button', { name: 'Рассчитать' }))
-    expect(await screen.findByText('30 000 ₽ – 50 000 ₽')).toBeTruthy()
-    expect(calculator.mock.calls[0][0]).toMatchObject({ rooms: 2, people: 2, move_date: null })
-    expect(screen.getByRole('link', { name: /Начать переезд/ })).toBeTruthy()
-  })
-
   it('смета переносится в бюджет проекта серединой диапазона', async () => {
     setup(<CalculatorPage />)
     await screen.findByText('Калькулятор переезда')

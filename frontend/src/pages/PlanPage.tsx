@@ -79,6 +79,7 @@ function Plan({ pid }: { pid: string }) {
       <PageHeading title="План переезда">
         {project.data ? formatDate(project.data.move_date) : '…'} · {days !== null && days > 0 ? `${days} ${plural(days, ['день', 'дня', 'дней'])} до переезда` : 'Ваш переезд'}
       </PageHeading>
+      <Link to="/journey" className="journey-link mobile-only">Путь переезда: все 7 этапов →</Link>
       <div className="move-ticket">
         <div className="stack">
           <span className="eyebrow">Маршрут / {project.data?.name ?? 'ваш переезд'}</span>
