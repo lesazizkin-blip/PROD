@@ -374,19 +374,33 @@ packing (собирается) → packed (собрана) → loaded (погр�
 
 ## Умный ассистент (раздел 6 ТЗ)
 
-Реализованы `checklist` и `checklist/apply`. `room-plan` и `box-from-photo` — **не реализованы** (описаны как возможное развитие).
-
-По умолчанию работает **локально, на правилах**, без внешних вызовов. Все ответы только предлагают: данные меняются отдельным вызовом пользователя.
+Умный чек-лист работает **локально, на правилах**, без внешних вызовов. ИИ-функции (ниже) вызывают LLM-прокси Spirit только при `consent: true`; ответы только предлагают, данные меняются отдельным вызовом пользователя.
 
 ### `POST /api/projects/{pid}/assistant/checklist`
-`{ "with_children": true, "with_pets": false, "other_city": true }` → `200 { "suggested_tasks": [{ "stage": "before", "title": "Собрать документы на ребёнка", "reason": "with_children" }], "suggested_first_day": [ "Любимая игрушка", "Подгузники" ] }`.
-`POST /api/projects/{pid}/assistant/checklist/apply` с тем же телом добавляет предложенное (идемпотентно, не дублирует заголовки). `200 { "added_tasks": 5, "added_first_day": 3 }`.
+`{ "with_children": true, "with_pets": false, "other_city": true, "renting": true, "paperwork": false, "declutter": false, "settling": false }` → `200 { "suggested_tasks": [{ "stage": "before", "title": "Собрать документы и медкарту ребёнка", "reason": "with_children" }], "suggested_first_day": [] }`. Флаги: дети, питомцы, другой город, аренда (осмотр и акт), документы и смена адреса, разбор вещей, «обжиться».
+`POST /api/projects/{pid}/assistant/checklist/apply` с тем же телом добавляет предложенное (идемпотентно, не дублирует заголовки). `200 { "added_tasks": 5, "added_first_day": 0 }`.
 
-### `POST /api/projects/{pid}/assistant/room-plan`
-`{ "room": "Кухня", "description": "30 тарелок, 3 сковородки, микроволновка, много специй" }` → `200 { "boxes_estimate": 6, "packing_order": ["Специи", "Тарелки", "…"], "suggestions": [ { "kind": "donate_or_discard", "text": "Проверьте сроки годности специй" } ] }`. Правила и словарь категорий хранятся локально.
+### `POST /api/projects/plan-questions` → `POST /api/projects/plan-preview`
+Шаг 1: `{ "description": "Переезжаем с собакой и пианино", "move_date": "2026-12-01", "consent": true }` → `200 { "questions": [{ "id": "q1", "question": "Есть ли грузовой лифт?", "options": ["Да, в обоих", "Нет лифта"] }] }` (до 3 вопросов). Шаг 2: то же тело плюс `"answers": [{ "question": "…", "answer": "Нет лифта" }]` (до 5) → черновик `{ "tasks": [{ "title", "stage", "offset_days" }], "first_day": [] }`; сохраняется в `POST /api/projects` полем `personal_plan`. Модель — `AI_MODEL`.
 
-### `POST /api/projects/{pid}/assistant/box-from-photo` (опционально)
-`multipart/form-data`, файл `photo`. Требует явного согласия: заголовок `X-External-Processing-Consent: true`, иначе `403`. Если внешняя модель не настроена — `501 {"code": "not_implemented"}`. Результат — предложенный список вещей, который пользователь подтверждает через `items/bulk`. Фото на сервере не сохраняется.
+### `POST /api/projects/{pid}/boxes/{n}/photo-inventory`
+`{ "image": "data:image/jpeg;base64,…", "consent": true }` → `200 { "items": [{ "name": "Кружки (4 шт)", "first_day": true, "fragile": true }] }`. Только участник проекта, коробка должна существовать (`404` до вызова модели). Фото: JPEG/PNG/WebP, до 4 МБ, проверяется **до** списания попытки. В коробку ничего не пишется: сайт подставляет опись в форму `items/bulk`.
+
+### `POST /api/projects/{pid}/room-plan`
+`{ "image": "data:image/jpeg;base64,…", "room": "Кухня", "consent": true }` → `200 { "room": "Кухня", "boxes": [{ "label": "Посуда", "items": ["Тарелки", "Бокалы"], "tip": "Каждую тарелку в бумагу" }] }` (до 10 коробок). Коробки создаются только выбранные пользователем через `POST …/boxes`.
+
+Фото-ручки используют `AI_VISION_MODEL` и `AI_VISION_API_KEY` (если заданы, иначе основные). Ошибки: `422` нет согласия или плохое фото, `429` лимит (общий с планом: `AI_REQUESTS_PER_HOUR` на пользователя, `AI_GLOBAL_REQUESTS_PER_DAY` на всех), `502` некорректный ответ модели, `503` ИИ не настроен или провайдер недоступен.
+
+## Полный путь переезда: калькулятор и бюджет
+
+### `POST /api/calculator` (нужна сессия)
+`{ "rooms": 2, "people": 3, "distance_km": 15, "floor_from": 5, "elevator_from": false, "pets": true, "move_date": "2026-11-28" }` → `200 { "boxes": {"low","high"}, "volume_m3": {…}, "vehicle": "Грузовик 18–20 м³", "movers": 3, "hours": {…}, "prep_weeks": 3, "costs": [{ "category": "movers", "title": "Грузчики: 3 чел. × 4–6 ч", "cost": {"low": 8500, "high": 16000} }], "total": {…}, "date_advice": ["Выходной день: …"], "assumptions": "Ориентировочная оценка…" }`. Ничего не сохраняет; без входа `401`.
+
+### `GET /api/projects/{pid}/expenses`
+`200 { "items": [{ "id", "category", "title", "planned", "actual" }], "planned": 39250, "actual": 22500, "variance": 1000 }` — `variance` считается по статьям с внесённым фактом (минус — экономия).
+
+### `POST /api/projects/{pid}/expenses` · `PATCH …/expenses/{id}` · `DELETE …/expenses/{id}?confirm=true`
+`{ "category": "movers", "title": "Грузчики", "planned": 12000 }` → `201`; `PATCH { "actual": 13500 }` вносит факт, `{ "actual": null }` сбрасывает. Категории: `movers | transport | materials | cleaning | services | rent | other`. Статья чужого проекта — `404`.
 
 ---
 
