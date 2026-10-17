@@ -9,14 +9,17 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from opentelemetry import trace
+from opentelemetry.trace import StatusCode
 
 from app.config import get_settings
-from app.db import SessionLocal
+from app.db import SessionLocal, engine
 from app.errors import AppError
 from app.logging_setup import close_logging, log, setup_logging
 from app.reference_data import ensure_reference_data
-from app.routers import assistant, auth, boxes, health, projects, qr_codes, reference
+from app.routers import ai_photo, assistant, auth, boxes, health, projects, qr_codes, reference
 from app.static_site import mount_site
+from app.tracing import current_ids, setup_tracing
 
 settings = get_settings()
 logger = setup_logging(
@@ -32,9 +35,16 @@ async def lifespan(app: FastAPI):
         from app.seed import run as seed_demo
 
         seed_demo()
-    log(logger, "startup", sage_appender=bool(settings.sage_logs_url and settings.sage_api_key))
+    log(
+        logger,
+        "startup",
+        message="MoverMate запущен",
+        sage_appender=bool(settings.sage_logs_url and settings.sage_api_key),
+        sage_traces=bool(settings.sage_traces_endpoint and settings.sage_api_key),
+    )
     yield
-    log(logger, "shutdown")
+    log(logger, "shutdown", message="MoverMate остановлен")
+    tracer_provider.shutdown()  # досылает накопленные спаны
     close_logging()
 
 
@@ -67,32 +77,42 @@ async def access_log(request: Request, call_next):
         response = await call_next(request)
     except Exception as exc:
         # Одна запись со стеком и request_id; клиенту отдаём только id - по нему находим запись в логах
+        span = trace.get_current_span()
+        span.record_exception(exc)
+        span.set_status(StatusCode.ERROR, type(exc).__name__)
         logger.error(
             "unhandled_exception",
             exc_info=exc,
             extra={
                 "extra_fields": {
+                    "message": f"{request.method} {request.url.path} → 500: необработанная ошибка "
+                    f"{type(exc).__name__}: {str(exc)[:300]}",
                     "request_id": request_id,
                     "method": request.method,
                     "path": request.url.path,
-                    "error": repr(exc),
+                    "error": repr(exc)[:500],
                 }
             },
         )
         response = _internal_error(request_id)
     response.headers["x-request-id"] = request_id
+    ids = current_ids()
+    if ids:
+        response.headers["x-trace-id"] = ids[0]
     status = response.status_code
     # уровень по ответу: 5xx - ошибка сервера, 4xx - ошибка запроса клиента, остальное - обычная запись
     level = logging.ERROR if status >= 500 else logging.WARNING if status >= 400 else logging.INFO
+    latency = round((time.perf_counter() - t0) * 1000, 2)
     log(
         logger,
         "request",
         level=level,
+        message=f"{request.method} {request.url.path} → {status} за {latency} мс",
         request_id=request_id,
         method=request.method,
         path=request.url.path,
         status=status,
-        latency_ms=round((time.perf_counter() - t0) * 1000, 2),
+        latency_ms=latency,
         user_id=getattr(request.state, "user_id", None),
     )
     return response
@@ -104,17 +124,21 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["x-request-id"],
+    expose_headers=["x-request-id", "x-trace-id"],
 )
 
 
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError):
     # ошибка бизнес-правила: какой код, почему (текст для пользователя) и где
+    if exc.status_code >= 500:
+        trace.get_current_span().set_status(StatusCode.ERROR, exc.code)
+    trace.get_current_span().set_attribute("app.error_code", exc.code)
     log(
         logger,
         "app_error",
-        level=logging.WARNING,
+        level=logging.ERROR if exc.status_code >= 500 else logging.WARNING,
+        message=f"{request.method} {request.url.path} → {exc.status_code} {exc.code}: {exc.message}",
         request_id=request.state.request_id,
         method=request.method,
         path=request.url.path,
@@ -139,6 +163,8 @@ async def validation_handler(request: Request, exc: RequestValidationError):
         logger,
         "validation_failed",
         level=logging.WARNING,
+        message=f"{request.method} {request.url.path} → 422: некорректные поля "
+        + ", ".join(f"{e['field'] or 'тело'} ({e['message']})" for e in errors)[:500],
         request_id=request.state.request_id,
         method=request.method,
         path=request.url.path,
@@ -170,7 +196,14 @@ api.include_router(projects.router)
 api.include_router(boxes.router)
 api.include_router(qr_codes.router)
 api.include_router(assistant.router)
+api.include_router(ai_photo.router)
 app.include_router(api)
+
+# трейсинг подключается к готовому приложению: внешняя прослойка OpenTelemetry открывает спан до access_log,
+# поэтому trace_id есть в каждой записи о запросе и ошибке
+tracer_provider = setup_tracing(
+    app, engine, settings.app_env, settings.sage_traces_endpoint, settings.sage_api_key
+)
 
 if settings.static_dir and not mount_site(app, settings.static_dir):
     logger.warning("STATIC_DIR задан, но index.html там не найден: сайт не подключён")

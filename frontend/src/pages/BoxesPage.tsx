@@ -1,6 +1,9 @@
 import { useLayoutEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Camera } from 'lucide-react'
 import { api } from '../api/endpoints'
+import type { RoomPlan } from '../api/types'
+import PhotoPicker from '../components/PhotoPicker'
 import Modal from '../components/Modal'
 import BoxGrid from '../components/BoxShelf'
 import PageHeading from '../components/PageHeading'
@@ -12,7 +15,7 @@ import ErrorAlert from '../ui/ErrorAlert'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
 import { roomStyle } from '../ui/roomTheme'
-import { STATUS_LABELS, boxPath } from '../ui/format'
+import { STATUS_LABELS, boxPath, plural } from '../ui/format'
 import { BoxLink, useBoxNavigation } from '../features/boxes/BoxNavigation'
 
 export default function BoxesPage() {
@@ -34,6 +37,7 @@ function Boxes({ pid }: { pid: string }) {
   const q = useDebounced(query.trim())
   const [room, setRoom] = useState<string | null>(saved?.room ?? null)
   const [adding, setAdding] = useState(false)
+  const [roomPhoto, setRoomPhoto] = useState(false)
 
   const boxes = useAsync(() => api.boxes(pid, { page_size: 200 }), [pid], { refreshOnFocus: true, initialData: saved?.boxes })
   const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 100 }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true, initialData: saved?.hits })
@@ -56,7 +60,7 @@ function Boxes({ pid }: { pid: string }) {
   return (
     <>
       <PageHeading title="Коробки и вещи" mobileTitle="Коробки">{boxes.data?.total ?? '…'} коробок · {all.filter((b) => b.status === 'packing').length} ещё собираются</PageHeading>
-      <div className="search-tools"><input type="search" placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Поиск" /><Link to="/scan" className="button">Сканировать QR</Link><button className="primary" onClick={() => setAdding(true)}>+ Коробка</button></div>
+      <div className="search-tools"><input type="search" placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Поиск" /><Link to="/scan" className="button">Сканировать QR</Link><button onClick={() => setRoomPhoto(true)}><Camera className="icon-sm" aria-hidden />Комната по фото</button><button className="primary" onClick={() => setAdding(true)}>+ Коробка</button></div>
 
       {q ? (
         <>
@@ -105,8 +109,6 @@ function Boxes({ pid }: { pid: string }) {
           <p className="muted small">Статусы: {Object.values(STATUS_LABELS).join(' → ')}</p>
         </StateView>
       )}
-
-      <div className="packing-tip"><span aria-hidden>↑↑</span><p>Одну кружку оставьте снаружи. Кофе ещё понадобится.</p></div>
       {adding ? (
         <AddBoxModal
           rooms={rooms}
@@ -117,7 +119,83 @@ function Boxes({ pid }: { pid: string }) {
           }}
         />
       ) : null}
+      {roomPhoto ? (
+        <RoomPhotoModal
+          pid={pid}
+          rooms={rooms}
+          onClose={() => setRoomPhoto(false)}
+          onCreated={() => {
+            setRoomPhoto(false)
+            boxes.reload()
+            reminders.reload()
+          }}
+        />
+      ) : null}
     </>
+  )
+}
+
+/** Комната по фото: модель предлагает коробки с вещами, пользователь выбирает, какие создать. */
+function RoomPhotoModal({ pid, rooms, onClose, onCreated }: { pid: string; rooms: string[]; onClose: () => void; onCreated: () => void }) {
+  const [room, setRoom] = useState('')
+  const [plan, setPlan] = useState<RoomPlan | null>(null)
+  const [chosen, setChosen] = useState<Set<number>>(new Set())
+  const { busy, error, run } = useAction()
+
+  const recognize = async (image: string) => {
+    const result = await api.roomPlan(pid, room.trim(), image)
+    setPlan(result)
+    setChosen(new Set(result.boxes.map((_, i) => i)))
+  }
+  const toggle = (i: number) => setChosen((prev) => {
+    const next = new Set(prev)
+    if (next.has(i)) next.delete(i)
+    else next.add(i)
+    return next
+  })
+  const create = () =>
+    run(async () => {
+      for (const [i, box] of (plan?.boxes ?? []).entries()) {
+        if (chosen.has(i)) await api.createBox(pid, { room: room.trim(), items_text: box.items.join('\n'), fill_later: false })
+      }
+      onCreated()
+    })
+
+  return (
+    <Modal title="Разложить комнату по коробкам" onClose={onClose} dirty={plan !== null}>
+      <p className="muted small">Сфотографируйте комнату: подскажем, какие коробки собрать и что в них положить. Коробки создадутся только после вашего выбора.</p>
+      <label>
+        Комната
+        <input value={room} onChange={(e) => { setRoom(e.target.value); setPlan(null) }} maxLength={60} list="photo-rooms" placeholder="Кухня" data-autofocus />
+        <datalist id="photo-rooms">{rooms.map((r) => <option key={r} value={r} />)}</datalist>
+      </label>
+      {room.trim() ? <PhotoPicker label="Сфотографировать комнату" busyLabel="Раскладываем по коробкам…" onPhoto={recognize} /> : null}
+      {plan ? (
+        plan.boxes.length === 0 ? <p className="muted">На фото не нашлось вещей для коробок. Попробуйте другой ракурс.</p> : (
+          <div className="stack">
+            <b>Предлагаем {plan.boxes.length} {plural(plan.boxes.length, ['коробку', 'коробки', 'коробок'])}</b>
+            <ul className="plain room-plan">
+              {plan.boxes.map((box, i) => (
+                <li key={i}>
+                  <label className="room-plan__box">
+                    <input type="checkbox" checked={chosen.has(i)} onChange={() => toggle(i)} />
+                    <span className="grow">
+                      <b>{box.label}</b>
+                      <span className="sub">{box.items.join(', ')}</span>
+                      {box.tip ? <span className="sub room-plan__tip">{box.tip}</span> : null}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <ErrorAlert message={error} />
+            <button className="primary" disabled={busy || chosen.size === 0} onClick={create}>
+              {busy ? 'Создаём…' : `Создать коробки (${chosen.size})`}
+            </button>
+          </div>
+        )
+      ) : null}
+    </Modal>
   )
 }
 

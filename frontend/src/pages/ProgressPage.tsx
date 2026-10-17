@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { errorMessage } from '../api/client'
 import { api } from '../api/endpoints'
-import { TipList } from './TipsPage'
 import type { Hint, LostItem } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
 import Modal from '../components/Modal'
@@ -33,7 +32,6 @@ function ProgressView({ pid }: { pid: string }) {
   const lost = useAsync<LostItem[]>(() => api.lostItems(pid), [pid], { refreshOnFocus: true })
   const { busy, error, run } = useAction()
   const [hints, setHints] = useState<{ name: string; list: Hint[] } | null>(null)
-  const tips = useAsync(() => api.tips(), [])
 
   const reloadAll = () => {
     progress.reload()
@@ -105,9 +103,7 @@ function ProgressView({ pid }: { pid: string }) {
             ))}
           </div>
           <p className="muted small">Пометить вещь потерянной можно в карточке коробки.</p>
-
-          <SectionTitle>Памятка</SectionTitle>
-          <TipList tips={tips.data ?? []} />
+          <Link to="/tips" className="button tips-link">Памятка по упаковке →</Link>
         </>
       ) : null}
 

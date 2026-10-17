@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Pencil, Plus, QrCode, Trash2 } from 'lucide-react'
-import { ITEM_STATUSES, type BoxStatus, type Item, type ItemStatus } from '../api/types'
+import { ITEM_STATUSES, type BoxStatus, type Item, type ItemStatus, type PhotoItem } from '../api/types'
+import { errorMessage } from '../api/client'
 import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
+import PhotoPicker from '../components/PhotoPicker'
 import StatusPickerModal, { type StatusOption } from '../components/StatusPickerModal'
 import { boxStatusOptions } from '../components/statusOptions'
 import { useConfirm } from '../state/confirm'
@@ -66,6 +68,22 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
     }
   }
   const confirm = useConfirm()
+  const [itemError, setItemError] = useState<string | null>(null)
+
+  // Отметки у вещей срабатывают сразу на экране, запрос идёт следом; при ошибке карточка перечитывается.
+  // Кнопки при этом не блокируются, поэтому список не мигает и не показывает курсор «запрещено».
+  const optimistic = (apply: (items: Item[]) => Item[], request: () => Promise<unknown>) => {
+    setItemError(null)
+    card.mutate((b) => (b ? { ...b, items: apply(b.items) } : b))
+    request().catch((e) => {
+      setItemError(errorMessage(e))
+      card.reload()
+    })
+  }
+  const patchItem = (id: number, patch: Partial<Pick<Item, 'first_day' | 'status'>>) =>
+    optimistic((items) => items.map((x) => (x.id === id ? { ...x, ...patch, lost: patch.status ? patch.status === 'lost' : x.lost } : x)), () => api.updateItem(pid, id, patch))
+  const removeItem = (id: number) =>
+    optimistic((items) => items.filter((x) => x.id !== id), () => api.deleteItem(pid, id))
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
   const [pickingBox, setPickingBox] = useState(false)
@@ -120,6 +138,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
             </header>
           <ErrorAlert message={error} />
           <section className="box-manifest" aria-labelledby="manifest-heading">
+          <ErrorAlert message={itemError} />
           <h2 id="manifest-heading">Содержимое <span>({box.items.length})</span></h2>
           {box.items.length === 0 ? <p className="muted">Пока пусто. Добавьте вещи кнопкой «+ Вещи».</p> : null}
           {box.items.length > 0 ? (
@@ -134,21 +153,19 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
                   <button
                     className={item.first_day ? 'chip-toggle on' : 'chip-toggle'}
                     aria-pressed={item.first_day}
-                    disabled={busy}
                     title="Понадобится в первый день на новом месте"
-                    onClick={() => run(() => api.updateItem(pid, item.id, { first_day: !item.first_day }))}
+                    onClick={() => patchItem(item.id, { first_day: !item.first_day })}
                   >
                     {item.first_day ? '✓ ' : ''}Первый день
                   </button>
                   <button
                     className={`badge-button badge it-${item.status}`}
-                    disabled={busy}
                     aria-label={`Статус «${item.name}»: ${ITEM_STATUS_LABELS[item.status]}. Изменить`}
                     onClick={() => setPickingItem(item)}
                   >
                     {ITEM_STATUS_LABELS[item.status]} ▾
                   </button>
-                  <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={async () => { if (await confirm({ title: `Удалить «${item.name}»?`, message: 'Вещь пропадёт из коробки и из поиска.' })) void run(() => api.deleteItem(pid, item.id)) }}><Trash2 className="icon-sm" aria-hidden /></button>
+                  <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={async () => { if (await confirm({ title: `Удалить «${item.name}»?`, message: 'Вещь пропадёт из коробки и из поиска.' })) removeItem(item.id) }}><Trash2 className="icon-sm" aria-hidden /></button>
                   </div>
                 </div>
               ))}
@@ -185,11 +202,24 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
               title={`«${pickingItem.name}»`}
               current={pickingItem.status}
               options={itemOptions}
-              onPick={async (status) => { await api.updateItem(pid, pickingItem.id, { status }); card.reload() }}
+              onPick={async (status) => { patchItem(pickingItem.id, { status }) }}
               onClose={() => setPickingItem(null)}
             />
           ) : null}
-          {adding ? <AddItemsModal onClose={() => setAdding(false)} onSave={async (text) => { await api.createItemsBulk(pid, number, text); setAdding(false); card.reload() }} /> : null}
+          {adding ? (
+            <AddItemsModal
+              onClose={() => setAdding(false)}
+              recognize={async (image) => (await api.photoInventory(pid, number, image)).items}
+              onSave={async (text, firstDay) => {
+                const { created } = await api.createItemsBulk(pid, number, text)
+                // вещи первого дня, которые нашла модель, сразу получают пометку
+                const marked = created.filter((it) => firstDay.has(it.name.trim().toLowerCase()))
+                await Promise.all(marked.map((it) => api.updateItem(pid, it.id, { first_day: true })))
+                setAdding(false)
+                card.reload()
+              }}
+            />
+          ) : null}
           {editing ? (
             <EditBoxModal
               room={box.room}
@@ -205,16 +235,37 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
   )
 }
 
-function AddItemsModal({ onClose, onSave }: { onClose: () => void; onSave: (text: string) => Promise<void> }) {
+function AddItemsModal({ onClose, onSave, recognize }: {
+  onClose: () => void
+  onSave: (text: string, firstDay: Set<string>) => Promise<void>
+  recognize: (image: string) => Promise<PhotoItem[]>
+}) {
   const [text, setText] = useState('')
+  const [firstDay, setFirstDay] = useState<Set<string>>(new Set())
+  const [found, setFound] = useState<number | null>(null)
   const { busy, error, submit } = useAction()
+
+  const fromPhoto = async (image: string) => {
+    const items = await recognize(image)
+    setFound(items.length)
+    if (items.length === 0) return
+    setText((prev) => [prev.trim(), ...items.map((i) => (i.fragile ? `${i.name} (хрупкое)` : i.name))].filter(Boolean).join('\n'))
+    setFirstDay((prev) => new Set([...prev, ...items.filter((i) => i.first_day).map((i) => (i.fragile ? `${i.name} (хрупкое)` : i.name).trim().toLowerCase())]))
+  }
+
   return (
     <Modal title="Добавить вещи" onClose={onClose} dirty={text.trim() !== ''}>
-      <form className="stack" onSubmit={submit(() => onSave(text))}>
+      <form className="stack" onSubmit={submit(() => onSave(text, firstDay))}>
         <label>
           Каждая вещь с новой строки
           <textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} data-autofocus />
         </label>
+        <PhotoPicker label="Заполнить по фото" busyLabel="Распознаём фото…" onPhoto={fromPhoto} />
+        {found !== null ? (
+          <p className="muted small" role="status">
+            {found === 0 ? 'На фото не нашлось вещей. Попробуйте снять ближе.' : `Добавлено из фото: ${found}. Проверьте список перед сохранением${firstDay.size ? `; вещи первого дня получат пометку (${firstDay.size})` : ''}.`}
+          </p>
+        ) : null}
         <ErrorAlert message={error} />
         <button className="primary" type="submit" disabled={busy || !text.trim()}>Добавить</button>
       </form>

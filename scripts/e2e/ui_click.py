@@ -200,16 +200,9 @@ async def main():
                 await wait("!document.querySelector('dialog[open]') && __has('Заказать грузчиков')", 8),
             )
             await js("__click('Умный чек-лист')")
-            await wait("__has('Своя особенность')")
-            await js(
-                "__type('Название', 'Пианино'); __type('Задачи (каждая', 'Заказать такелажников')"
-            )
-            await js("__click('Добавить задачи (1)')")
-            await step(
-                "своя особенность добавлена",
-                await wait("__has('Особенность «Пианино»')"),
-            )
-            await js("__click('Готово')")
+            await wait("__has('Обычный переезд')")
+            await step("умный чек-лист без «Своей особенности»", not await js("__has('Своя особенность')"))
+            await js("document.querySelector('dialog .close')?.click()")
 
             # ---- задача на открытом этапе ----
             await js("__click('День переезда', '[role=tab]')")
@@ -314,7 +307,8 @@ async def main():
                     "document.querySelector('.first-day input[type=checkbox]')?.checked"
                 ),
             )
-            await step("прогресс: памятка на месте", await wait("__has('Памятка')"))
+            await js("__click('Памятка по упаковке', 'a')")
+            await step("памятка открывается по ссылке с «Прогресса»", await wait("__has('Как упаковать посуду')"))
 
             # ---- этикетки, печать, сканер, кабинет ----
             await go("/labels")

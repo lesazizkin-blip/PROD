@@ -58,7 +58,6 @@ export default function Shell() {
             </Link>
           })}
         </nav>
-        <p className="sidebar-note">↑↑ БЕРЕЖНО<br />Каждая вещь на месте.</p>
       </aside>
 
       <header className="topbar">
