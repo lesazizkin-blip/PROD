@@ -22,6 +22,7 @@ CLEANING_ROOM = (2500, 4000)
 PIANO = (8000, 15000)
 PET_TRANSFER = (1500, 5000)
 MIN_HOURS = 4  # минимальный заказ грузчиков и машины
+WORKDAY_HOURS = 10  # дольше за один день грузчики не работают: работу делят на дни
 INTERCITY_KM = 100  # дальше - перевозка между городами, считается по километрам
 
 ASSUMPTIONS = (
@@ -171,6 +172,14 @@ def estimate(body: CalculatorIn, today: date | None = None) -> CalculatorOut:
         )
 
     prep_weeks = min(8, (2 if body.rooms <= 1 else body.rooms + 1) + (1 if intercity else 0))
+    advice = _date_advice(body.move_date, prep_weeks, today)
+    if hours.high > WORKDAY_HOURS:
+        days = -(-hours.high // WORKDAY_HOURS)
+        advice.insert(
+            0,
+            f"Работы на {hours.low}–{hours.high} ч: за один день не успеть. Планируйте переезд на "
+            f"{days} дн. или заказывайте больше грузчиков; без лифта крупную мебель лучше поднимать такелажникам.",
+        )
     return CalculatorOut(
         boxes=boxes,
         volume_m3=volume,
@@ -180,6 +189,6 @@ def estimate(body: CalculatorIn, today: date | None = None) -> CalculatorOut:
         prep_weeks=prep_weeks,
         costs=costs,
         total=Range(low=sum(c.cost.low for c in costs), high=sum(c.cost.high for c in costs)),
-        date_advice=_date_advice(body.move_date, prep_weeks, today),
+        date_advice=advice,
         assumptions=ASSUMPTIONS,
     )

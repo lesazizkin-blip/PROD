@@ -116,7 +116,7 @@ ExpenseCategory = Literal[
 
 
 class CalculatorIn(BaseModel):
-    """Параметры переезда для оценки. Ничего не сохраняется: калькулятор доступен и до регистрации."""
+    """Параметры переезда для оценки. Доступно после входа, ничего не сохраняется."""
 
     model_config = ConfigDict(
         json_schema_extra={

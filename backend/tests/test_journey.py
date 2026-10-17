@@ -142,3 +142,13 @@ def test_budget_is_private_to_project_members(client, base, make_client):
 )
 def test_expense_validation(client, base, body):
     assert client.post(f"{base}/expenses", json=body).status_code == 422
+
+
+def test_calculator_warns_when_work_does_not_fit_into_one_day():
+    small = estimate(CalculatorIn(rooms=1, people=1))
+    assert not any("за один день" in a for a in small.date_advice)
+    huge = estimate(
+        CalculatorIn(rooms=8, floor_from=20, floor_to=20, elevator_from=False, elevator_to=False)
+    )
+    assert huge.hours.high > 10
+    assert "за один день не успеть" in huge.date_advice[0]
