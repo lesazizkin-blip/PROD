@@ -3,6 +3,10 @@
 Формат подходит для Sage Logs Collector: в каждой записи обязательные поля `@timestamp` (ISO, UTC),
 `env`, `system`, `inst`, уровень `level` (INFO, WARN, ERROR). Пароли, токены и содержимое вещей
 в логи не пишутся: только идентификаторы, коды и пути.
+
+`msg` - короткое имя события для поиска (`msg="app_error"`), `message` - текст для человека
+(«POST /api/... → 502 planner_invalid_response: Модель вернула...»). `trace_id`/`span_id` - текущий
+трейс OpenTelemetry: по ним Sage открывает трейс прямо из записи лога.
 """
 
 import json
@@ -10,6 +14,8 @@ import logging
 import socket
 import sys
 from datetime import UTC, datetime
+
+from opentelemetry import trace
 
 SYSTEM = "movermate"
 # уровни Python -> уровни Sage (WARNING там называется WARN)
@@ -40,9 +46,16 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "msg": record.getMessage(),
         }
+        ctx = trace.get_current_span().get_span_context()
+        if ctx.is_valid:
+            data["trace_id"] = format(ctx.trace_id, "032x")
+            data["span_id"] = format(ctx.span_id, "016x")
         data.update(getattr(record, "extra_fields", {}))
         if record.exc_info:
             data["exc"] = self.formatException(record.exc_info)
+            exc = record.exc_info[1]
+            # тип и текст исключения отдельными полями: по ним ищут одинаковые падения
+            data.setdefault("error_type", type(exc).__name__ if exc else None)
         return json.dumps(data, ensure_ascii=False, default=str)
 
 

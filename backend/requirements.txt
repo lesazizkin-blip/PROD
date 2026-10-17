@@ -8,3 +8,7 @@ pydantic-settings>=2.4
 email-validator>=2.2
 pyjwt>=2.9
 psycopg[binary]>=3.2
+# трейсинг для Sage: версии SDK и инструментации должны совпадать попарно (1.45.x <-> 0.66b*)
+opentelemetry-sdk==1.45.1
+opentelemetry-exporter-otlp-proto-grpc==1.45.1
+opentelemetry-instrumentation-fastapi==0.66b1

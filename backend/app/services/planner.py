@@ -4,6 +4,7 @@ import json
 import logging
 
 import httpx
+from opentelemetry.trace import StatusCode
 from pydantic import ValidationError
 
 from app.config import Settings
@@ -11,6 +12,7 @@ from app.errors import AppError
 from app.logging_setup import log
 from app.planner_schemas import PlanRequest
 from app.schemas import PersonalPlan
+from app.tracing import tracer
 
 
 class PlannerUnavailable(AppError):
@@ -100,6 +102,19 @@ def chat_completion(settings: Settings, messages: list[dict], max_tokens: int) -
         "response_format": {"type": "json_object"},
         "max_tokens": max_tokens,
     }
+    # отдельный спан на вызов модели: в трейсе видно, сколько ждали AI и чем кончилось (без тела и ключа)
+    with tracer.start_as_current_span("ai.chat_completion") as span:
+        span.set_attribute("gen_ai.request.model", settings.ai_model)
+        span.set_attribute("gen_ai.request.max_tokens", max_tokens)
+        try:
+            return _chat_request(settings, payload)
+        except AppError as exc:
+            span.set_status(StatusCode.ERROR, exc.code)
+            span.set_attribute("app.error_code", exc.code)
+            raise
+
+
+def _chat_request(settings: Settings, payload: dict) -> str:
     try:
         with httpx.Client(
             timeout=httpx.Timeout(settings.ai_timeout_seconds, connect=5, write=10, pool=5),
@@ -117,17 +132,30 @@ def chat_completion(settings: Settings, messages: list[dict], max_tokens: int) -
             logging.getLogger("app"),
             "ai.provider_error",
             level=logging.WARNING,
+            message=f"AI-провайдер ответил {exc.response.status_code}: {error.code}",
             provider_status=exc.response.status_code,
             reason=error.code,
         )
         raise error from None
     except httpx.TimeoutException:
-        log(logging.getLogger("app"), "ai.provider_error", level=logging.WARNING, reason="timeout")
+        log(
+            logging.getLogger("app"),
+            "ai.provider_error",
+            level=logging.WARNING,
+            message=f"AI-провайдер не ответил за {settings.ai_timeout_seconds} с",
+            reason="timeout",
+        )
         raise PlannerUnavailable(
             "Модель не ответила вовремя. Попробуйте ещё раз или создайте стандартный план."
         ) from None
     except httpx.HTTPError:
-        log(logging.getLogger("app"), "ai.provider_error", level=logging.WARNING, reason="network")
+        log(
+            logging.getLogger("app"),
+            "ai.provider_error",
+            level=logging.WARNING,
+            message="AI-провайдер недоступен по сети",
+            reason="network",
+        )
         raise PlannerUnavailable(
             "Модель сейчас недоступна. Попробуйте ещё раз или создайте стандартный план."
         ) from None

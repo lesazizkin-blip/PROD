@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     # (https://<хост коллектора>/api/hack-led-20/multiline/) и Spirit API ключ. Пусто -> логи только в stdout
     sage_logs_url: str = ""
     sage_api_key: str = ""
+    # коллектор трейсов Sage (OTLP gRPC, например https://<хост>:4319); ключ тот же SAGE_API_KEY.
+    # Пусто -> трейсы не отправляются, но trace_id/span_id всё равно пишутся в логи
+    sage_traces_endpoint: str = ""
 
 
 @lru_cache
