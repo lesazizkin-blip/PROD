@@ -1,3 +1,4 @@
+import { canAdvanceBox } from '../../components/statusOptions'
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { errorMessage } from '../../api/client'
@@ -19,7 +20,7 @@ const reached = (status: BoxStatus, target: BoxStatus) => BOX_STATUSES.indexOf(s
 /** Все коробки проекта: сервер отдаёт до 200 за раз, в больших переездах их больше. */
 async function allBoxes(pid: string): Promise<{ items: Box[] }> {
   const items: Box[] = []
-  for (let page = 1; page <= 50; page++) {
+  for (let page = 1; ; page++) {
     const chunk = await api.boxes(pid, { page, page_size: 200 })
     items.push(...chunk.items)
     if (items.length >= chunk.total || chunk.items.length === 0) break
@@ -97,7 +98,7 @@ function MovingDay({ pid }: { pid: string }) {
               <div key={b.number} className="list-row">
                 <span className="grow"><Link to={boxPath(pid, b.number)}><b>№ {b.number}</b></Link> <span className="sub">{b.room} · {b.items_count} вещ.</span></span>
                 <StatusBadge status={b.status} />
-                <button className="small" onClick={() => void mark(b.number)}>{mode === 'load' ? 'Погружена' : 'Принята'}</button>
+                <button className="small" disabled={!canAdvanceBox(b.status, target)} title={!canAdvanceBox(b.status, target) ? 'Сначала завершите предыдущий этап в карточке коробки' : undefined} onClick={() => void mark(b.number)}>{mode === 'load' ? 'Погружена' : 'Принята'}</button>
               </div>
             ))}
           </div>

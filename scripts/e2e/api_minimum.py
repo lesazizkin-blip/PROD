@@ -27,7 +27,7 @@ try:
     check(
         3,
         len(c.get(f"{BASE}/task-templates").json()) >= 10
-        and c.post(f"{P}/tasks/apply-templates").json()["added"] >= 10,
+        and c.post(f"{P}/tasks/apply-templates").json()["added"] == 0,
     )
     tasks = c.get(f"{P}/tasks").json()
     check(2, {t["stage"] for t in tasks} == {"before", "moving_day", "after"})

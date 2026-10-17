@@ -6,6 +6,7 @@ import { ApiError } from '../api/client'
 import { AuthProvider } from '../state/AuthContext'
 import { ProjectProvider } from '../state/ProjectContext'
 import NewProjectForm from './NewProjectForm'
+import { FIRST_DAY_BASICS } from '../features/planner/firstDayDefaults'
 
 const createProject = vi.fn()
 vi.mock('../api/endpoints', () => ({
@@ -46,7 +47,7 @@ describe('создание проекта', () => {
     await screen.findByLabelText('Задача 1')
     expect(createProject).not.toHaveBeenCalled()
     await userEvent.click(screen.getByRole('button', { name: 'Создать проект' }))
-    await waitFor(() => expect(createProject).toHaveBeenCalledWith({ name: 'Переезд', move_date: '2026-11-01', personal_plan: draft }))
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith({ name: 'Переезд', move_date: '2026-11-01', plan_mode: 'standard', first_day: FIRST_DAY_BASICS, personal_plan: draft }))
   })
   it('кнопка недоступна, пока нет названия и даты', async () => {
     await setup()
@@ -65,8 +66,18 @@ describe('создание проекта', () => {
     await userEvent.type(screen.getByLabelText('Дата переезда'), '2026-11-01')
     await userEvent.click(screen.getByRole('button', { name: 'Создать проект' }))
     await waitFor(() => expect(onDone).toHaveBeenCalled())
-    expect(createProject).toHaveBeenCalledWith({ name: 'Переезд', move_date: '2026-11-01' })
+    expect(createProject).toHaveBeenCalledWith({ name: 'Переезд', move_date: '2026-11-01', plan_mode: 'standard', first_day: FIRST_DAY_BASICS })
     expect(saved()).toEqual({ projects: [{ id: 'p1', name: 'Переезд', role: 'owner' }], currentId: 'p1' })
+  })
+
+  it('пустой план требует явного выбора и не отправляет базовые пункты', async () => {
+    createProject.mockResolvedValue({ id: 'p1', name: 'Пустой' })
+    await setup()
+    await userEvent.type(screen.getByLabelText('Название переезда'), 'Пустой')
+    fireEvent.change(screen.getByLabelText('Дата переезда'), { target: { value: '2026-12-01' } })
+    await userEvent.selectOptions(screen.getByLabelText('Начальный план'), 'empty')
+    await userEvent.click(screen.getByRole('button', { name: 'Создать проект' }))
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith({ name: 'Пустой', move_date: '2026-12-01', plan_mode: 'empty' }))
   })
 
   it('ошибка сервера показывается, проект не запоминается', async () => {

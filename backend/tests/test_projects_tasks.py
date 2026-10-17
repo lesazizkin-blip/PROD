@@ -22,9 +22,11 @@ def test_reference_endpoints(client):
     assert client.get("/api/tips?topic=nope").status_code == 422
 
 
-def test_new_project_has_empty_plan_templates_come_by_button(client, base, project):
+def test_explicit_empty_plan_and_default_templates_with_relative_dates(client, base, project):
     assert project["address_from"] is None and uuid.UUID(project["id"])
-    fresh = client.post("/api/projects", json={"name": "Пустой", "move_date": "2026-12-01"}).json()
+    fresh = client.post(
+        "/api/projects", json={"name": "Пустой", "move_date": "2026-12-01", "plan_mode": "empty"}
+    ).json()
     fresh_base = f"/api/projects/{fresh['id']}"
     assert client.get(f"{fresh_base}/tasks").json() == []  # план не заполняется сам
     assert client.get(f"{fresh_base}/first-day").json() == []  # заготовок первого дня нет
@@ -34,8 +36,8 @@ def test_new_project_has_empty_plan_templates_come_by_button(client, base, proje
     tasks = client.get(f"{base}/tasks").json()
     assert len(tasks) == len(TASK_TEMPLATES)
     movers = next(t for t in tasks if t["title"] == "Заказать грузчиков")
-    assert movers["due_date"] is None  # срок ставит сам пользователь, шаблон дат не навязывает
-    assert all(t["due_date"] is None for t in tasks)
+    assert movers["due_date"] == "2026-10-18"
+    assert all(t["due_date"] is not None for t in tasks)
     assert [t["stage"] for t in tasks] == sorted(
         (t["stage"] for t in tasks), key=["before", "moving_day", "after"].index
     )

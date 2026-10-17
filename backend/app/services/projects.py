@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.errors import ValidationFailed
 from app.logging_setup import audit
 from app.models import FirstDayItem, Project, ProjectMember, Task, TaskTemplate
+from app.reference_data import FIRST_DAY_BASICS
 from app.schemas import ProjectCreate, ProjectUpdate
 from app.services.events import log_event
 
@@ -29,7 +30,7 @@ class ProjectService:
             project.id = project_id
         self.db.add(project)
         self.db.flush()
-        if data.personal_plan:
+        if data.plan_mode == "standard":
             for template in self.db.scalars(select(TaskTemplate).order_by(TaskTemplate.id)):
                 self.db.add(
                     Task(
@@ -41,6 +42,7 @@ class ProjectService:
                     )
                 )
 
+        if data.personal_plan:
             # Всё сохраняется одной транзакцией вместе с шаблонами и владельцем.
             def normalize(title: str) -> str:
                 return " ".join(title.casefold().split())
@@ -58,10 +60,16 @@ class ProjectService:
                         due_date=project.move_date + timedelta(days=task.offset_days),
                     )
                 )
-            have_first: set[str] = set()
-            for title in data.personal_plan.first_day:
-                if normalize(title) not in have_first:
-                    have_first.add(normalize(title))
+        if data.plan_mode == "standard":
+            titles = [
+                *(data.first_day if data.first_day is not None else FIRST_DAY_BASICS),
+                *(data.personal_plan.first_day if data.personal_plan else []),
+            ]
+            seen: set[str] = set()
+            for title in titles:
+                key = " ".join(title.casefold().split())
+                if key not in seen:
+                    seen.add(key)
                     self.db.add(FirstDayItem(project_id=project.id, title=title))
         if owner_id is not None:  # владелец добавляется в той же транзакции, что и проект
             self.db.add(ProjectMember(project_id=project.id, user_id=owner_id, role="owner"))

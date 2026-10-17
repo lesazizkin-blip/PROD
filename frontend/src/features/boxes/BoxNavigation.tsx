@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type MouseEvent } from 'react'
 import { Link, useLocation, useNavigate, type LinkProps } from 'react-router-dom'
 import { api } from '../../api/endpoints'
-import type { Box, BoxCard, Page, SearchHit } from '../../api/types'
+import type { Box, BoxCard, Page, Progress, SearchHit } from '../../api/types'
 import { boxPath } from '../../ui/format'
 import './box-navigation.css'
 
@@ -9,6 +9,8 @@ export interface ShelfView {
   pid: string
   query: string
   room: string | null
+  page?: number
+  summary?: Progress | null
   scrollY: number
   boxes: Page<Box> | null
   hits: Page<SearchHit> | null
@@ -116,10 +118,11 @@ export function BoxNavigationProvider({ children }: { children: ReactNode }) {
     const ticket = ++request.current
     setPendingPath('/boxes')
     try {
-      const boxes = await api.boxes(pid, { page_size: 200 })
+      const current = shelf.current?.pid === pid ? shelf.current : null
+      const boxes = await api.boxes(pid, { page: current?.page ?? 1, page_size: 36, ...(current?.room ? { room: current.room } : {}) })
       if (!mounted.current || ticket !== request.current || window.location.href !== origin) return
       const previous = shelf.current?.pid === pid ? shelf.current : null
-      shelf.current = { pid, query: previous?.query ?? '', room: previous?.room ?? null, scrollY: previous?.scrollY ?? 0, hits: previous?.hits ?? null, byNumber: previous?.byNumber ?? null, boxes }
+      shelf.current = { page: previous?.page ?? 1, summary: previous?.summary ?? null, pid, query: previous?.query ?? '', room: previous?.room ?? null, scrollY: previous?.scrollY ?? 0, hits: previous?.hits ?? null, byNumber: previous?.byNumber ?? null, boxes }
     } catch {
       if (!mounted.current || ticket !== request.current || window.location.href !== origin) return
       shelf.current = null

@@ -1,0 +1,10 @@
+.first-day-checklist { padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); min-width: 0; }
+.first-day-checklist h2, .first-day-checklist h3 { margin: 0; }
+.first-day-checklist h3 { font-size: 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+.preparation-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); }
+.preparation-title { display: flex; align-items: center; gap: 10px; flex: 1 1 180px; min-width: 0; }
+.preparation-title > span { overflow-wrap: anywhere; }
+.preparation-title.done > span { text-decoration: line-through; color: var(--muted); }
+.preparation-tools { display: flex; align-items: center; gap: 6px; }
+.preparation-tools .icon-btn { width: 44px; min-height: 44px; }
+@media (max-width: 599px) { .first-day-checklist { padding: 16px; } .preparation-tools { width: 100%; justify-content: flex-end; } }
