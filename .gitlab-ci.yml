@@ -173,7 +173,8 @@ setup:vm:
 # Отличие от шаблона: на ВМ уже работает стек Caddy (HTTPS) + app. Обновляем compose-файл и Caddyfile,
 # меняем образ app на собранный (APP_IMAGE) и перезапускаем только app. deploy/.env на ВМ не трогаем,
 # том с базой и том с сертификатами сохраняются. Перед перезапуском - копия базы в /root/backups
-# (deploy/backup.sh, онлайн-копия SQLite с проверкой), cron делает такие копии раз в час; Caddy перечитывает конфиг.
+# (deploy/backup.sh, онлайн-копия SQLite с проверкой), cron делает такие копии раз в час. Caddyfile примонтирован файлом: после копирования контейнер видит
+# старую версию, поэтому при изменении Caddy пересоздаётся (сертификаты в томе caddy-data сохраняются).
 deploy:vm:
   stage: deploy
   extends:
@@ -195,7 +196,8 @@ deploy:vm:
         rm -f spirit-sa-key.json &&
         sudo APP_IMAGE=$IMAGE_NAME docker compose pull app &&
         sudo APP_IMAGE=$IMAGE_NAME docker compose up -d --no-build &&
-        sudo docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile &&
+        (sudo docker compose exec -T caddy cat /etc/caddy/Caddyfile | cmp -s - Caddyfile ||
+          sudo docker compose up -d --no-deps --force-recreate caddy) &&
         docker image prune -f >/dev/null"
   environment:
     name: production
