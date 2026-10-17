@@ -1,6 +1,7 @@
 """Точка входа. Swagger: /api/docs, OpenAPI: /api/openapi.json"""
 
 import logging
+import re
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -81,7 +82,17 @@ api_limiter = WindowLimiter(settings.api_requests_per_minute, 60)
 register_limiter = WindowLimiter(settings.registrations_per_hour, 3600)
 
 
+# токен приглашения - пропуск в чужой проект на 7 дней: в логи и Sage он не попадает
+_INVITE_TOKEN = re.compile(r"(/invites?/)[^/]+")
+
+
+def _safe_path(path: str) -> str:
+    return _INVITE_TOKEN.sub(r"\1***", path)
+
+
 # Защита от флуда. Объявлена до access_log, поэтому лежит внутри неё: отказ 429 попадает в журнал запросов.
+
+
 @app.middleware("http")
 async def throttle(request: Request, call_next):
     path = request.url.path
@@ -147,14 +158,15 @@ async def access_log(request: Request, call_next):
     # уровень по ответу: 5xx - ошибка сервера, 4xx - ошибка запроса клиента, остальное - обычная запись
     level = logging.ERROR if status >= 500 else logging.WARNING if status >= 400 else logging.INFO
     latency = round((time.perf_counter() - t0) * 1000, 2)
+    path = _safe_path(request.url.path)
     log(
         logger,
         "request",
         level=level,
-        message=f"{request.method} {request.url.path} → {status} за {latency} мс",
+        message=f"{request.method} {path} → {status} за {latency} мс",
         request_id=request_id,
         method=request.method,
-        path=request.url.path,
+        path=path,
         status=status,
         latency_ms=latency,
         user_id=getattr(request.state, "user_id", None),

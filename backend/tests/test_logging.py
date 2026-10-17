@@ -227,3 +227,10 @@ def test_setup_logging_adds_sage_appender_only_with_url_and_key():
             logger.removeHandler(h)
         for h in saved:
             logger.addHandler(h)
+
+
+def test_invite_token_never_reaches_the_request_log(client, base, logs):
+    token = client.post(f"{base}/invites").json()["token"]
+    client.get(f"/api/invites/{token}")
+    everything = json.dumps(logs.lines, ensure_ascii=False)
+    assert token not in everything and "/api/invites/***" in everything

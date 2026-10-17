@@ -37,4 +37,4 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=20s \
 
 # Миграции применяются при каждом старте: схема БД всегда соответствует коду
 # --limit-concurrency: при наплыве лишние запросы сразу получают 503, а не копятся в памяти до падения
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --limit-concurrency 300"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --limit-concurrency 300 --no-access-log"]
