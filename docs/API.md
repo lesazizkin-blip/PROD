@@ -230,7 +230,7 @@ packing (собирается) → packed (собрана) → loaded (погр�
 ### `POST /api/projects/{pid}/boxes`
 `{ "room": "Кухня", "fill_later": false, "remind_at": null, "items_text": null }`.
 - `room` 1–60 символов, обязательна.
-- Номер выдаёт сервер: атомарно `max(number)+1` внутри проекта (`UNIQUE(project_id, number)` как страховка; при гонке сервер повторяет попытку). Клиент номер не передаёт.
+- Номер выдаёт сервер: `max(выданных номеров) + 1` внутри проекта под блокировкой проекта; выданные номера берутся из коробок и журнала `box.created`, поэтому номер удалённой коробки не выдаётся снова (старая наклейка не откроет чужую коробку). `UNIQUE(project_id, number)` — страховка. Клиент номер не передаёт.
 - `items_text` необязательно: строки = вещи (то же, что `bulk`).
 - `fill_later: true` допускает пустую коробку; `remind_at` необязательна.
 `201` Box. Событие `box.created`.
@@ -242,7 +242,7 @@ packing (собирается) → packed (собрана) → loaded (погр�
 Любые из `room`, `fill_later`, `remind_at`. Номер и статус сюда не входят. `200` Box.
 
 ### `DELETE /api/projects/{pid}/boxes/{n}?confirm=true`
-Удаляет коробку и её вещи. Номер выдаётся как `max + 1`, поэтому номер удалённой **последней** коробки достанется следующей новой (номера из середины не переиспользуются). `204`. Событие `box.deleted`.
+Удаляет коробку и её вещи. Номер удалённой коробки больше не выдаётся (ни из середины, ни последний). `204`. Событие `box.deleted`.
 
 ### `POST /api/projects/{pid}/boxes/{n}/transitions`
 `{ "to": "loaded" }`. Проверка по таблице переходов. `200` Box. Ошибки: `409` (тот же статус или пустая коробка), `422` (неизвестный статус). Событие `box.status_changed` с `from`/`to`.
@@ -265,7 +265,10 @@ packing (собирается) → packed (собрана) → loaded (погр�
 Быстрый ввод: `{ "text": "Чайник\nКружки (4 шт)\nТостер" }`. Каждая непустая строка = вещь, пробелы по краям срезаются, пустые строки игнорируются, максимум 200 строк за запрос. Дубли внутри коробки не схлопываются (две одинаковые вещи допустимы). `201 { "created": [Item] }`. Сбрасывает «ожидание заполнения» (`fill_later` остаётся флагом, но напоминание исчезает, как только в коробке есть вещь).
 
 ### `PATCH /api/projects/{pid}/items/{id}`
-Любые из `name`, `status`, `first_day` (понадобится в первый день). Статус вещи выбирается свободно, в любом порядке (вещь может найтись или сломаться когда угодно); неизвестный статус — `422`. Старый формат `lost: true|false` принимается как `status: lost|found`. `200` Item. Событие `item.lost`, `item.found` или `item.status_changed` с `from`/`to`.
+Любые из `name`, `status`, `damaged`, `first_day` (понадобится в первый день). У вещи две независимые отметки: потеряна/нашлась (`status`: `packed`, `unpacked`, `found`, `lost`; на сайте — кнопки «Не могу найти» / «Нашлась») и повреждена (`damaged: true|false`, миграция 0010; `status: damaged` принимается для совместимости). Неизвестный статус — `422`. Старый формат `lost: true|false` принимается как `status: lost|found`. `200` Item. События `item.lost`, `item.found`, `item.status_changed` с `from`/`to`, `item.damage_changed`.
+
+### `POST /api/projects/{pid}/items/{id}/move`
+Переложить вещь в другую коробку того же проекта: `{ "from_box_number": 1, "to_box_number": 2 }`. Атомарно: если вещь уже переложили из `from_box_number` в другую коробку — `409` «Вещь уже переложили…»; повтор в ту же коробку — `200` без изменений. `200` Item. Событие `item.moved` с `from_box`, `to_box`.
 
 ### `DELETE /api/projects/{pid}/items/{id}?confirm=true`
 `204`.
@@ -362,7 +365,7 @@ packing (собирается) → packed (собрана) → loaded (погр�
 ## Журнал событий (раздел 8 ТЗ)
 
 ### `GET /api/projects/{pid}/events`
-Пагинация, новые сверху (`id` по убыванию). Фильтр `type`. Типы: `project.created`, `project.updated`, `task.created`, `task.completed`, `task.reopened`, `box.created`, `box.deleted`, `box.status_changed`, `box.status_corrected` (старая ручка, причина необязательна), `item.lost`, `item.found`, `item.status_changed`, `first_day.bound`, `expense.created`, `expense.deleted`, `assistant.checklist_applied`. Данные событий не содержат персональных данных, кроме названий, которые ввёл пользователь. `200` страница Event.
+Пагинация, новые сверху (`id` по убыванию). Фильтр `type`. Типы: `project.created`, `project.updated`, `task.created`, `task.completed`, `task.reopened`, `box.created`, `box.deleted`, `box.status_changed`, `box.status_corrected` (старая ручка, причина необязательна), `item.lost`, `item.found`, `item.status_changed`, `item.damage_changed`, `item.moved`, `first_day.bound`, `expense.created`, `expense.deleted`, `assistant.checklist_applied`. Данные событий не содержат персональных данных, кроме названий, которые ввёл пользователь. `200` страница Event.
 
 ---
 
