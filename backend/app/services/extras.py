@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.errors import NotFoundError, ValidationFailed
 from app.models import Box, FirstDayItem, Item
-from app.schemas import BoxStatus, HintOut, LostItemOut, ReminderOut
+from app.schemas import BoxStatus, HintOut, ItemStatus, LostItemOut, ReminderOut
 from app.services.boxes import BoxService, _box_out, _item_out, normalize
 
 MAX_HINTS = 10
@@ -68,7 +68,7 @@ class LostService:
         rows = self.db.execute(
             select(Item, Box)
             .join(Box, Box.id == Item.box_id)
-            .where(Box.project_id == project_id, Item.lost.is_(True))
+            .where(Box.project_id == project_id, Item.status == ItemStatus.LOST.value)
             .order_by(Item.id)
         ).all()
         return [

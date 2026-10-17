@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
+import StatusPickerModal, { type StatusOption } from '../components/StatusPickerModal'
+import { BOX_STATUSES, ITEM_STATUSES, type BoxStatus, type Item, type ItemStatus } from '../api/types'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
@@ -9,7 +11,30 @@ import ErrorAlert from '../ui/ErrorAlert'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
-import { STATUS_LABELS, labelPath, nextStatus, prevStatus } from '../ui/format'
+import { ITEM_STATUS_HINTS, ITEM_STATUS_LABELS, STATUS_LABELS, canTransition, labelPath, nextStatus, prevStatus } from '../ui/format'
+
+// Варианты статуса коробки: доступны только соседние шаги (правило ТЗ и сервера), остальные объясняем
+function boxOptions(current: BoxStatus): StatusOption<BoxStatus>[] {
+  const order = BOX_STATUSES.indexOf(current)
+  return BOX_STATUSES.map((s) => {
+    const allowed = canTransition(current, s)
+    const via = BOX_STATUSES.indexOf(s) > order ? nextStatus(current) : prevStatus(current)
+    return {
+      value: s,
+      label: STATUS_LABELS[s],
+      badge: `st-${s}`,
+      disabled: !allowed,
+      hint: allowed ? (s === prevStatus(current) ? 'Вернуть на шаг назад' : 'Следующий шаг') : via ? `Сначала «${STATUS_LABELS[via]}»` : undefined,
+    }
+  })
+}
+
+const itemOptions: StatusOption<ItemStatus>[] = ITEM_STATUSES.map((s) => ({
+  value: s,
+  label: ITEM_STATUS_LABELS[s],
+  hint: ITEM_STATUS_HINTS[s],
+  badge: `it-${s}`,
+}))
 
 // Карточка коробки. Сюда ведёт QR: /projects/{pid}/boxes/{n} (открытие только читает, дублей не создаёт).
 export default function BoxPage() {
@@ -22,6 +47,8 @@ export default function BoxPage() {
   const { busy, error, run } = useAction(() => card.reload())
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [pickingBox, setPickingBox] = useState(false)
+  const [pickingItem, setPickingItem] = useState<Item | null>(null)
 
   // Открыли коробку по QR из другого проекта: переключаем вкладки на него, чтобы «Коробки» и «План» были про ту же коробку
   useEffect(() => {
@@ -38,8 +65,6 @@ export default function BoxPage() {
   }
 
   const box = card.data
-  const next = box ? nextStatus(box.status) : null
-  const prev = box ? prevStatus(box.status) : null
 
   return (
     <StateView loading={card.loading && !box} error={card.error} onRetry={card.reload}>
@@ -57,10 +82,7 @@ export default function BoxPage() {
                 {box.fill_later && box.items.length === 0 ? <span className="badge st-packed">Заполнить позже</span> : null}
               </div>
             </div>
-            <div className="row wrap">
-              {prev ? <button disabled={busy} onClick={() => run(() => api.transition(pid, number, prev))}>↩ {STATUS_LABELS[prev]}</button> : null}
-              {next ? <button className="primary" disabled={busy} onClick={() => run(() => api.transition(pid, number, next))}>{STATUS_LABELS[next]} →</button> : null}
-            </div>
+            <button className="primary" disabled={busy} onClick={() => setPickingBox(true)}>Сменить статус</button>
             <ErrorAlert message={error} />
             <div className="row wrap">
               <Link to={labelPath(pid, number)} className="button tonal">Этикетка</Link>
@@ -77,10 +99,15 @@ export default function BoxPage() {
                 <div key={item.id} className="list-row">
                   <span className="grow">
                     <b>{item.name}</b>
-                    {item.lost ? <span className="sub">Потеряна: ищите в нераспакованных коробках</span> : null}
+                    {item.lost ? <span className="sub">Ищите в нераспакованных коробках: подсказки на «Прогрессе»</span> : null}
                   </span>
-                  <button className="small" disabled={busy} onClick={() => run(() => api.updateItem(pid, item.id, { lost: !item.lost }))}>
-                    {item.lost ? 'Нашлась' : 'Потеряна'}
+                  <button
+                    className={`badge-button badge it-${item.status}`}
+                    disabled={busy}
+                    aria-label={`Статус «${item.name}»: ${ITEM_STATUS_LABELS[item.status]}. Изменить`}
+                    onClick={() => setPickingItem(item)}
+                  >
+                    {ITEM_STATUS_LABELS[item.status]} ▾
                   </button>
                   <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={() => window.confirm(`Удалить вещь «${item.name}»?`) && run(() => api.deleteItem(pid, item.id))}>✕</button>
                 </div>
@@ -90,6 +117,24 @@ export default function BoxPage() {
 
           <button className="danger" disabled={busy} onClick={deleteBox}>Удалить коробку</button>
 
+          {pickingBox ? (
+            <StatusPickerModal
+              title={`Статус коробки № ${box.number}`}
+              current={box.status}
+              options={boxOptions(box.status)}
+              onPick={async (to) => { await api.transition(pid, number, to); card.reload() }}
+              onClose={() => setPickingBox(false)}
+            />
+          ) : null}
+          {pickingItem ? (
+            <StatusPickerModal
+              title={`«${pickingItem.name}»`}
+              current={pickingItem.status}
+              options={itemOptions}
+              onPick={async (status) => { await api.updateItem(pid, pickingItem.id, { status }); card.reload() }}
+              onClose={() => setPickingItem(null)}
+            />
+          ) : null}
           {adding ? <AddItemsModal onClose={() => setAdding(false)} onSave={async (text) => { await api.createItemsBulk(pid, number, text); setAdding(false); card.reload() }} /> : null}
           {editing ? (
             <EditBoxModal

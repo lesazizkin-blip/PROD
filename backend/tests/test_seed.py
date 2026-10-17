@@ -11,5 +11,5 @@ def test_demo_seed_is_complete_and_idempotent(monkeypatch, db_session):
     assert len(boxes) == len(seed.DEMO_BOXES) + 1  # +1: коробка «заполнить позже» для напоминания
     assert {b.status for b in boxes} == {"packing", "packed", "loaded", "delivered", "unpacked"}
     assert db_session.query(Box).filter_by(fill_later=True).count() == 1
-    assert db_session.query(Item).filter_by(lost=True).count() == 1
+    assert db_session.query(Item).filter_by(status="lost").count() == 1
     assert db_session.query(Task).filter_by(done=True).count() == 4

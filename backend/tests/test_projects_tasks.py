@@ -22,12 +22,13 @@ def test_reference_endpoints(client):
     assert client.get("/api/tips?topic=nope").status_code == 422
 
 
-def test_create_project_applies_templates_with_due_dates(client, base, project):
+def test_create_project_applies_templates_without_due_dates(client, base, project):
     assert project["address_from"] is None and uuid.UUID(project["id"])
     tasks = client.get(f"{base}/tasks").json()
     assert len(tasks) == len(TASK_TEMPLATES)
     movers = next(t for t in tasks if t["title"] == "Заказать грузчиков")
-    assert movers["due_date"] == "2026-10-18"  # 2026-11-01 минус 14 дней
+    assert movers["due_date"] is None  # срок ставит сам пользователь, шаблон дат не навязывает
+    assert all(t["due_date"] is None for t in tasks)
     assert [t["stage"] for t in tasks] == sorted(
         (t["stage"] for t in tasks), key=["before", "moving_day", "after"].index
     )

@@ -33,6 +33,16 @@ class BoxStatus(StrEnum):
     UNPACKED = "unpacked"
 
 
+class ItemStatus(StrEnum):
+    """Состояние вещи. Переходы свободные: вещь может найтись, сломаться или оказаться на месте в любой момент."""
+
+    PACKED = "packed"  # лежит в коробке (по умолчанию)
+    UNPACKED = "unpacked"  # распакована, на месте
+    LOST = "lost"  # потеряна: для неё есть подсказки, где искать
+    FOUND = "found"  # была потеряна и нашлась
+    DAMAGED = "damaged"  # повреждена при переезде
+
+
 class TipTopic(StrEnum):
     FRAGILE = "fragile"
     CARRY_WITH_YOU = "carry_with_you"
@@ -274,7 +284,8 @@ class ItemOut(BaseModel):
     id: int
     box_number: int
     name: str
-    lost: bool
+    status: ItemStatus
+    lost: bool  # то же, что status == "lost"; оставлено для совместимости
     created_at: datetime
 
 
@@ -300,12 +311,16 @@ class ItemsBulkOut(BaseModel):
 
 class ItemUpdate(BaseModel):
     name: Text120 | None = None
-    lost: bool | None = None
+    status: ItemStatus | None = Field(default=None, examples=["found"])
+    lost: bool | None = Field(
+        default=None, description="Устарело: true = status lost, false = status found"
+    )
 
 
 class SearchHit(BaseModel):
     item_id: int
     name: str
+    item_status: ItemStatus
     lost: bool
     box_number: int
     room: str
