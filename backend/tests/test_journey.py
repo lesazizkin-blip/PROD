@@ -19,7 +19,7 @@ def test_calculator_requires_login_and_saves_nothing(make_client, client):
     assert d["total"]["low"] < d["total"]["high"]
     assert d["total"]["low"] == sum(c["cost"]["low"] for c in d["costs"])
     assert {c["category"] for c in d["costs"]} >= {"movers", "transport", "materials", "cleaning"}
-    assert "Ориентировочная оценка" in d["assumptions"]
+    assert "Точную цену назовёт подрядчик" in d["assumptions"]
 
 
 def test_more_rooms_cost_more_and_need_bigger_truck():
@@ -178,3 +178,25 @@ def test_floor_limits_depend_on_elevator(client):
     r = client.post("/api/calculator", json={**ok, "floor_from": 16})
     assert r.status_code == 422
     assert "без лифта" in str(r.json())
+
+
+def test_city_prices_change_estimate_and_cite_source(client):
+    cities = client.get("/api/cities").json()
+    assert {"slug": "msk", "name": "Москва"} in cities and len(cities) == 16
+    base = {"rooms": 2, "people": 2, "distance_km": 10}
+    avg = client.post("/api/calculator", json=base).json()
+    msk = client.post("/api/calculator", json={**base, "city": "msk"}).json()
+    nnov = client.post("/api/calculator", json={**base, "city": "nnov"}).json()
+    assert msk["city"] == "Москва" and avg["city"] is None
+    assert msk["total"]["high"] > nnov["total"]["high"]  # в Москве машина и грузчики дороже
+    assert "Профи.ру" in msk["assumptions"] and "г. Москва" in msk["assumptions"]
+    assert client.post("/api/calculator", json={**base, "city": "atlantis"}).status_code == 422
+
+
+def test_bigger_truck_costs_more_per_hour():
+    small = estimate(CalculatorIn(rooms=1, people=1))
+    big = estimate(CalculatorIn(rooms=4, people=4))
+    t_small = next(c for c in small.costs if c.category == "transport")
+    t_big = next(c for c in big.costs if c.category == "transport")
+    # грузовик 35 м³ за час заметно дороже Газели
+    assert t_big.cost.high / big.hours.high > 1.5 * t_small.cost.high / small.hours.high

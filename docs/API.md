@@ -394,7 +394,12 @@ packing (собирается) → packed (собрана) → loaded (погр�
 ## Полный путь переезда: калькулятор и бюджет
 
 ### `POST /api/calculator` (нужна сессия)
-`{ "rooms": 2, "people": 3, "distance_km": 15, "floor_from": 5, "elevator_from": false, "pets": true, "move_date": "2026-11-28" }` → `200 { "boxes": {"low","high"}, "volume_m3": {…}, "vehicle": "Грузовик 18–20 м³", "movers": 3, "hours": {…}, "prep_weeks": 3, "costs": [{ "category": "movers", "title": "Грузчики: 3 чел. × 4–6 ч", "cost": {"low": 8500, "high": 16000} }], "total": {…}, "date_advice": ["Выходной день: …"], "assumptions": "Ориентировочная оценка…" }`. Ничего не сохраняет; без входа `401`.
+`{ "rooms": 2, "people": 3, "distance_km": 15, "floor_from": 5, "elevator_from": false, "pets": true, "move_date": "2026-11-28", "city": "kzn" }` → `200 { "boxes": {"low","high"}, "volume_m3": {…}, "vehicle": "Грузовик 18–20 м³", "movers": 3, "hours": {…}, "prep_weeks": 3, "costs": [{ "category": "movers", "title": "Грузчики: 3 чел. × 4–6 ч", "cost": {"low": 8500, "high": 16000} }], "total": {…}, "date_advice": ["Выходной день: …"], "assumptions": "Ориентировочная оценка…" }`. Ничего не сохраняет; без входа `401`.
+
+Поле `city` — slug из `GET /api/cities`; неизвестный город — `422`, без города — средние цены по 16 городам. Ответ дополнительно содержит `city` (название) и в `assumptions` — источник цен и дату проверки. Пределы: комнат 1–8, людей 1–10, 0–500 км, этаж 0–100 (без лифта не выше 15-го).
+
+### `GET /api/cities`
+`200 [{ "slug": "msk", "name": "Москва" }, …]` — 16 городов по алфавиту, цены грузчиков и Газели для калькулятора (Профи.ру, проверено 17.10.2026). Без входа.
 
 ### `GET /api/projects/{pid}/expenses`
 `200 { "items": [{ "id", "category", "title", "planned", "actual" }], "planned": 39250, "actual": 22500, "variance": 1000 }` — `variance` считается по статьям с внесённым фактом (минус — экономия).

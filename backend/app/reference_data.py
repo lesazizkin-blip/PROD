@@ -1,10 +1,12 @@
 """Справочники, которые хранятся в БД локально (раздел 5.1 и 5.5 ТЗ): шаблоны задач, чек-лист первого дня, памятки.
 `ensure_reference_data` идемпотентна: вызывается при каждом старте и добавляет только недостающее."""
 
+from datetime import date
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import TaskTemplate, Tip
+from app.models import CityPrice, TaskTemplate, Tip
 
 # (этап, название, смещение срока от даты переезда в днях)
 TASK_TEMPLATES = [
@@ -59,6 +61,34 @@ TIPS = [
 ]
 
 
+# Цены на переезд по городам для калькулятора. Источник - Профи.ру, страницы «Стоимость грузчиков» и
+# «Стоимость газели на час» в каждом городе: вилка ставок исполнителей (schema.org lowPrice/highPrice)
+# и число исполнителей (offerCount). Проверено 17.10.2026. Обновить: поменять числа и дату, при старте
+# приложения таблица city_prices обновится сама.
+PRICES_CHECKED_ON = date(2026, 10, 17)
+PRICES_SOURCE = "Профи.ру: стоимость грузчиков и газели на час"
+# slug, город, грузчик ₽/ч (мин, макс, исполнителей), Газель с водителем ₽/ч (мин, макс, исполнителей)
+CITY_PRICES: list[tuple[str, str, tuple[int, int, int], tuple[int, int, int]]] = [
+    ("msk", "Москва", (500, 1600, 5722), (1000, 4500, 5867)),
+    ("spb", "Санкт-Петербург", (500, 2000, 1569), (900, 3500, 1506)),
+    ("nsk", "Новосибирск", (500, 900, 432), (800, 2100, 326)),
+    ("ekt", "Екатеринбург", (450, 900, 410), (600, 1800, 349)),
+    ("kzn", "Казань", (500, 900, 348), (800, 2600, 261)),
+    ("krsk", "Красноярск", (500, 800, 153), (600, 2700, 98)),
+    ("nnov", "Нижний Новгород", (400, 1000, 226), (500, 1500, 171)),
+    ("chel", "Челябинск", (500, 800, 201), (500, 1500, 158)),
+    ("ufa", "Уфа", (500, 1000, 132), (700, 1400, 114)),
+    # у страницы газели в Самаре нет верхней границы: взята строка «Грузоперевозки газелью» той же страницы
+    ("smr", "Самара", (400, 800, 153), (1000, 2300, 122)),
+    ("rnd", "Ростов-на-Дону", (500, 1000, 245), (500, 3200, 179)),
+    ("ksdr", "Краснодар", (500, 1000, 494), (1000, 2500, 464)),
+    ("omsk", "Омск", (500, 1000, 74), (700, 1000, 64)),
+    ("vrn", "Воронеж", (500, 1000, 143), (500, 2200, 133)),
+    ("prm", "Пермь", (450, 700, 108), (450, 4000, 66)),
+    ("volgograd", "Волгоград", (450, 1500, 115), (400, 3000, 93)),
+]
+
+
 def ensure_reference_data(db: Session) -> None:
     have_templates = {(t.stage, t.title) for t in db.scalars(select(TaskTemplate))}
     for stage, title, offset in TASK_TEMPLATES:
@@ -68,6 +98,21 @@ def ensure_reference_data(db: Session) -> None:
     for topic, title, body in TIPS:
         if (topic, title) not in have_tips:
             db.add(Tip(topic=topic, title=title, body=body))
+    for slug, name, movers, trucks in CITY_PRICES:  # цены обновляются при каждом старте
+        db.merge(
+            CityPrice(
+                slug=slug,
+                name=name,
+                mover_low=movers[0],
+                mover_high=movers[1],
+                movers_offers=movers[2],
+                truck_low=trucks[0],
+                truck_high=trucks[1],
+                trucks_offers=trucks[2],
+                source=PRICES_SOURCE,
+                checked_on=PRICES_CHECKED_ON,
+            )
+        )
     db.commit()
 
 

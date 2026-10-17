@@ -5,18 +5,20 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import get_current_user, get_project
-from app.models import Project, User
+from app.errors import ValidationFailed
+from app.models import CityPrice, Project, User
 from app.routers.common import confirm_param
 from app.schemas import (
     BudgetOut,
     CalculatorIn,
     CalculatorOut,
+    CityOut,
     ExpenseIn,
     ExpenseOut,
     ExpenseUpdate,
 )
 from app.services.budget import BudgetService
-from app.services.calculator import estimate
+from app.services.calculator import city_rates, estimate
 
 router = APIRouter(tags=["journey"])
 
@@ -26,8 +28,31 @@ router = APIRouter(tags=["journey"])
     response_model=CalculatorOut,
     summary="Оценка переезда: коробки, машина, грузчики, время, бюджет и сроки (после входа, ничего не сохраняет)",
 )
-def calculator(body: CalculatorIn, _user: User = Depends(get_current_user)):
-    return estimate(body)
+def calculator(
+    body: CalculatorIn,
+    _user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    rates = None
+    if body.city:
+        row = db.get(CityPrice, body.city)
+        if row is None:
+            raise ValidationFailed("Такого города нет в списке: выберите из GET /api/cities")
+        rates = city_rates(
+            row.name,
+            (row.mover_low, row.mover_high, row.movers_offers),
+            (row.truck_low, row.truck_high, row.trucks_offers),
+        )
+    return estimate(body, rates)
+
+
+@router.get(
+    "/cities",
+    response_model=list[CityOut],
+    summary="Города с ценами на переезд для калькулятора (по алфавиту)",
+)
+def cities(db: Session = Depends(get_db)):
+    return db.query(CityPrice).order_by(CityPrice.name).all()
 
 
 @router.get(

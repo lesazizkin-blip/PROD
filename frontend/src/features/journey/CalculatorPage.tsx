@@ -7,13 +7,14 @@ import PageHeading from '../../components/PageHeading'
 import { useAuth } from '../../state/AuthContext'
 import { useProjects } from '../../state/ProjectContext'
 import { useAction } from '../../state/useAction'
+import { useAsync } from '../../state/useAsync'
 import ErrorAlert from '../../ui/ErrorAlert'
 import { CATEGORY_LABELS, mid, rub, rubRange } from './money'
 import './journey.css'
 
 const START: CalculatorIn = {
   rooms: 2, people: 2, distance_km: 10, floor_from: 1, floor_to: 1,
-  elevator_from: true, elevator_to: true, pets: false, piano: false, many_fragile: false, move_date: null,
+  elevator_from: true, elevator_to: true, pets: false, piano: false, many_fragile: false, move_date: null, city: null,
 }
 
 /** Этап «решение»: сколько стоит переезд, сколько коробок и времени. Доступен после входа, ничего не сохраняет. */
@@ -27,6 +28,7 @@ export default function CalculatorPage() {
   const [form, setForm] = useState<CalculatorIn>(START)
   const [result, setResult] = useState<CalculatorOut | null>(null)
   const calc = useAction()
+  const cities = useAsync(() => api.cities(), [])
   const toBudget = useAction()
   const set = <K extends keyof CalculatorIn>(key: K, value: CalculatorIn[K]) => {
     setForm({ ...form, [key]: value })
@@ -49,6 +51,13 @@ export default function CalculatorPage() {
       <PageHeading title="Калькулятор переезда">Прикиньте бюджет, коробки и сроки ещё до того, как начать.</PageHeading>
       <form className="card stack" onSubmit={calc.submit(async () => setResult(await api.calculator({ ...form, move_date: form.move_date || null })))}>
         <div className="calc-grid">
+          <label>
+            Город (цены грузчиков и машины)
+            <select value={form.city ?? ''} onChange={(e) => set('city', e.target.value || null)}>
+              <option value="">Другой — средние по крупным городам</option>
+              {(cities.data ?? []).map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+            </select>
+          </label>
           {num('rooms', 'Комнат (студия = 1)', 1, 8)}
           {num('people', 'Сколько человек переезжает', 1, 10)}
           {num('distance_km', 'Расстояние, км (до 500)', 0, 500)}

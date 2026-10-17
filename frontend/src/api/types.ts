@@ -329,6 +329,13 @@ export interface CalculatorIn {
   piano: boolean
   many_fragile: boolean
   move_date?: string | null
+  /** slug из GET /api/cities; пусто - средние цены по крупным городам */
+  city?: string | null
+}
+
+export interface City {
+  slug: string
+  name: string
 }
 
 export interface Range {
@@ -353,6 +360,7 @@ export interface CalculatorOut {
   total: Range
   date_advice: string[]
   assumptions: string
+  city?: string | null
 }
 
 export interface Expense {
