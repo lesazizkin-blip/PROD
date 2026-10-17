@@ -1,8 +1,9 @@
 import { useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, KeyRound, LogOut, MapPin, Plus, ShieldCheck } from 'lucide-react'
+import { Calendar, KeyRound, LogOut, Plus, ShieldCheck } from 'lucide-react'
 import { api } from '../api/endpoints'
 import type { Project } from '../api/types'
+import AddressInput from '../components/AddressInput'
 import Avatar from '../components/Avatar'
 import MembersPanel from '../components/MembersPanel'
 import PasswordModal from '../components/PasswordModal'
@@ -146,10 +147,11 @@ function ProjectForm({ project, onSaved }: { project: Project; onSaved: () => vo
     onSaved()
   }
   // после правки снова показываем кнопку без «Сохранено»
-  const edit = (set: (v: string) => void) => (e: ChangeEvent<HTMLInputElement>) => {
-    set(e.target.value)
+  const editValue = (set: (v: string) => void) => (v: string) => {
+    set(v)
     setSaved(false)
   }
+  const edit = (set: (v: string) => void) => (e: ChangeEvent<HTMLInputElement>) => editValue(set)(e.target.value)
 
   return (
     <form className="card stack" onSubmit={submit(save)}>
@@ -162,14 +164,8 @@ function ProjectForm({ project, onSaved }: { project: Project; onSaved: () => vo
           Дата переезда
           <input type="date" value={date} onChange={edit(setDate)} />
         </label>
-        <label>
-          <span className="row"><MapPin className="icon-sm" aria-hidden />Откуда (необязательно)</span>
-          <input value={from} onChange={edit(setFrom)} maxLength={300} placeholder="ул. Садовая, 5" />
-        </label>
-        <label>
-          <span className="row"><MapPin className="icon-sm" aria-hidden />Куда (необязательно)</span>
-          <input value={to} onChange={edit(setTo)} maxLength={300} placeholder="ул. Лесная, 12" />
-        </label>
+        <AddressInput label="Откуда (необязательно)" value={from} onChange={editValue(setFrom)} placeholder="ул. Садовая, 5" />
+        <AddressInput label="Куда (необязательно)" value={to} onChange={editValue(setTo)} placeholder="ул. Лесная, 12" />
       </div>
       <p className="muted small">Адреса видят только участники этого проекта и больше никто.</p>
       <ErrorAlert message={error} />

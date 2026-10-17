@@ -16,7 +16,7 @@
 |---|---|---|---|---|
 | 1 | 5.1 Создание проекта с названием, датой переезда и необязательными адресами «откуда»/«куда» | Экран «План» (форма нового проекта); `POST /projects` | `backend/tests/test_projects_tasks.py`, `frontend/src/components/NewProjectForm.test.tsx` | 🟦 |
 | 2 | 5.1 Задачи в трёх этапах: до переезда, день переезда, после переезда | `Task.stage`; `GET /projects/{id}/tasks?stage=` | `backend/tests/test_projects_tasks.py` | 🟦 |
-| 3 | 5.1 Готовые шаблоны задач | `GET /task-templates`; кнопка «Добавить типовые задачи» в пустом плане (`POST …/tasks/apply-templates`) | `backend/tests/test_projects_tasks.py` | 🟦 |
+| 3 | 5.1 Готовые шаблоны задач | `GET /task-templates`; вариант «Обычный переезд: типовые задачи» в «Умном чек-листе» (`POST …/tasks/apply-templates`) | `backend/tests/test_projects_tasks.py` | 🟦 |
 | 4 | 5.1 Собственные задачи, срок, необязательный ответственный | `POST /projects/{id}/tasks`; кнопка «+ Задача» | `backend/tests/test_projects_tasks.py` | 🟦 |
 | 5 | 5.1 Отметка выполнения задач | `PATCH /projects/{id}/tasks/{tid}` (`done`); флажок в «Плане» | `backend/tests/test_projects_tasks.py` | 🟦 |
 | 6 | 5.2 Коробка с уникальным номером и комнатой назначения | `POST /projects/{id}/boxes`; `UNIQUE(project_id, number)` | `backend/tests/test_boxes_api.py`, `backend/tests/test_config_and_migrations.py` | 🟦 |
@@ -36,7 +36,7 @@
 | 20 | 5.4 Отметки о доставке коробок | Переход в `delivered`; кнопка «Доставлено» по комнате | `backend/tests/test_extras_api.py`, `backend/tests/test_box_rules.py` | 🟦 |
 | 21 | 5.4 Количество коробок в каждом статусе | `progress.by_status`; цветные счётчики на «Прогрессе» | `backend/tests/test_boxes_api.py` | 🟦 |
 | 22 | 5.4 Прогресс распаковки по комнатам | `progress.rooms[].unpacked_percent` | `backend/tests/test_boxes_api.py` | 🟦 |
-| 23 | 5.4 Чек-лист первого дня (зубные щётки, зарядки, чайник, бельё) | `GET/POST/PATCH/DELETE /projects/{id}/first-day` (чек-лист «Не забыть положить»); вещи с пометкой «Первый день» (`items.first_day`, `GET …/items/first-day`); вкладка «Первый день» в «Плане», кнопка «+ Вещь» с выбором коробки | `backend/tests/test_extras_api.py` | 🟦 |
+| 23 | 5.4 Чек-лист первого дня (зубные щётки, зарядки, чайник, бельё) | `GET/POST/PATCH/DELETE /projects/{id}/first-day` (чек-лист с отметками на «Прогрессе»); вещи с пометкой «Первый день» (`items.first_day`, `GET …/items/first-day`); вкладка «Первый день» в «Плане», кнопка «+ Вещь» с выбором коробки | `backend/tests/test_extras_api.py` | 🟦 |
 | 24 | 5.4 Пометить вещь потерянной | `PATCH /items/{id}` (`status`: упакована, распакована, найдена, потеряна, повреждена); окно выбора статуса по метке вещи в карточке; список потерянных на «Прогрессе» | `backend/tests/test_boxes_api.py`, `backend/tests/test_extras_api.py` | 🟦 |
 | 25 | 5.4 Подсказки, в каких нераспакованных коробках искать потерянную вещь | `GET /items/{id}/hints`; кнопка «Где искать» | `backend/tests/test_extras_api.py` | 🟦 |
 | 26 | 5.5 Памятки: хрупкое, что везти с собой, что паковать последним; хранятся локально | `GET /tips` (из БД, сидятся при старте); раздел «Памятка» на «Прогрессе» | `backend/tests/test_projects_tasks.py` | 🟦 |
@@ -46,7 +46,7 @@
 | 30 | 8 Одинаковые поисковые запросы дают одинаковый результат | Детерминированная сортировка поиска | `backend/tests/test_boxes_api.py` | 🟦 |
 | 31 | 8 Данные сохраняются при перезапуске/обновлении | БД на сервере; список проектов приходит с сервера после входа, в `localStorage` его копия и выбранный проект | `frontend/src/state/projects.test.ts` | 🟦 |
 | 32 | 8 Персональные данные и адреса необязательны, адреса используются только внутри проекта | Адреса и ответственный — необязательные поля | `backend/tests/test_projects_tasks.py` | 🟦 |
-| 33 | 8 Нет скрытых передач данных третьим лицам; QR и этикетки генерируются локально | `qrcode.react` в браузере, без CDN и внешних API | проверено чтением кода и вызовов сети: внешних запросов нет | 🟨 |
+| 33 | 8 Нет скрытых передач данных третьим лицам; QR и этикетки генерируются локально | `qrcode.react` в браузере, без CDN и внешних API. Исключение — подсказки адреса Google Maps: только если на сервере задан ключ и пользователь сам нажал «Найти на карте», с предупреждением, что адрес уходит в Google | проверено чтением кода и вызовов сети: внешних запросов нет | 🟨 |
 | 34 | 8 Сотни коробок и тысячи вещей, быстрый поиск, фильтры/пагинация | Индексы, `page`/`page_size`, фильтры; нагрузочный проект `python -m app.seed --load` (300 коробок, 3000 вещей) | замер вручную: поиск, прогресс и список отвечают за единицы миллисекунд; автотеста нагрузки нет | 🟨 |
 | 35 | 8 Журнал важных событий: проект, коробки, статусы, задачи | Таблица `events`; `GET /projects/{id}/events` | `backend/tests/test_projects_tasks.py`, `backend/tests/test_boxes_api.py` | 🟦 |
 | 36 | 8 Проверка работоспособности через страницу или индикатор | `GET /health`; индикатор на сервере проверки | `backend/tests/test_projects_tasks.py`; `scripts/preflight.sh` | 🟦 |

@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # папка с собранным сайтом (frontend/dist): тогда бэкенд сам отдаёт сайт на том же порту
     static_dir: str | None = None
     log_level: str = "INFO"
+    # ключ Google Maps JavaScript API для подсказок адреса; пусто -> подсказки на сайте выключены.
+    # Это ключ для браузера (он виден на странице), его ограничивают по адресу сайта в Google Cloud
+    google_maps_api_key: str = ""
 
 
 @lru_cache

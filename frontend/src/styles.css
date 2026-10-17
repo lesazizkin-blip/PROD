@@ -376,16 +376,11 @@ input[type='checkbox'].check:focus-visible { outline: 2px solid var(--accent); o
 .input-icon--end > input::-webkit-calendar-picker-indicator { opacity: 0; position: absolute; right: 8px; width: 28px; height: 28px; cursor: pointer; }
 .new-project__more { justify-self: start; }
 button.cta { min-height: 50px; font-size: 1rem; }
-.why { display: grid; gap: 14px; align-content: center; }
-.why h3 { font-size: .95rem; }
-.why__item { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: .92rem; color: var(--heading); }
-.why__item .icon { color: var(--accent); }
 .form-grid { display: grid; gap: 12px; }
 @media (min-width: 640px) { .form-grid { grid-template-columns: 1fr 1fr; } }
 @media (min-width: 1000px) {
-  .new-project { grid-template-columns: minmax(0, 480px) 200px; gap: 48px; padding-top: 24px; }
+  .new-project { grid-template-columns: minmax(0, 480px); padding-top: 24px; }
 }
-@media (max-width: 999px) { .why { display: none; } }
 
 /* ---------- личный кабинет ---------- */
 .profile { display: grid; gap: 14px; }
@@ -447,7 +442,8 @@ input[type='color'] { width: 56px; height: 44px; padding: 2px; flex: none; }
 .invite__revoke { justify-self: start; }
 
 /* переключатель «Первый день» у вещи в коробке */
-button.chip-toggle { min-height: 32px; padding: 2px 10px; font-size: .78rem; font-weight: 600; border-radius: 999px; color: var(--muted); border: 1px dashed var(--border); background: transparent; white-space: nowrap; }
+/* не отмечено - горит красным, чтобы вещь первого дня не забыли пометить */
+button.chip-toggle { min-height: 32px; padding: 2px 10px; font-size: .78rem; font-weight: 600; border-radius: 999px; color: var(--danger); border: 1px solid var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); white-space: nowrap; }
 button.chip-toggle.on { color: var(--primary); border: 1px solid var(--accent); background: var(--primary-soft); }
 
 /* ссылки-кнопки: основная и маленькая */
@@ -477,3 +473,25 @@ a.button.small { min-height: 36px; padding: 6px 12px; font-size: .9rem; }
 /* вкладки гостя - кнопки, но выглядят как обычные вкладки */
 button.tab { background: transparent; border: 0; box-shadow: none; font-family: inherit; width: 100%; }
 button.tab:hover:not(:disabled) { border: 0; }
+
+/* окно подтверждения (удаление и другие необратимые действия) в стиле сайта */
+dialog.confirm-dialog { width: min(420px, calc(100vw - 32px)); }
+.confirm-dialog .modal-body { justify-items: center; text-align: center; padding: 24px 22px 20px; }
+.confirm-dialog h2 { padding-right: 0; font-size: 1.15rem; }
+.confirm-dialog p { margin: -6px 0 0; }
+.confirm-dialog__icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.confirm-dialog__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 4px; }
+button.danger-solid { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+button.danger-solid:hover:not(:disabled) { filter: brightness(.92); border-color: var(--danger); }
+
+/* своя особенность в умном чек-листе */
+.own-feature { border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 12px 14px 14px; margin: 4px 0 0; }
+.own-feature legend { font-weight: 700; color: var(--heading); padding: 0 6px; }
+
+/* поле адреса с подсказками Google Maps */
+.address-input { display: grid; gap: 6px; position: relative; align-content: start; }
+.address-input__list { list-style: none; margin: 0; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); display: grid; gap: 2px; }
+.address-input__list button { width: 100%; justify-content: flex-start; min-height: 40px; border: 0; background: transparent; text-align: left; font-weight: 400; }
+.address-input__list button:hover:not(:disabled) { background: var(--primary-soft); }
+.address-input__map { height: 180px; border-radius: var(--radius-sm); border: 1px solid var(--border); overflow: hidden; }
+.address-input > button { justify-self: start; }

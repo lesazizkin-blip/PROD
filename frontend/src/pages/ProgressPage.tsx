@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { CircleCheck, Circle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { errorMessage } from '../api/client'
 import { api } from '../api/endpoints'
 import type { BoxStatus, Hint, LostItem, RoomProgress } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
@@ -146,12 +146,21 @@ function ProgressView({ pid }: { pid: string }) {
   )
 }
 
-/** Виджет «Чек-лист первого дня» (раздел 5.4 ТЗ): что уже собрано в коробку первого дня. Отмечать - на «Плане». */
+/** Чек-лист первого дня (раздел 5.4 ТЗ): что положить в коробку, которую откроете первой. Отметка срабатывает сразу. */
 function FirstDayWidget({ pid }: { pid: string }) {
   const items = useAsync(() => api.firstDay(pid), [pid])
+  const [error, setError] = useState<string | null>(null)
   const list = items.data ?? []
   const done = list.filter((i) => i.done).length
   if (!items.data) return null
+  const toggle = (id: number, value: boolean) => {
+    setError(null)
+    items.mutate((xs) => xs?.map((x) => (x.id === id ? { ...x, done: value } : x)) ?? xs)
+    api.updateFirstDay(pid, id, { done: value }).catch((e) => {
+      setError(errorMessage(e))
+      items.reload()
+    })
+  }
   return (
     <section className="card stack first-day">
       <div className="row between">
@@ -162,12 +171,14 @@ function FirstDayWidget({ pid }: { pid: string }) {
       <ul className="plain first-day__list">
         {list.map((i) => (
           <li key={i.id} className={i.done ? 'done' : ''}>
-            {i.done ? <CircleCheck className="icon-sm" aria-hidden /> : <Circle className="icon-sm" aria-hidden />}
-            {i.title}
+            <label className="row">
+              <input type="checkbox" className="check" checked={i.done} onChange={() => toggle(i.id, !i.done)} />
+              {i.title}
+            </label>
           </li>
         ))}
       </ul>
-      <Link to="/" className="small">Отметить на «Плане» →</Link>
+      <ErrorAlert message={error} />
     </section>
   )
 }

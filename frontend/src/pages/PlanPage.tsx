@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Clock, ListPlus, Package, Pencil, Sparkles, Trash2, UserRound } from 'lucide-react'
+import { CalendarDays, Clock, Package, Pencil, Sparkles, UserRound } from 'lucide-react'
 import { api } from '../api/endpoints'
 import { ITEM_STATUSES, type ItemStatus, type Stage, type Task, type TaskCreate } from '../api/types'
 import ChecklistModal from '../components/ChecklistModal'
 import Modal from '../components/Modal'
 import RequireProject from '../components/RequireProject'
+import { useConfirm } from '../state/confirm'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
@@ -28,7 +29,6 @@ export default function PlanPage() {
 function Plan({ pid }: { pid: string }) {
   const project = useAsync(() => api.getProject(pid), [pid])
   const tasks = useAsync(() => api.tasks(pid), [pid])
-  const firstDay = useAsync(() => api.firstDay(pid), [pid])
   const firstDayItems = useAsync(() => api.firstDayItems(pid), [pid])
   // null - форма закрыта, 'new' - новая задача, Task - правка существующей
   const [form, setForm] = useState<'new' | Task | null>(null)
@@ -40,14 +40,11 @@ function Plan({ pid }: { pid: string }) {
   const reloadAll = () => {
     project.reload()
     tasks.reload()
-    firstDay.reload()
     firstDayItems.reload()
   }
-  const { busy, error, run: act } = useAction(reloadAll)
 
   const list = tasks.data ?? []
   const done = list.filter((t) => t.done).length
-  const first = firstDay.data ?? []
   // по умолчанию открыт первый этап, где остались невыполненные задачи; выбранный один раз этап
   // дальше не меняется сам, иначе после отметки последней задачи вкладка перепрыгивала бы
   const activeTab: PlanTab = tab ?? STAGES.find((s) => list.some((t) => t.stage === s && !t.done)) ?? 'before'
@@ -70,12 +67,6 @@ function Plan({ pid }: { pid: string }) {
       tasks.reload,
     )
   }
-  const toggleFirstDay = (id: number, done: boolean) =>
-    quick(
-      () => firstDay.mutate((fs) => fs?.map((x) => (x.id === id ? { ...x, done } : x)) ?? fs),
-      () => api.updateFirstDay(pid, id, { done }),
-      firstDay.reload,
-    )
   const thingsForDay = firstDayItems.data ?? []
 
   return (
@@ -92,7 +83,7 @@ function Plan({ pid }: { pid: string }) {
         </div>
       </div>
 
-      <ErrorAlert message={error ?? quickError} />
+      <ErrorAlert message={quickError} />
 
       <div className="segmented stage-tabs" role="tablist" aria-label="Этапы переезда">
         {STAGES.map((s) => {
@@ -126,28 +117,11 @@ function Plan({ pid }: { pid: string }) {
               </Link>
             ))}
           </div>
-
-          <SectionTitle>Не забыть положить</SectionTitle>
-          <div className="card flush">
-            {first.length === 0 ? <div className="list-row muted">Список пуст</div> : null}
-            {first.map((f) => (
-              <label key={f.id} className={f.done ? 'list-row done' : 'list-row'}>
-                <input type="checkbox" className="check" checked={f.done} onChange={() => toggleFirstDay(f.id, !f.done)} />
-                <span className="grow title">{f.title}</span>
-                <button type="button" className="link small" disabled={busy} aria-label={`Удалить «${f.title}»`} onClick={(e) => { e.preventDefault(); if (window.confirm(`Удалить «${f.title}»?`)) void act(() => api.deleteFirstDay(pid, f.id)) }}><Trash2 className="icon-sm" aria-hidden /></button>
-              </label>
-            ))}
-          </div>
         </section>
       ) : (
       <section className="task-list" role="tabpanel" aria-label={STAGE_LABELS[activeTab]}>
         {list.length === 0 ? (
-          <div className="state stack">
-            <p>План пока пуст. Добавьте свои задачи кнопкой «+ Задача» или возьмите типовые задачи переезда.</p>
-            <button type="button" className="tonal" disabled={busy} onClick={() => act(() => api.applyTemplates(pid))}>
-              <ListPlus className="icon-sm" aria-hidden />Добавить типовые задачи
-            </button>
-          </div>
+          <div className="state"><p>Пока задач нет. Добавьте свою кнопкой «+ Задача» или выберите готовые в «Умном чек-листе».</p></div>
         ) : stageTasks.length === 0 ? <div className="state"><p>На этом этапе задач нет. Добавьте свою кнопкой «+ Задача».</p></div> : null}
         {stageTasks.map((t) => (
           <label key={t.id} className={`task-card${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
@@ -166,7 +140,7 @@ function Plan({ pid }: { pid: string }) {
                 ) : null}
               </span>
             </span>
-            <button type="button" className="link small icon-btn" disabled={busy} aria-label={`Изменить «${t.title}»`} onClick={(e) => { e.preventDefault(); setForm(t) }}><Pencil className="icon-sm" aria-hidden /></button>
+            <button type="button" className="link small icon-btn" aria-label={`Изменить «${t.title}»`} onClick={(e) => { e.preventDefault(); setForm(t) }}><Pencil className="icon-sm" aria-hidden /></button>
           </label>
         ))}
       </section>
@@ -220,6 +194,7 @@ function categoryColors(tasks: Task[]): Map<string, string> {
 }
 
 export function TaskModal({ initial, defaultStage, onClose, onSave, onDelete, categories }: { initial: Task | null; defaultStage?: Stage; onClose: () => void; onSave: (body: TaskCreate) => Promise<void>; onDelete?: () => Promise<void>; categories: Map<string, string> }) {
+  const confirm = useConfirm()
   const [title, setTitle] = useState(initial?.title ?? '')
   const [assignee, setAssignee] = useState(initial?.assignee ?? '')
   // новая задача попадает на этап, открытый сейчас в плане
@@ -244,8 +219,8 @@ export function TaskModal({ initial, defaultStage, onClose, onSave, onDelete, ca
   }
 
   // Удаление живёт в форме правки: в строке списка остаётся одна кнопка, и название не сжимается на телефоне
-  function remove() {
-    if (!onDelete || !initial || !window.confirm(`Удалить задачу «${initial.title}»?`)) return
+  async function remove() {
+    if (!onDelete || !initial || !(await confirm({ title: `Удалить задачу «${initial.title}»?`, message: 'Задача пропадёт из плана.' }))) return
     void run(onDelete)
   }
 

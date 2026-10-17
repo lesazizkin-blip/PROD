@@ -73,6 +73,10 @@ class Page(BaseModel, Generic[T]):
     page_size: int
 
 
+class ClientConfigOut(BaseModel):
+    maps_api_key: str | None = None
+
+
 class HealthOut(BaseModel):
     status: str
     db: str
