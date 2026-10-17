@@ -1,0 +1,102 @@
+{
+  "browser": "155.0.4283.45",
+  "results": [
+    {
+      "synthetic": true,
+      "text": "#001\n",
+      "candidates": [
+        "#001"
+      ],
+      "diagnostics": {
+        "engine": "Tesseract.js local prototype (unvalidated handwriting)",
+        "elapsedMs": 1049.7000000029802
+      },
+      "totalMs": 1050.2999999970198
+    },
+    {
+      "synthetic": true,
+      "text": "#010\n",
+      "candidates": [
+        "#010"
+      ],
+      "diagnostics": {
+        "engine": "Tesseract.js local prototype (unvalidated handwriting)",
+        "elapsedMs": 796
+      },
+      "totalMs": 796.2000000029802
+    },
+    {
+      "synthetic": true,
+      "text": "100\n",
+      "candidates": [
+        "100"
+      ],
+      "diagnostics": {
+        "engine": "Tesseract.js local prototype (unvalidated handwriting)",
+        "elapsedMs": 933.3999999910593
+      },
+      "totalMs": 933.5
+    }
+  ],
+  "requests": [
+    {
+      "url": "http://localhost:8018/recognition/tesseract.esm.min.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/localOcr.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/synthetic-0.png",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/recognition/worker.min.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/recognition/core/tesseract-core-simd-lstm.wasm.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/recognition/lang/eng.traineddata.gz",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/synthetic-1.png",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/recognition/worker.min.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/recognition/core/tesseract-core-simd-lstm.wasm.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/recognition/lang/eng.traineddata.gz",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/synthetic-2.png",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/recognition/worker.min.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/recognition/core/tesseract-core-simd-lstm.wasm.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:8018/recognition/lang/eng.traineddata.gz",
+      "method": "GET"
+    }
+  ],
+  "logs": [
+    "Failed to load resource: the server responded with a status of 404 (File not found)"
+  ]
+}

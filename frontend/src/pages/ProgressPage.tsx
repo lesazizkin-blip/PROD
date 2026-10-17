@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { errorMessage } from '../api/client'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/endpoints'
-import type { Hint, LostItem } from '../api/types'
+import type { BoxStatus, Hint, LostItem } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
-import { TipList } from './TipsPage'
 import Modal from '../components/Modal'
+import PageHeading from '../components/PageHeading'
 import RequireProject from '../components/RequireProject'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
@@ -15,6 +14,13 @@ import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
 import { STATUS_LABELS, boxPath } from '../ui/format'
+
+// Для комнаты: какие коробки можно сдвинуть дальше одной кнопкой (погрузка, доставка, распаковка)
+const ROOM_STEPS: { from: BoxStatus; to: BoxStatus; label: string }[] = [
+  { from: 'packed', to: 'loaded', label: 'Погрузить' },
+  { from: 'loaded', to: 'delivered', label: 'Доставлено' },
+  { from: 'delivered', to: 'unpacked', label: 'Распаковано' },
+]
 
 const REASONS: Record<string, string> = {
   recorded: 'записана в этой коробке',
@@ -28,16 +34,22 @@ export default function ProgressPage() {
 
 function ProgressView({ pid }: { pid: string }) {
   const navigate = useNavigate()
-  const progress = useAsync(() => api.progress(pid), [pid])
-  const lost = useAsync<LostItem[]>(() => api.lostItems(pid), [pid])
+  const progress = useAsync(() => api.progress(pid), [pid], { refreshOnFocus: true })
+  const lost = useAsync<LostItem[]>(() => api.lostItems(pid), [pid], { refreshOnFocus: true })
   const { busy, error, run } = useAction()
   const [hints, setHints] = useState<{ name: string; list: Hint[] } | null>(null)
-  const tips = useAsync(() => api.tips(), [])
 
   const reloadAll = () => {
     progress.reload()
     lost.reload()
   }
+
+  const moveRoom = (room: string, from: BoxStatus, to: BoxStatus) =>
+    run(async () => {
+      const boxes = await api.boxes(pid, { room, status: from, page_size: 200 })
+      await api.bulkTransition(pid, boxes.items.map((b) => b.number), to)
+      reloadAll()
+    })
 
   const showHints = (entry: LostItem) =>
     run(async () => setHints({ name: entry.item.name, list: await api.hints(pid, entry.item.id) }))
@@ -46,38 +58,53 @@ function ProgressView({ pid }: { pid: string }) {
   const lostList = lost.data ?? []
 
   return (
+    <>
+    <PageHeading title="Всё доедет до дома.">Контролируйте путь коробок — от скотча до последней распакованной вещи.</PageHeading>
     <StateView loading={progress.loading && !p} error={progress.error} empty={!!p && p.boxes_total === 0} emptyText="Коробок пока нет: прогресс появится после первой коробки" emptyIcon="📊" onRetry={reloadAll}>
       {p ? (
         <>
-          <div className="card hero stack">
-            <div style={{ fontSize: '2.4rem', fontWeight: 700, lineHeight: 1 }}>{p.boxes_total}</div>
-            <div>коробок · распаковано {Math.round(p.unpacked_percent)}%</div>
-            <ProgressBar value={p.unpacked_percent} label="Распаковано коробок" />
-          </div>
           <ErrorAlert message={error} />
 
           <div className="stat-grid">
             {BOX_STATUSES.map((s) => (
-              <div key={s} className={`stat st-${s}`}>
+              <div key={s} className="stat" style={{ borderLeftColor: `var(--st-${s})` }}>
                 <b>{p.by_status[s]}</b>
                 <span>{STATUS_LABELS[s]}</span>
               </div>
             ))}
           </div>
 
-          <SectionTitle>По комнатам</SectionTitle>
+          <div className="progress-layout">
+          <section className="room-progress stack">
+          <h2>Готовность по комнатам</h2>
+          <span className="eyebrow accent">УПАКОВКА → ПОГРУЗКА → РАСПАКОВКА</span>
+          <p className="muted small">Всего {p.boxes_total} коробок · распаковано {Math.round(p.unpacked_percent)}%</p>
           {p.rooms.map((r) => (
             <div key={r.room} className="card stack">
               <b>{r.room} · {r.total} кор.</b>
               <div className="small muted">Погружено {r.loaded} из {r.total}</div>
-              <ProgressBar value={r.loaded_percent} label={`${r.room}: погружено`} color="var(--st-loaded-fg)" />
+              <ProgressBar value={r.loaded_percent} label={`${r.room}: погружено`} color="var(--st-loaded)" />
               <div className="small muted">Распаковано {r.unpacked} из {r.total}</div>
-              <ProgressBar value={r.unpacked_percent} label={`${r.room}: распаковано`} />
+              <ProgressBar value={r.unpacked_percent} label={`${r.room}: распаковано`} color="var(--st-unpacked)" />
+              <div className="row wrap">
+                {ROOM_STEPS.filter((s) => r.by_status[s.from] > 0).map((s) => (
+                  <button key={s.to} className="tonal small" disabled={busy} onClick={() => moveRoom(r.room, s.from, s.to)}>
+                    {s.label} ({r.by_status[s.from]})
+                  </button>
+                ))}
+              </div>
             </div>
           ))}
 
-          <FirstDayWidget pid={pid} />
-
+          </section>
+          <aside className="first-day stack">
+            <span className="eyebrow accent">ДЕНЬ ПЕРЕЕЗДА</span>
+            <h2>Перед закрытием<br />двери</h2>
+            <p>Проверьте шкафы и балкон, снимите показания счётчиков, заберите документы и передайте ключи.</p>
+            <Link to="/scan" className="button dark">Открыть сканер →</Link>
+            <p className="muted small">Сканирование открывает карточку. Статус меняется по нажатию.</p>
+          </aside>
+          </div>
           <SectionTitle>Потерянные вещи</SectionTitle>
           <div className="card flush">
             {lostList.length === 0 ? <div className="list-row muted">Ничего не потеряно</div> : null}
@@ -93,12 +120,8 @@ function ProgressView({ pid }: { pid: string }) {
             ))}
           </div>
           <p className="muted small">Пометить вещь потерянной можно в карточке коробки.</p>
-
-          <SectionTitle>Памятка</SectionTitle>
-          <TipList tips={tips.data ?? []} />
         </>
       ) : null}
-
 
       {hints ? (
         <Modal title={`Где искать: ${hints.name}`} onClose={() => setHints(null)}>
@@ -117,50 +140,6 @@ function ProgressView({ pid }: { pid: string }) {
         </Modal>
       ) : null}
     </StateView>
-  )
-}
-
-/** Чек-лист по распаковке вещей первого дня (раздел 5.4 ТЗ): вещи с пометкой «Первый день»;
- *  галочка = вещь распакована (статус вещи «Распакована»), снятая галочка возвращает «Упакована». */
-function FirstDayWidget({ pid }: { pid: string }) {
-  const items = useAsync(() => api.firstDayItems(pid), [pid])
-  const [error, setError] = useState<string | null>(null)
-  const list = items.data ?? []
-  const done = list.filter((x) => x.item.status === 'unpacked').length
-  if (!items.data) return null
-  const toggle = (id: number, unpacked: boolean) => {
-    const status = unpacked ? 'unpacked' : 'packed'
-    setError(null)
-    items.mutate((xs) => xs?.map((x) => (x.item.id === id ? { ...x, item: { ...x.item, status } } : x)) ?? xs)
-    api.updateItem(pid, id, { status }).catch((e) => {
-      setError(errorMessage(e))
-      items.reload()
-    })
-  }
-  return (
-    <section className="card stack first-day">
-      <div className="row between">
-        <b>Чек-лист по распаковке вещей первого дня</b>
-        <span className="muted small">{done} из {list.length}</span>
-      </div>
-      {list.length === 0 ? (
-        <p className="muted small">Пока пусто: отметьте «Первый день» у нужных вещей в карточке коробки или добавьте их на вкладке «Первый день» в «Плане».</p>
-      ) : (
-        <>
-          <ProgressBar value={done} max={list.length} label="Распаковано вещей первого дня" />
-          <ul className="plain first-day__list">
-            {list.map((x) => (
-              <li key={x.item.id} className={x.item.status === 'unpacked' ? 'done' : ''}>
-                <label className="row">
-                  <input type="checkbox" className="check" checked={x.item.status === 'unpacked'} onChange={() => toggle(x.item.id, x.item.status !== 'unpacked')} />
-                  {x.item.name} <span className="muted small">· № {x.box_number}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      <ErrorAlert message={error} />
-    </section>
+    </>
   )
 }

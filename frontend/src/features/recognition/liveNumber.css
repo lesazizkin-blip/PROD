@@ -1,0 +1,7 @@
+.live-number-view { position: relative; background: #111; min-height: 120px; }
+.live-number-view video { display: block; width: 100%; height: auto; }
+.live-number-guide { position: absolute; left: 7.5%; top: 27.5%; width: 85%; height: 45%; border: 3px solid #e96645; box-sizing: border-box; box-shadow: 0 0 0 2000px #0003; pointer-events: none; }
+.live-number-view { overflow: hidden; }
+.live-number-view[hidden] { display: none; }
+.live-number-result { background: #fff; padding: 16px; color: #27251f; }
+.recognition-page .live-number-result button.primary { color: #fff; }

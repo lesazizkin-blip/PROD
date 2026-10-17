@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.config import DEMO_PROJECT_ID
+from app.config import DEMO_PROJECT_ID, Settings, get_settings
 from app.db import get_db
 from app.deps import PageParams, get_current_user, get_owned_project, get_project
 from app.errors import ForbiddenError
 from app.models import Event, Project, User
+from app.planner_schemas import PlanRequest
 from app.routers.common import confirm_param
 from app.schemas import (
     AppliedTemplates,
@@ -14,6 +15,7 @@ from app.schemas import (
     InviteOut,
     MemberOut,
     Page,
+    PersonalPlan,
     ProjectBrief,
     ProjectCreate,
     ProjectOut,
@@ -24,11 +26,29 @@ from app.schemas import (
     TaskOut,
     TaskUpdate,
 )
+from app.services.ai_budget import reserve_attempt
 from app.services.auth import AuthService
+from app.services.planner import ensure_planner_configured, generate_plan
 from app.services.projects import ProjectService
 from app.services.tasks import TaskService
 
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+@router.post(
+    "/plan-preview",
+    response_model=PersonalPlan,
+    summary="Персональный AI-черновик до создания проекта",
+)
+def plan_preview(
+    body: PlanRequest,
+    user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+):
+    ensure_planner_configured(settings)
+    reserve_attempt(db, user.id, settings)
+    return generate_plan(body, settings)
 
 
 @router.post(
@@ -103,8 +123,13 @@ def get_project_(project: Project = Depends(get_project)):
 
 @router.patch("/{pid}", response_model=ProjectOut, summary="Изменить проект")
 def update_project(
-    body: ProjectUpdate, project: Project = Depends(get_project), db: Session = Depends(get_db)
+    body: ProjectUpdate,
+    project: Project = Depends(get_project),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
+    if "qr_mode" in body.model_fields_set and AuthService(db).role(project.id, user.id) != "owner":
+        raise ForbiddenError("Режим QR может изменить только владелец проекта")
     return ProjectService(db).update(project, body)
 
 

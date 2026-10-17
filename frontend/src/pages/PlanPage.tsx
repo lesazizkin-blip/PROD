@@ -1,22 +1,18 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Clock, Package, Pencil, Sparkles, UserRound } from 'lucide-react'
 import { api } from '../api/endpoints'
-import { ITEM_STATUSES, type ItemStatus, type Stage, type Task, type TaskCreate } from '../api/types'
+import type { Stage, Task, TaskCreate } from '../api/types'
 import ChecklistModal from '../components/ChecklistModal'
 import Modal from '../components/Modal'
+import PageHeading from '../components/PageHeading'
 import RequireProject from '../components/RequireProject'
-import { useConfirm } from '../state/confirm'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
 import ProgressBar from '../ui/ProgressBar'
+import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
-import { ITEM_STATUS_LABELS, STAGES, STAGE_LABELS, boxPath, formatDate, formatTimeRange } from '../ui/format'
-import { errorMessage } from '../api/client'
-
-// Вкладки плана: три этапа переезда и отдельно коробка первого дня
-type PlanTab = Stage | 'first-day'
+import { STAGES, STAGE_LABELS, boxPath, formatDate, formatTimeRange } from '../ui/format'
 
 // Срок прошёл, а задача не выполнена (сравниваем даты в формате ГГГГ-ММ-ДД)
 const isOverdue = (t: Task) => !t.done && !!t.due_date && t.due_date.slice(0, 10) < new Date().toLocaleDateString('sv-SE')
@@ -27,142 +23,119 @@ export default function PlanPage() {
 
 function Plan({ pid }: { pid: string }) {
   const project = useAsync(() => api.getProject(pid), [pid])
+  const progress = useAsync(() => api.progress(pid), [pid])
   const tasks = useAsync(() => api.tasks(pid), [pid])
-  const firstDayItems = useAsync(() => api.firstDayItems(pid), [pid])
+  const packedFirstDay = useAsync(() => api.firstDayItems(pid), [pid], { refreshOnFocus: true })
+  const firstDay = useAsync(() => api.firstDay(pid), [pid])
   // null - форма закрыта, 'new' - новая задача, Task - правка существующей
   const [form, setForm] = useState<'new' | Task | null>(null)
-  const [addingItem, setAddingItem] = useState(false)
-  const [quickError, setQuickError] = useState<string | null>(null)
   const [smart, setSmart] = useState(false)
-  const [tab, setTab] = useState<PlanTab | null>(null)
+  const [activeStage, setActiveStage] = useState<Stage>('before')
+  const [today] = useState(() => new Date(new Date().toDateString()).getTime())
 
   const reloadAll = () => {
     project.reload()
     tasks.reload()
-    firstDayItems.reload()
+    firstDay.reload()
+    packedFirstDay.reload()
   }
+  const { busy, error, run: act } = useAction(reloadAll)
 
   const list = tasks.data ?? []
   const done = list.filter((t) => t.done).length
-  // по умолчанию открыт первый этап, где остались невыполненные задачи; выбранный один раз этап
-  // дальше не меняется сам, иначе после отметки последней задачи вкладка перепрыгивала бы
-  const activeTab: PlanTab = tab ?? STAGES.find((s) => list.some((t) => t.stage === s && !t.done)) ?? 'before'
-  const stageTasks = list.filter((t) => t.stage === activeTab)
-
-  // Отметки срабатывают сразу на экране, запрос идёт следом; при ошибке данные перечитываются
-  const quick = (apply: () => void, request: () => Promise<unknown>, rollback: () => void) => {
-    setQuickError(null)
-    apply()
-    request().catch((e) => {
-      setQuickError(errorMessage(e))
-      rollback()
-    })
-  }
-  const toggleTask = (t: Task) => {
-    if (tab === null) setTab(activeTab) // закрепляем вкладку до отметки
-    quick(
-      () => tasks.mutate((ts) => ts?.map((x) => (x.id === t.id ? { ...x, done: !t.done } : x)) ?? ts),
-      () => api.updateTask(pid, t.id, { done: !t.done }),
-      tasks.reload,
-    )
-  }
-  const thingsForDay = firstDayItems.data ?? []
+  const first = firstDay.data ?? []
+  const days = project.data ? Math.ceil((new Date(`${project.data.move_date}T00:00:00`).getTime() - today) / 86400000) : null
+  const countdown = days === null ? '…' : days > 0 ? `${days} дн.` : days === 0 ? 'Сегодня' : 'Уже дома'
+  const dateStamp = project.data ? new Date(`${project.data.move_date}T12:00:00`).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }).replace('.', ' / ') : '…'
+  const toggleTask = (t: Task) => act(() => api.updateTask(pid, t.id, { done: !t.done }))
 
   return (
     <StateView loading={tasks.loading && !tasks.data} error={tasks.error} onRetry={reloadAll}>
-      <div className="card hero stack">
-        <div>
-          <h2>{project.data?.name ?? '…'}</h2>
-          <div className="muted">{project.data ? `Переезд ${formatDate(project.data.move_date)}` : ' '}</div>
+      <PageHeading title="План переезда">{project.data ? formatDate(project.data.move_date) : '…'} · {days !== null && days > 0 ? `${days} дн. до переезда` : 'Ваш переезд'}</PageHeading>
+      <div className="move-ticket">
+        <div className="stack">
+          <span className="eyebrow">МАРШРУТ / {project.data?.name ?? 'ВАШ ПЕРЕЕЗД'}</span>
+          <h2>Упаковка вещей<br />{progress.data ? `${progress.data.boxes_total - progress.data.by_status.packing} из ${progress.data.boxes_total} коробок готовы` : 'Загружаем прогресс…'}</h2>
+          <p className="small">{[project.data?.address_from, project.data?.address_to].filter(Boolean).join(' → ') || 'Впереди — новый дом.'}</p>
         </div>
-        <ProgressBar value={done} max={list.length} label="Выполнено задач" />
-        <div className="row between">
-          <span className="small">Выполнено {done} из {list.length}</span>
-          <button className="hero__action" onClick={() => setSmart(true)}><Sparkles className="icon-sm" aria-hidden />Умный чек-лист</button>
-        </div>
+        <div className="date-stamp"><strong>{dateStamp}</strong><span>ДАТА ПЕРЕЕЗДА</span><span className="stamp-arrows">↑↑ THIS SIDE UP</span></div>
       </div>
-
-      <ErrorAlert message={quickError} />
-
-      <div className="segmented stage-tabs" role="tablist" aria-label="Этапы переезда">
-        {STAGES.map((s) => {
-          const items = list.filter((t) => t.stage === s)
-          return (
-            <button key={s} type="button" role="tab" aria-selected={s === activeTab} className={s === activeTab ? 'on' : ''} onClick={() => setTab(s)}>
-              {STAGE_LABELS[s]} <span className="count">{items.filter((t) => t.done).length}/{items.length}</span>
-            </button>
-          )
-        })}
-        <button type="button" role="tab" aria-selected={activeTab === 'first-day'} className={activeTab === 'first-day' ? 'on' : ''} onClick={() => setTab('first-day')}>
-          Первый день <span className="count">{thingsForDay.length}</span>
-        </button>
+      <div className="plan-stats">
+        <div className="stat"><b>{done} / {list.length}</b><span>задач выполнено</span><ProgressBar value={done} max={list.length} label="Выполнено задач" /></div>
+        <div className="stat"><b>{progress.data ? progress.data.boxes_total - progress.data.by_status.packing : '…'} / {progress.data?.boxes_total ?? '…'}</b><span>коробок собрано</span></div>
+        <div className="stat"><b>{countdown}</b><span>до нового дома</span></div>
       </div>
+      <div className="plan-layout">
+      <div className="plan-tasks stack">
+        <div className="row between"><h2>Ближайшие дела</h2><button className="link small" onClick={() => setSmart(true)}>Умный чек-лист →</button></div>
+      <ErrorAlert message={error} />
+      {!list.some(t => t.template_id !== null) ? <button disabled={busy} onClick={() => act(() => api.applyTemplates(pid))}>Добавить стандартные задачи</button> : null}
 
-      {activeTab === 'first-day' ? (
-        <section role="tabpanel" aria-label="Первый день" className="stack">
-          {thingsForDay.length === 0 ? (
-            <div className="state"><p>Пока нет. Добавьте вещь кнопкой «+ Вещь» или отметьте «Первый день» у вещи в карточке коробки.</p></div>
-          ) : (
-          <div className="card flush">
-            {thingsForDay.map((x) => (
-              <Link key={x.item.id} to={boxPath(pid, x.box_number)} className="list-row">
-                <Package className="icon-sm" aria-hidden />
-                <span className="grow">
-                  <b>{x.item.name}</b>
-                  <span className="sub">Коробка № {x.box_number} · {x.room}</span>
-                </span>
-                <span className={`badge it-${x.item.status}`}>{ITEM_STATUS_LABELS[x.item.status]}</span>
-              </Link>
-            ))}
-          </div>
-          )}
-        </section>
-      ) : (
-      <section className="task-list" role="tabpanel" aria-label={STAGE_LABELS[activeTab]}>
-        {list.length === 0 ? (
-          <div className="state"><p>Пока задач нет. Добавьте свою кнопкой «+ Задача» или выберите готовые в «Умном чек-листе».</p></div>
-        ) : stageTasks.length === 0 ? <div className="state"><p>На этом этапе задач нет. Добавьте свою кнопкой «+ Задача».</p></div> : null}
-        {stageTasks.map((t) => (
-          <label key={t.id} className={`task-card${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
-            <input type="checkbox" className="check" checked={t.done} onChange={() => toggleTask(t)} />
-            <span className="grow">
-              <span className="title">{t.title}</span>
-              <span className="task-meta">
-                {t.due_date ? <span className={isOverdue(t) ? 'meta-chip late' : 'meta-chip'}><CalendarDays className="icon-xs" aria-hidden />{isOverdue(t) ? 'просрочено, ' : ''}до {formatDate(t.due_date)}</span> : null}
-                {formatTimeRange(t.start_time, t.end_time) ? <span className="meta-chip"><Clock className="icon-xs" aria-hidden />{formatTimeRange(t.start_time, t.end_time)}</span> : null}
-                {t.assignee ? <span className="meta-chip"><UserRound className="icon-xs" aria-hidden />{t.assignee}</span> : null}
-                {t.category ? (
-                  <span className="category-chip">
-                    <span className="category-dot" style={{ background: t.category_color ?? 'var(--primary)' }} aria-hidden="true" />
-                    {t.category}
+      <div className="stage-tabs" role="group" aria-label="Этапы переезда">
+        {STAGES.map((stage) => <button key={stage} className={stage === activeStage ? 'on' : ''} aria-pressed={stage === activeStage} onClick={() => setActiveStage(stage)}>{STAGE_LABELS[stage]}</button>)}
+      </div>
+      {STAGES.filter((stage) => stage === activeStage).map((stage) => {
+        const items = list.filter((t) => t.stage === stage)
+        if (items.length === 0) return <p key={stage} className="muted">На этом этапе задач пока нет. Добавьте свою.</p>
+        return (
+          <section key={stage}>
+            <SectionTitle>{STAGE_LABELS[stage]}</SectionTitle>
+            <div className="card flush">
+              {items.map((t) => (
+                <label key={t.id} className={`list-row${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
+                  <input type="checkbox" checked={t.done} disabled={busy} onChange={() => toggleTask(t)} />
+                  <span className="grow">
+                    <span className="title">{t.title}</span>
+                    <span className="sub">
+                      {[t.due_date ? `${isOverdue(t) ? 'просрочено, ' : ''}до ${formatDate(t.due_date)}` : null, formatTimeRange(t.start_time, t.end_time), t.assignee].filter(Boolean).join(' · ')}
+                    </span>
+                    {t.category ? (
+                      <span className="category-chip">
+                        <span className="category-dot" style={{ background: t.category_color ?? 'var(--primary)' }} aria-hidden="true" />
+                        {t.category}
+                      </span>
+                    ) : null}
                   </span>
-                ) : null}
-              </span>
-            </span>
-            <button type="button" className="link small icon-btn" aria-label={`Изменить «${t.title}»`} onClick={(e) => { e.preventDefault(); setForm(t) }}><Pencil className="icon-sm" aria-hidden /></button>
-          </label>
-        ))}
-      </section>
-      )}
+                  <button type="button" className="link small" disabled={busy} aria-label={`Изменить «${t.title}»`} onClick={(e) => { e.preventDefault(); setForm(t) }}>✎</button>
+                </label>
+              ))}
+            </div>
+          </section>
+        )
+      })}
 
-      {activeTab === 'first-day'
-        ? <button className="primary fab" onClick={() => setAddingItem(true)}>+ Вещь</button>
-        : <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button>}
-      {addingItem ? (
-        <FirstDayItemModal
-          pid={pid}
-          onClose={() => setAddingItem(false)}
-          onSaved={() => {
-            setAddingItem(false)
-            firstDayItems.reload()
-          }}
-        />
-      ) : null}
+      </div>
+      <aside className="first-day stack">
+        <span className="eyebrow accent">ОТКРЫТЬ ПЕРВОЙ</span>
+        <h2>Коробка<br />первого дня</h2>
+        <p>Чайник, зарядки, зубные щётки и постельное бельё — в одну коробку.</p>
+      <section>
+        <SectionTitle>Коробка первого дня</SectionTitle>
+        {(packedFirstDay.data ?? []).map(({ item, box_number, room }) => <div key={item.id} className="list-row">
+          <input type="checkbox" aria-label={`Распакована: ${item.name}`} checked={item.status === 'unpacked'} disabled={busy} onChange={() => act(() => api.updateItem(pid, item.id, { status: item.status === 'unpacked' ? 'packed' : 'unpacked' }))} />
+          <span className="grow">{item.name}<Link className="sub" to={boxPath(pid, box_number)}>Коробка {box_number} · {room}</Link></span>
+        </div>)}
+        <div className="card flush">
+          {first.length === 0 ? <div className="list-row muted">Список пуст</div> : null}
+          {first.map((f) => (
+            <label key={f.id} className={f.done ? 'list-row done' : 'list-row'}>
+              <input type="checkbox" checked={f.done} disabled={busy} onChange={() => act(() => api.updateFirstDay(pid, f.id, { done: !f.done }))} />
+              <span className="grow title">{f.title}</span>
+              <button type="button" className="link small" disabled={busy} aria-label={`Удалить «${f.title}»`} onClick={(e) => { e.preventDefault(); if (window.confirm(`Удалить «${f.title}»?`)) void act(() => api.deleteFirstDay(pid, f.id)) }}>✕</button>
+            </label>
+          ))}
+        </div>
+      </section>
+
+        <Link to="/tips" className="button dark">Памятки по упаковке →</Link>
+        <span className="eyebrow muted">ПАМЯТКА № 01</span>
+      </aside>
+      </div>
+      <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button>
       {smart ? <ChecklistModal pid={pid} onClose={() => setSmart(false)} onApplied={reloadAll} /> : null}
       {form ? (
         <TaskModal
           initial={form === 'new' ? null : form}
-          defaultStage={activeTab === 'first-day' ? undefined : activeTab}
           onClose={() => setForm(null)}
           categories={categoryColors(list)}
           onDelete={form === 'new' ? undefined : async () => {
@@ -192,12 +165,10 @@ function categoryColors(tasks: Task[]): Map<string, string> {
   return map
 }
 
-export function TaskModal({ initial, defaultStage, onClose, onSave, onDelete, categories }: { initial: Task | null; defaultStage?: Stage; onClose: () => void; onSave: (body: TaskCreate) => Promise<void>; onDelete?: () => Promise<void>; categories: Map<string, string> }) {
-  const confirm = useConfirm()
+export function TaskModal({ initial, onClose, onSave, onDelete, categories }: { initial: Task | null; onClose: () => void; onSave: (body: TaskCreate) => Promise<void>; onDelete?: () => Promise<void>; categories: Map<string, string> }) {
   const [title, setTitle] = useState(initial?.title ?? '')
   const [assignee, setAssignee] = useState(initial?.assignee ?? '')
-  // новая задача попадает на этап, открытый сейчас в плане
-  const [stage, setStage] = useState<Stage>(initial?.stage ?? defaultStage ?? 'before')
+  const [stage, setStage] = useState<Stage>(initial?.stage ?? 'before')
   const [dueDate, setDueDate] = useState(initial?.due_date ?? '')
   const [startTime, setStartTime] = useState(initial?.start_time?.slice(0, 5) ?? '')
   const [endTime, setEndTime] = useState(initial?.end_time?.slice(0, 5) ?? '')
@@ -218,8 +189,8 @@ export function TaskModal({ initial, defaultStage, onClose, onSave, onDelete, ca
   }
 
   // Удаление живёт в форме правки: в строке списка остаётся одна кнопка, и название не сжимается на телефоне
-  async function remove() {
-    if (!onDelete || !initial || !(await confirm({ title: `Удалить задачу «${initial.title}»?`, message: 'Задача пропадёт из плана.' }))) return
+  function remove() {
+    if (!onDelete || !initial || !window.confirm(`Удалить задачу «${initial.title}»?`)) return
     void run(onDelete)
   }
 
@@ -283,46 +254,6 @@ export function TaskModal({ initial, defaultStage, onClose, onSave, onDelete, ca
         <ErrorAlert message={error} />
         <button className="primary" type="submit" disabled={busy || !title.trim()}>{initial ? 'Сохранить' : 'Добавить'}</button>
         {onDelete ? <button type="button" className="danger" disabled={busy} onClick={remove}>Удалить задачу</button> : null}
-      </form>
-    </Modal>
-  )
-}
-
-/** «+ Вещь» на вкладке «Первый день»: вещь сразу кладётся в выбранную коробку и помечается вещью первого дня. */
-function FirstDayItemModal({ pid, onClose, onSaved }: { pid: string; onClose: () => void; onSaved: () => void }) {
-  const boxes = useAsync(() => api.boxes(pid, { page_size: 200 }), [pid])
-  const [name, setName] = useState('')
-  const [box, setBox] = useState('')
-  const [status, setStatus] = useState<ItemStatus>('packed')
-  const { busy, error, submit } = useAction()
-  const list = boxes.data?.items ?? []
-  const invalid = !name.trim() || !box
-
-  return (
-    <Modal title="Вещь первого дня" onClose={onClose} dirty={name.trim() !== ''}>
-      <form className="stack" onSubmit={submit(async () => {
-        await api.createItem(pid, Number(box), { name: name.trim(), first_day: true, status })
-        onSaved()
-      })}>
-        <label>
-          Что это
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="Например: чайник" data-autofocus />
-        </label>
-        <label>
-          В какой коробке
-          <select value={box} onChange={(e) => setBox(e.target.value)} disabled={boxes.loading && !boxes.data}>
-            <option value="">{list.length ? 'Выберите коробку' : 'Сначала создайте коробку на вкладке «Коробки»'}</option>
-            {list.map((b) => <option key={b.number} value={b.number}>№ {b.number} · {b.room}</option>)}
-          </select>
-        </label>
-        <label>
-          Где вещь сейчас
-          <select value={status} onChange={(e) => setStatus(e.target.value as ItemStatus)}>
-            {ITEM_STATUSES.map((s) => <option key={s} value={s}>{ITEM_STATUS_LABELS[s]}</option>)}
-          </select>
-        </label>
-        <ErrorAlert message={error ?? boxes.error} />
-        <button className="primary" type="submit" disabled={busy || invalid}>Добавить</button>
       </form>
     </Modal>
   )

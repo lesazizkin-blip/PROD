@@ -21,6 +21,7 @@ from app.schemas import (
     SearchHit,
 )
 from app.services.events import log_event
+from app.services.qr_codes import assign_code
 
 ORDER = [s.value for s in BoxStatus]
 
@@ -167,6 +168,7 @@ class BoxService:
                     ) from None
                 continue
             break
+        assign_code(self.db, box)
         for name in names:
             self.db.add(Item(box_id=box.id, name=name, name_norm=normalize(name)))
         log_event(self.db, project_id, "box.created", "box", box.number, room=box.room)
@@ -371,11 +373,14 @@ class BoxService:
     # --- этикетка и прогресс ---
     @staticmethod
     def _label_out(project: Project, box: Box) -> LabelOut:
+        if project.qr_mode == "compact" and box.qr_code is None:
+            raise ConflictError("Компактный код коробки отсутствует. Проверьте миграцию базы.")
         return LabelOut(
             number=box.number,
             room=box.room,
             project_name=project.name,
             qr_path=f"/projects/{project.id}/boxes/{box.number}",
+            qr_payload=box.qr_code.code if project.qr_mode == "compact" and box.qr_code else None,
             items_preview=[i.name for i in box.items[:5]],
         )
 
@@ -387,7 +392,7 @@ class BoxService:
         q = (
             select(Box)
             .where(Box.project_id == project.id)
-            .options(selectinload(Box.items))
+            .options(selectinload(Box.items), selectinload(Box.qr_code))
             .order_by(Box.number)
         )
         if numbers is not None:

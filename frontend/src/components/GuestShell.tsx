@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
 import { CircleHelp } from 'lucide-react'
-import BrandMark from './BrandMark'
 import FaqModal from './FaqModal'
 import { NAV_TABS } from './navTabs'
 
@@ -20,10 +19,11 @@ export default function GuestShell() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <Link to="/about" className="sidebar__brand" aria-label="MoverMate: о нас">
-          <BrandMark />
+        <Link to="/about" className="brand" aria-label="MoverMate: о нас">
+          <img src="/assets/box-mark.svg" width="36" height="36" alt="" />
           <span>MoverMate</span>
         </Link>
+        <p className="brand-caption">УЧЁТ ВЕЩЕЙ<br />И ПЛАН ПЕРЕЕЗДА</p>
         <nav className="tabs" aria-label="Разделы">
           {NAV_TABS.map((t) => (
             <button key={t.label} type="button" className="tab" onClick={() => needAccount(t.label)}>
@@ -32,7 +32,7 @@ export default function GuestShell() {
             </button>
           ))}
         </nav>
-        <div className="sidebar__footer">
+        <div className="guest-faq">
           <button type="button" className="sidebar__me sidebar__faq" onClick={() => setFaq(true)}>
             <CircleHelp className="icon" aria-hidden />
             <span className="sidebar__name">Вопросы</span>
@@ -40,10 +40,10 @@ export default function GuestShell() {
         </div>
       </aside>
 
-      <div className="workspace">
+      <>
         <header className="topbar">
-          <Link to="/about" className="topbar__brand" aria-label="MoverMate: о нас"><BrandMark /></Link>
-          <span className="crumbs">MoverMate</span>
+          <Link to="/about" className="topbar__brand" aria-label="MoverMate: о нас"><img src="/assets/box-mark.svg" width="36" height="36" alt="" /></Link>
+          <span className="breadcrumb">MoverMate</span>
           <div className="topbar__actions">
             <Link to="/auth" className="button small">Войти</Link>
           </div>
@@ -51,7 +51,7 @@ export default function GuestShell() {
         <main className="container">
           <Outlet />
         </main>
-      </div>
+      </>
 
       {notice ? <div className="toast" role="alert">{notice}</div> : null}
       {faq ? <FaqModal onClose={() => setFaq(false)} /> : null}

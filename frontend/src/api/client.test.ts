@@ -8,7 +8,7 @@ function mockFetch(impl: (url: string, init: RequestInit) => Promise<Response>) 
 }
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 // Ждёт отказ запроса и возвращает ошибку (тест падает, если запрос неожиданно удался)
 const failure = (p: Promise<unknown>) =>
@@ -20,6 +20,20 @@ const failure = (p: Promise<unknown>) =>
   )
 
 describe('request', () => {
+  it.each([[undefined, 20_000], [70_000, 70_000]] as const)('ограничивает ожидание: настройка %s, предел %s мс', async (timeoutMs, expected) => {
+    vi.useFakeTimers()
+    let signal!: AbortSignal
+    mockFetch((_url, init) => new Promise((_resolve, reject) => {
+      signal = init.signal as AbortSignal
+      signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+    }))
+    const result = failure(request('POST', '/projects/plan-preview', { timeoutMs }))
+    await vi.advanceTimersByTimeAsync(expected - 1)
+    expect(signal.aborted).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(signal.aborted).toBe(true)
+    expect(await result).toMatchObject({ code: 'timeout' })
+  })
   it('ходит на /api того же origin и разбирает JSON', async () => {
     const fetchMock = mockFetch(async () => json({ ok: 1 }))
     await expect(request('GET', '/health')).resolves.toEqual({ ok: 1 })

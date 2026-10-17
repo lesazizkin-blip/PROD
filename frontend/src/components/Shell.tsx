@@ -1,96 +1,73 @@
 import { useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, ScanLine } from 'lucide-react'
-import { api } from '../api/endpoints'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../state/AuthContext'
 import { useProjects } from '../state/ProjectContext'
-import { useAsync } from '../state/useAsync'
-import Avatar from './Avatar'
-import BrandMark from './BrandMark'
+import MembersPanel from './MembersPanel'
+import PasswordModal from './PasswordModal'
 import Icon from './Icons'
 import Modal from './Modal'
-import NotificationsModal from './NotificationsModal'
-import { NAV_TABS } from './navTabs'
+import { api } from '../api/endpoints'
+import { useAsync } from '../state/useAsync'
 
+const TABS = [
+  { to: '/', label: 'План переезда', icon: 'plan', end: true },
+  { to: '/boxes', label: 'Коробки и поиск', icon: 'boxes' },
+  { to: '/labels', label: 'QR-этикетки', icon: 'labels' },
+  { to: '/progress', label: 'Прогресс', icon: 'progress' },
+] as const
 
-/** Название раздела для хлебных крошек по адресу страницы. */
-function sectionTitle(pathname: string): string {
-  if (pathname === '/') return 'План'
-  if (/^\/projects\/[^/]+\/boxes\/\d+\/label/.test(pathname)) return 'Этикетка'
-  const box = pathname.match(/^\/projects\/[^/]+\/boxes\/(\d+)/)
-  if (box) return `Коробка № ${box[1]}`
-  const map: Record<string, string> = {
-    '/boxes': 'Коробки', '/labels': 'Этикетки', '/labels/print': 'Печать этикеток', '/progress': 'Прогресс',
-    '/tips': 'Памятки', '/scan': 'Сканер', '/new': 'Новый переезд', '/profile': 'Личный кабинет', '/about': 'О нас',
-  }
-  return map[pathname] ?? (pathname.startsWith('/invite/') ? 'Приглашение' : 'MoverMate')
-}
-
-/** Каркас: тёмная панель слева (на телефоне - вкладки снизу), шапка с проектом и уведомлениями. Проект открывается только кнопкой с его названием. */
+/** Каркас: шапка с проектом и сканером; вкладки снизу на телефоне и слева на ноутбуке. */
 export default function Shell() {
-  const { projects, currentId, select } = useProjects()
-  const { user } = useAuth()
+  const { projects, currentId, select, reload } = useProjects()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
   const [switching, setSwitching] = useState(false)
-  const [notifying, setNotifying] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
   const current = projects.find((p) => p.id === currentId)
-  // красная точка на колокольчике: есть коробки, которые ждут описи содержимого
-  const reminders = useAsync(() => (currentId ? api.reminders(currentId) : Promise.resolve([])), [currentId, pathname])
-  const pending = reminders.data?.length ?? 0
+
+  const project = useAsync(() => currentId ? api.getProject(currentId) : Promise.resolve(null), [currentId])
+
+  function closeProjects() {
+    setSwitching(false)
+  }
 
   return (
     <div className="shell">
       <aside className="sidebar">
-        <Link to="/about" className="sidebar__brand" aria-label="MoverMate: о нас">
-          <BrandMark />
+        <Link to="/" className="brand">
+          <img src="/assets/box-mark.svg" width="36" height="36" alt="" />
           <span>MoverMate</span>
         </Link>
+        <p className="brand-caption">УЧЁТ ВЕЩЕЙ<br />И ПЛАН ПЕРЕЕЗДА</p>
+        <button className="project-switch" onClick={() => setSwitching(true)} aria-label={`Проект: ${current?.name ?? 'нет'}. Сменить`}>
+          <span>{current?.name ?? 'Нет проекта'}</span>
+          <span className="project-date">{project.data ? new Date(`${project.data.move_date}T12:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : 'Создайте свой переезд'} <Icon name="swap" /></span>
+        </button>
         <nav className="tabs" aria-label="Разделы">
-          {NAV_TABS.map((t) => (
-            <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
-              <t.icon className="icon" aria-hidden />
+          {TABS.map((t, i) => (
+            <NavLink key={t.to} to={t.to} end={'end' in t ? t.end : false} className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+              <span className="tab-number" aria-hidden>{String(i + 1).padStart(2, '0')}</span>
+              <Icon name={t.icon} />
               <span>{t.label}</span>
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar__footer">
-          <Link to="/profile" className="sidebar__me" aria-label="Личный кабинет">
-            <Avatar name={user?.username ?? ''} />
-            <span className="sidebar__name">{user?.username}</span>
-          </Link>
-        </div>
+        <p className="sidebar-note">↑↑ БЕРЕЖНО<br />Каждая вещь на месте.</p>
       </aside>
+      <header className="topbar">
+        <span className="breadcrumb">ЛИЧНОЕ ПРОСТРАНСТВО / {current?.name ?? 'НОВЫЙ ПЕРЕЕЗД'}</span>
+        <button className="account-button" onClick={() => setSwitching(true)} aria-label="Проекты и аккаунт">
+          <span>{user?.username}</span><span className="avatar" aria-hidden>{user?.username.slice(0, 2).toUpperCase()}</span>
+        </button>
+        <Link to="/scan" className="icon-link" aria-label="Сканировать QR"><Icon name="scan" /></Link>
+      </header>
 
-      <div className="workspace">
-        <header className="topbar">
-          <Link to="/about" className="topbar__brand" aria-label="MoverMate: о нас"><BrandMark /></Link>
-          <nav className="crumbs" aria-label="Вы здесь">
-            <Link to="/profile">Мои проекты</Link>
-            <span aria-hidden>/</span>
-            <span aria-current="page">{sectionTitle(pathname)}</span>
-          </nav>
-          <button className="project-switch" onClick={() => setSwitching(true)} aria-label={`Проект: ${current?.name ?? 'нет'}. Сменить`}>
-            <span>{current?.name ?? 'Нет проекта'}</span>
-            <Icon name="swap" />
-          </button>
-          <div className="topbar__actions">
-            <Link to="/scan" className="icon-link" aria-label="Сканировать QR"><ScanLine className="icon" aria-hidden /></Link>
-            <button className="icon-link" onClick={() => setNotifying(true)} aria-label={pending ? `Уведомления: ${pending}` : 'Уведомления и журнал'}>
-              <Bell className="icon" aria-hidden />
-              {pending ? <span className="dot" aria-hidden /> : null}
-            </button>
-            <Link to="/profile" className="topbar__me" aria-label="Личный кабинет"><Avatar name={user?.username ?? ''} /></Link>
-          </div>
-        </header>
-
-        <main className="container">
-          <Outlet />
-        </main>
-      </div>
+      <main className="container">
+        <Outlet />
+      </main>
 
       {switching ? (
-        <Modal title="Проекты" onClose={() => setSwitching(false)}>
+        <Modal title="Проекты" onClose={closeProjects}>
           <ul className="plain">
             {projects.map((p) => (
               <li key={p.id}>
@@ -98,7 +75,7 @@ export default function Shell() {
                   className={p.id === currentId ? 'row-btn selected' : 'row-btn'}
                   onClick={() => {
                     select(p.id)
-                    setSwitching(false)
+                    closeProjects()
                     navigate('/')
                   }}
                 >
@@ -108,19 +85,54 @@ export default function Shell() {
               </li>
             ))}
           </ul>
+          <Link to="/profile" className="button" onClick={closeProjects}>Настройки профиля и проектов</Link>
           <button
             className="primary"
             onClick={() => {
-              setSwitching(false)
+              closeProjects()
               navigate('/new')
             }}
           >
             Новый проект
           </button>
-          <Link to="/profile" className="small" onClick={() => setSwitching(false)}>Участники, настройки проекта и выход — в личном кабинете</Link>
+
+          {current && user ? (
+            <MembersPanel
+              project={current}
+              me={user}
+              onLeft={() => {
+                closeProjects()
+                void reload().then(() => navigate('/'))
+              }}
+            />
+          ) : null}
+
+          <div className="row between account">
+            <span className="muted small">Вы вошли как <b>{user?.username}</b></span>
+            <span className="row">
+              <button
+                className="link small"
+                onClick={() => {
+                  closeProjects()
+                  setChangingPassword(true)
+                }}
+              >
+                Сменить пароль
+              </button>
+              <button
+                className="link small"
+                onClick={() => {
+                  closeProjects()
+                  void logout().then(() => navigate('/'))
+                }}
+              >
+                Выйти
+              </button>
+            </span>
+          </div>
         </Modal>
       ) : null}
-      {notifying ? <NotificationsModal pid={currentId} reminders={reminders.data ?? []} onClose={() => setNotifying(false)} /> : null}
+      {changingPassword ? <PasswordModal onClose={() => setChangingPassword(false)} /> : null}
     </div>
   )
 }

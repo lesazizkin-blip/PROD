@@ -1,4 +1,5 @@
 // Типы по docs/API.md. При расхождении с Swagger (/api/docs) правим здесь и в API.md.
+import type { QrMode } from '../features/labels/contract'
 
 export type Stage = "before" | "moving_day" | "after"
 
@@ -58,6 +59,7 @@ export interface InviteInfo {
 }
 
 export interface Project {
+  qr_mode?: QrMode
   id: string
   name: string
   move_date: string
@@ -143,6 +145,8 @@ export interface Hint {
 }
 
 export interface Label {
+  /** Optional until the compact QR backend contract is deployed. */
+  qr_payload?: string | null
   number: number
   room: string
   project_name: string
@@ -206,13 +210,15 @@ export interface Health {
 // Запросы
 
 export interface ProjectCreate {
+  qr_mode?: QrMode
+  personal_plan?: import('../features/planner/types').PersonalPlan
   name: string
   move_date: string
   address_from?: string | null
   address_to?: string | null
 }
 
-export type ProjectUpdate = Partial<ProjectCreate>
+export type ProjectUpdate = Partial<Omit<ProjectCreate, 'personal_plan'>>
 
 export interface TaskCreate {
   stage: Stage

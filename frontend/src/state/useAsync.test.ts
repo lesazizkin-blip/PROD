@@ -1,5 +1,5 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAsync } from './useAsync'
 
 afterEach(cleanup)
@@ -11,6 +11,20 @@ function deferred<T>() {
 }
 
 describe('useAsync', () => {
+  it('обновляет данные при возврате, объединяет focus/visibility и удаляет обработчики', async () => {
+    const load = vi.fn().mockResolvedValue('данные')
+    const { unmount } = renderHook(() => useAsync(load, [], { refreshOnFocus: true }))
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1))
+    act(() => {
+      window.dispatchEvent(new Event('focus'))
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2))
+    unmount()
+    act(() => window.dispatchEvent(new Event('focus')))
+    expect(load).toHaveBeenCalledTimes(2)
+  })
+
   it('прячет данные прошлого проекта, пока грузится новый', async () => {
     const calls: Record<string, ReturnType<typeof deferred<string>>> = { a: deferred(), b: deferred() }
     const { result, rerender } = renderHook(({ pid }) => useAsync(() => calls[pid].promise, [pid]), { initialProps: { pid: 'a' } })
