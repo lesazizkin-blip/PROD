@@ -13,7 +13,6 @@ import ErrorAlert from '../ui/ErrorAlert'
 import ProgressBar from '../ui/ProgressBar'
 import StateView from '../ui/StateView'
 import { ITEM_STATUS_LABELS, STAGES, STAGE_LABELS, boxPath, formatDate, formatTimeRange } from '../ui/format'
-import SectionTitle from '../ui/SectionTitle'
 import { errorMessage } from '../api/client'
 
 // Вкладки плана: три этапа переезда и отдельно коробка первого дня
@@ -101,11 +100,10 @@ function Plan({ pid }: { pid: string }) {
 
       {activeTab === 'first-day' ? (
         <section role="tabpanel" aria-label="Первый день" className="stack">
-          <SectionTitle>Вещи первого дня</SectionTitle>
+          {thingsForDay.length === 0 ? (
+            <div className="state"><p>Пока нет. Добавьте вещь кнопкой «+ Вещь» или отметьте «Первый день» у вещи в карточке коробки.</p></div>
+          ) : (
           <div className="card flush">
-            {thingsForDay.length === 0 ? (
-              <div className="list-row muted">Пока нет. Добавьте вещь кнопкой «+ Вещь» или отметьте «Первый день» у вещи в карточке коробки.</div>
-            ) : null}
             {thingsForDay.map((x) => (
               <Link key={x.item.id} to={boxPath(pid, x.box_number)} className="list-row">
                 <Package className="icon-sm" aria-hidden />
@@ -117,6 +115,7 @@ function Plan({ pid }: { pid: string }) {
               </Link>
             ))}
           </div>
+          )}
         </section>
       ) : (
       <section className="task-list" role="tabpanel" aria-label={STAGE_LABELS[activeTab]}>

@@ -4,8 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.errors import ValidationFailed
 from app.logging_setup import audit
-from app.models import FirstDayItem, Project, ProjectMember
-from app.reference_data import FIRST_DAY
+from app.models import Project, ProjectMember
 from app.schemas import ProjectCreate, ProjectUpdate
 from app.services.events import log_event
 
@@ -28,8 +27,7 @@ class ProjectService:
         self.db.add(project)
         self.db.flush()
         # план не заполняется сам: шаблоны задач добавляет пользователь кнопкой (POST …/tasks/apply-templates)
-        for title in FIRST_DAY:
-            self.db.add(FirstDayItem(project_id=project.id, title=title))
+        # чек-лист первого дня не заполняется заранее: в нём вещи, которые пользователь сам отметит «Первый день»
         if owner_id is not None:  # владелец добавляется в той же транзакции, что и проект
             self.db.add(ProjectMember(project_id=project.id, user_id=owner_id, role="owner"))
         log_event(self.db, project.id, "project.created", "project", project.id, name=project.name)

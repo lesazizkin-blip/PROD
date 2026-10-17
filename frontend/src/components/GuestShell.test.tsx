@@ -7,7 +7,7 @@ import GuestShell from './GuestShell'
 afterEach(cleanup)
 
 describe('гость', () => {
-  it('разделы не открываются, а просят зарегистрироваться; внизу слева кнопка регистрации', async () => {
+  it('разделы не открываются, а просят зарегистрироваться; кнопок регистрации в шапке и внизу слева нет', async () => {
     render(
       <MemoryRouter initialEntries={['/']}>
         <Routes>
@@ -20,6 +20,7 @@ describe('гость', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Коробки' }))
     expect(screen.getByRole('alert').textContent).toMatch(/доступен после регистрации/)
     expect(screen.getByText('о нас')).toBeTruthy() // страница не сменилась
-    expect(screen.getAllByRole('link', { name: 'Регистрация' })[0].getAttribute('href')).toBe('/auth?mode=register')
+    expect(screen.queryByRole('link', { name: 'Регистрация' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Войти' }).getAttribute('href')).toBe('/auth')
   })
 })

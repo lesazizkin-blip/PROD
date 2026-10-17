@@ -13,6 +13,11 @@ def test_demo_seed_is_complete_and_idempotent(monkeypatch, db_session):
     assert db_session.query(Box).filter_by(fill_later=True).count() == 1
     assert db_session.query(Item).filter_by(status="lost").count() == 1
     assert db_session.query(Task).filter_by(done=True).count() == 4
+    first_day = db_session.query(Item).filter_by(first_day=True).all()
+    assert {i.name for i in first_day} == set(
+        seed.DEMO_FIRST_DAY
+    )  # чек-лист распаковки первого дня
+    assert {i.name for i in first_day if i.status == "unpacked"} == {"Чайник", "Постельное бельё"}
 
 
 def test_demo_lost_item_comes_back_on_restart(monkeypatch, db_session):
