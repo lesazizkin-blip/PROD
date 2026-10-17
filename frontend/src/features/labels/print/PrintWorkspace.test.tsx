@@ -29,7 +29,7 @@ describe('A4 printing', () => {
     expect(readSettings(new URLSearchParams('template=__proto__&layout=bad&copies=Infinity&qr=500'))).toEqual({ template: 'standard', preset: '8', copies: 1, qr: 34, writing: false })
     expect(readSettings(new URLSearchParams('layout=12&qr=56')).qr).toBe(28)
   })
-  it('keeps selection, copies and template through preview and back', () => {
+  it('keeps selection, copies and template with inline printable sheets', () => {
     render(<MemoryRouter initialEntries={['/labels']}><Routes>
       <Route path="/labels" element={<PrintWorkspace labels={labels} pid="p" />} />
       <Route path="/labels/print" element={<PrintWorkspace labels={labels} pid="p" preview />} />
@@ -39,10 +39,9 @@ describe('A4 printing', () => {
     fireEvent.click(screen.getByLabelText('#001 · Очень длинная комната назначения с вещами для первого вечера'))
     fireEvent.change(screen.getByLabelText('Экземпляров каждой'), { target: { value: '2' } })
     fireEvent.change(screen.getByLabelText('Шаблон'), { target: { value: 'notes' } })
-    fireEvent.click(screen.getByRole('link', { name: 'Предпросмотр →' }))
+    expect(screen.queryByRole('link', { name: 'Предпросмотр →' })).toBeNull()
     expect(screen.getByRole('status').textContent).toContain('1 коробка · 2 этикетки · 1 лист')
     expect(screen.getAllByLabelText('Поле для заметок от руки')).toHaveLength(2)
-    fireEvent.click(screen.getByRole('link', { name: 'К выбору коробок' }))
     expect((screen.getByLabelText('Экземпляров каждой') as HTMLSelectElement).value).toBe('2')
     expect((screen.getByLabelText('#002 · Кухня') as HTMLInputElement).checked).toBe(false)
   })

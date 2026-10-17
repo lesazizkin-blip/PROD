@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import type { Label } from '../../../api/types'
 import LabelSheet from '../../../components/LabelSheet'
 import PageHeading from '../../../components/PageHeading'
-import { boxPath, labelPath, plural } from '../../../ui/format'
+import { boxPath, plural } from '../../../ui/format'
 import { paginateLabels, PRESETS, QR_SIZES, readSettings, TEMPLATES } from './layout'
 import './print.css'
 
@@ -38,7 +38,6 @@ export default function PrintWorkspace({ labels, pid, preview = false, single = 
   const query = new URLSearchParams(params)
   if (!scoped) query.delete('numbers')
   query.set('project', pid)
-  const previewPath = single ? labelPath(pid, labels[0].number) : '/labels/print'
   return <div className="mm-print-workspace">
     <PageHeading title={single ? `Этикетка · коробка ${String(labels[0].number).padStart(3, '0')}` : preview ? 'Предпросмотр печати' : 'QR-этикетки'}>{single ? 'Приклейте на две стороны коробки' : 'Выберите коробки и формат листа для печати.'}</PageHeading>
     <div className="mm-print-controls no-print">
@@ -60,7 +59,6 @@ export default function PrintWorkspace({ labels, pid, preview = false, single = 
         <div className="mm-print-boxes">{labels.map(label => <label key={label.number} className="mm-print-check"><input type="checkbox" checked={selectedSet.has(label.number)} onChange={() => toggle(label.number)} /><span>#{String(label.number).padStart(3, '0')} · {label.room}</span></label>)}</div>
       </details> : null}
       <div className="row">
-        {!preview && !single && selected.length > 0 ? <Link className="button primary" to={`${previewPath}?${query}`}>Предпросмотр →</Link> : null}
         <button className="primary" disabled={!pages.length} onClick={() => window.print()}>Печать / PDF</button>
         {preview ? <Link className="button" to={`/labels?${query}`}>К выбору коробок</Link> : null}
         {single ? <Link className="button" to={boxPath(pid, labels[0].number)}>К коробке</Link> : null}
