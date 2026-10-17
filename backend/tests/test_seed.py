@@ -13,3 +13,13 @@ def test_demo_seed_is_complete_and_idempotent(monkeypatch, db_session):
     assert db_session.query(Box).filter_by(fill_later=True).count() == 1
     assert db_session.query(Item).filter_by(status="lost").count() == 1
     assert db_session.query(Task).filter_by(done=True).count() == 4
+
+
+def test_demo_lost_item_comes_back_on_restart(monkeypatch, db_session):
+    monkeypatch.setattr(seed, "SessionLocal", lambda: db_session)
+    seed.run()
+    item = db_session.query(Item).filter_by(status="lost").one()
+    item.status = "found"  # кто-то в общем демо нажал «Найдена»
+    db_session.commit()
+    seed.run()  # следующая выкатка
+    assert db_session.query(Item).filter_by(status="lost").count() == 1
