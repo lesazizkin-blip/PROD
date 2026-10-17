@@ -25,7 +25,8 @@ describe('гость', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/доступен после регистрации/)
     expect(screen.getByText('о нас')).toBeTruthy() // страница не сменилась
     expect(screen.queryByRole('link', { name: 'Регистрация' })).toBeNull()
-    expect(screen.getByRole('link', { name: 'Войти' }).getAttribute('href')).toBe('/auth')
+    // вход - только на странице «О нас», в шапке кнопки «Войти» нет
+    expect(screen.queryByRole('link', { name: 'Войти' })).toBeNull()
     await userEvent.click(screen.getByRole('button', { name: 'Вопросы' }))
     expect(screen.getByRole('heading', { name: 'Вопросы и ответы' })).toBeTruthy()
     expect(screen.getByText('Нужно ли что-то устанавливать?')).toBeTruthy()
