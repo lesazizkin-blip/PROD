@@ -44,7 +44,7 @@ def get_owned_project(
 class PageParams:
     def __init__(
         self,
-        page: int = Query(default=1, ge=1),
+        page: int = Query(default=1, ge=1, le=100_000),
         page_size: int = Query(default=50, ge=1, le=200),
     ) -> None:
         self.page = page

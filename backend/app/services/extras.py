@@ -104,7 +104,11 @@ class FirstDayService:
 def _words(text: str) -> set[str]:
     """Основы слов для грубого сравнения: первые 5 букв слов от 3 букв (чайник ~ чайника)."""
     cleaned = "".join(c if c.isalnum() else " " for c in normalize(text))
-    return {w[:5] for w in cleaned.split() if len(w) >= 3}
+    return {w[:5] for w in cleaned.split() if len(w) >= 3 and w not in _STOP_WORDS}
+
+
+# служебные слова не делают вещи похожими: «Зарядка для телефона» и «Крем для рук» - разные вещи
+_STOP_WORDS = {"для", "под", "над", "без", "при", "или", "как", "все", "шт", "это", "его", "она"}
 
 
 class LostService:

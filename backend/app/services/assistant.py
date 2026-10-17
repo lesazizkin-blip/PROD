@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models import FirstDayItem, Project, Task
 from app.reference_data import ASSISTANT_RULES
 from app.schemas import ChecklistApplied, ChecklistIn, ChecklistOut, Stage, SuggestedTask
+from app.services.boxes import lock_project
 from app.services.events import log_event
 
 
@@ -48,6 +49,7 @@ class AssistantService:
 
     def apply(self, project: Project, flags: ChecklistIn) -> ChecklistApplied:
         """Добавляет предложенное. Повторный вызов ничего не дублирует."""
+        lock_project(self.db, project.id)  # параллельный вызов ждёт и видит уже добавленное
         suggestion = self.suggest(project, flags)
         for s in suggestion.suggested_tasks:
             self.db.add(

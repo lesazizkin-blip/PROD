@@ -161,3 +161,12 @@ def test_first_day_items_are_flagged_listed_and_unflagged(client, base):
     }
     other = client.post("/api/projects", json={"name": "Чужой", "move_date": "2026-12-01"}).json()
     assert client.get(f"/api/projects/{other['id']}/items/first-day").json() == []
+
+
+def test_hints_ignore_service_words(client, base):
+    lost = make_box(client, base, room="Спальня", items="Зарядка для телефона")["number"]
+    make_box(client, base, room="Ванная", items="Крем для рук")
+    item = client.get(f"{base}/boxes/{lost}").json()["items"][0]
+    client.patch(f"{base}/items/{item['id']}", json={"status": "lost"})
+    hints = client.get(f"{base}/items/{item['id']}/hints").json()
+    assert all(h["room"] != "Ванная" for h in hints)  # общий только предлог «для»

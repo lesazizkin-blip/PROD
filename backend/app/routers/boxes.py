@@ -199,7 +199,7 @@ def update_item(
     summary="Переложить вещь в другую коробку проекта",
 )
 def move_item(
-    item_id: int,
+    item_id: Id,
     body: ItemMoveIn,
     project: Project = Depends(get_project),
     user: User = Depends(get_current_user),

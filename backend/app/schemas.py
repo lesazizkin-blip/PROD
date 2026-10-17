@@ -451,7 +451,7 @@ class TaskCreate(BaseModel):
     )
     stage: Stage
     title: Text200
-    due_date: date | None = None
+    due_date: MoveDate | None = None
     start_time: NaiveTime | None = None
     end_time: NaiveTime | None = None
     category: str | None = Field(default=None, max_length=40)
@@ -470,7 +470,7 @@ class TaskUpdate(BaseModel):
     model_config = ConfigDict(json_schema_extra={"examples": [{"done": True}]})
     stage: Stage | None = None
     title: Text200 | None = None
-    due_date: date | None = None
+    due_date: MoveDate | None = None
     start_time: NaiveTime | None = None
     end_time: NaiveTime | None = None
     category: str | None = Field(default=None, max_length=40)

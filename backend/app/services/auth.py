@@ -220,6 +220,11 @@ class AuthService:
     def accept_invite(self, token: str, user: User) -> Project:
         invite, project = self.invite(token)
         self.add_member(project.id, user.id, "member")
-        self.db.commit()
+        try:
+            self.db.commit()
+        except (
+            IntegrityError
+        ):  # тот же человек принял ссылку параллельно (двойной клик, две вкладки)
+            self.db.rollback()
         audit("invite.accepted", project_id=project.id, user_id=user.id)
         return project

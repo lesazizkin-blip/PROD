@@ -320,3 +320,38 @@ def test_renamed_item_is_found_by_new_name(client, base):
     )
     assert client.get(f"{base}/search?q=термос").json()["total"] == 1
     assert client.get(f"{base}/search?q=чайник").json()["total"] == 0
+
+
+def test_times_keep_utc_zone_on_every_read(client, base):
+    # SQLite хранит время без пояса: без UTCDateTime GET отдал бы «22:00», браузер прочёл бы как местное
+    n = make_box(client, base, items="")["number"]
+    r = client.patch(
+        f"{base}/boxes/{n}", json={"fill_later": True, "remind_at": "2026-10-18T10:00:00+03:00"}
+    )
+    assert r.status_code == 200
+    card = client.get(f"{base}/boxes/{n}").json()
+    assert card["remind_at"] == "2026-10-18T07:00:00Z" and card["created_at"].endswith("Z")
+    events = client.get(f"{base}/events").json()["items"]
+    assert all(e["created_at"].endswith("Z") for e in events)
+
+
+def test_overdue_reminder_with_local_offset_is_shown(client, base):
+    from datetime import UTC, datetime, timedelta
+
+    n = make_box(client, base, items="")["number"]
+    past = (datetime.now(UTC) - timedelta(minutes=30)).astimezone().isoformat()
+    client.patch(f"{base}/boxes/{n}", json={"fill_later": True, "remind_at": past})
+    reminders = client.get(f"{base}/reminders").json()
+    assert any(r["box"]["number"] == n and r["overdue"] for r in reminders)
+
+
+def test_huge_page_and_item_id_are_rejected_not_500(client, base):
+    assert client.get(f"{base}/boxes?page=10000000000000000000").status_code == 422
+    body = {"from_box_number": 1, "to_box_number": 2}
+    assert client.post(f"{base}/items/1099511627776/move", json=body).status_code == 422
+
+
+def test_long_unicode_name_fits_search_index(client, base):
+    n = make_box(client, base, items="")["number"]
+    r = client.post(f"{base}/boxes/{n}/items", json={"name": "İ" * 120})
+    assert r.status_code == 201  # lower() удлиняет «İ», индекс поиска обрезается до 120

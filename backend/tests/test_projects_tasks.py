@@ -269,3 +269,17 @@ def test_health_reports_db_down(anon_client):
     finally:
         app.dependency_overrides.pop(get_db, None)
     assert r.status_code == 503 and r.json()["db"] == "down"
+
+
+def test_task_due_date_has_the_same_bounds_as_move_date(client, base):
+    task = client.get(f"{base}/tasks").json()[0]
+    assert (
+        client.patch(f"{base}/tasks/{task['id']}", json={"due_date": "9999-12-30"}).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            f"{base}/tasks", json={"title": "x", "stage": "before", "due_date": "0001-01-02"}
+        ).status_code
+        == 422
+    )

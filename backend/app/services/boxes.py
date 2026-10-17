@@ -54,9 +54,15 @@ def check_transition(current: str, target: str) -> None:
         )
 
 
+def lock_project(db, project_id) -> None:
+    """Блокировка проекта до конца транзакции (номера коробок, шаблоны, умный чек-лист)."""
+    db.execute(update(Project).where(Project.id == project_id).values(name=Project.name))
+
+
 def normalize(text: str) -> str:
     """Для поиска: без регистра, ё = е, лишние пробелы схлопнуты."""
-    return re.sub(r"\s+", " ", text.strip().lower().replace("ё", "е"))
+    # lower() у редких букв удлиняет строку («İ» -> 2 символа), а name_norm - не длиннее 120
+    return re.sub(r"\s+", " ", text.strip().lower().replace("ё", "е"))[:120]
 
 
 _ENDING = re.compile(r"[аяыиуюеоьй]{1,2}$")
@@ -168,8 +174,9 @@ class BoxService:
 
     # --- запись ---
     def _next_number(self, project_id: uuid.UUID) -> int:
-        # блокировка проекта: на PostgreSQL параллельные запросы получают номера по очереди
-        self.db.execute(select(Project.id).where(Project.id == project_id).with_for_update())
+        # блокировка проекта: параллельные запросы получают номера по очереди. Пустой UPDATE открывает
+        # пишущую транзакцию и на SQLite (FOR UPDATE там ничего не делает), на PostgreSQL блокирует строку
+        lock_project(self.db, project_id)
         # номер удалённой коробки не выдаётся снова: на старой наклейке он открыл бы чужую коробку.
         # Все выданные номера есть в журнале (box.created), поэтому берём максимум и оттуда
         current = self.db.scalar(select(func.max(Box.number)).where(Box.project_id == project_id))
