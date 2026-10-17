@@ -703,3 +703,10 @@ label.photo-picker__button.disabled { opacity: .5; cursor: default; pointer-even
 
 /* полосатая лента под заголовками убрана везде (по просьбе владельца) */
 .heading-stripe { display: none !important; }
+
+/* памятка по упаковке в «Коробках» и сканер на «QR-этикетках» */
+a.tips-card, .scan-card { display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: var(--primary-soft); border-left: 3px solid var(--primary); color: var(--text); text-decoration: none; }
+a.tips-card:hover { background: color-mix(in srgb, var(--primary-soft) 70%, var(--kraft)); }
+a.tips-card .sub, .scan-card .sub { display: block; color: var(--muted); font-size: .85rem; margin-top: 2px; }
+.scan-card { background: var(--surface); border-left-color: var(--text); flex-wrap: wrap; }
+.scan-card .button { flex: none; }

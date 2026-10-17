@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Camera } from 'lucide-react'
+import { BookOpen, Camera } from 'lucide-react'
 import { api } from '../api/endpoints'
 import type { Box, RoomPlan } from '../api/types'
 import Modal from '../components/Modal'
@@ -120,6 +120,14 @@ function Boxes({ pid }: { pid: string }) {
           ) : null}
           <BoxGrid pid={pid} boxes={visible} />
           <p className="muted small">Статусы: {Object.values(STATUS_LABELS).join(' → ')}</p>
+          <Link to="/tips" className="tips-card">
+            <BookOpen className="icon" aria-hidden />
+            <span className="grow">
+              <b>Памятка по упаковке</b>
+              <span className="sub">Хрупкое, что везти с собой, что паковать последним</span>
+            </span>
+            <span aria-hidden>→</span>
+          </Link>
         </StateView>
       )}
       {adding ? (
