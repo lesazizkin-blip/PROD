@@ -15,6 +15,9 @@ import PrintAllPage from './pages/PrintAllPage'
 import ProfilePage from './pages/ProfilePage'
 import ProgressPage from './pages/ProgressPage'
 import TipsPage from './pages/TipsPage'
+import BudgetPage from './features/journey/BudgetPage'
+import CalculatorPage from './features/journey/CalculatorPage'
+import MovingDayPage from './features/journey/MovingDayPage'
 import { useAuth } from './state/AuthContext'
 
 // Сканер (библиотека камеры тяжёлая) грузится только при открытии экрана
@@ -53,6 +56,7 @@ export default function App() {
       <Routes>
         <Route element={<GuestShell />}>
           <Route path="auth" element={<AuthPage />} />
+          <Route path="calculator" element={<CalculatorPage />} />
           <Route path="*" element={<AboutPage />} />
         </Route>
       </Routes>
@@ -67,6 +71,9 @@ export default function App() {
         <Route path="labels/print" element={<PrintAllPage />} />
         <Route path="progress" element={<ProgressPage />} />
         <Route path="tips" element={<TipsPage />} />
+        <Route path="calculator" element={<CalculatorPage />} />
+        <Route path="budget" element={<BudgetPage />} />
+        <Route path="moving-day" element={<MovingDayPage />} />
         <Route path="scan" element={<Suspense fallback={<div className="state" role="status">Загрузка…</div>}><ScanPage /></Suspense>} />
         <Route path="new" element={<NewProjectPage />} />
         <Route path="profile" element={<ProfilePage />} />

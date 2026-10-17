@@ -17,7 +17,17 @@ from app.db import SessionLocal, engine
 from app.errors import AppError
 from app.logging_setup import close_logging, log, setup_logging
 from app.reference_data import ensure_reference_data
-from app.routers import ai_photo, assistant, auth, boxes, health, projects, qr_codes, reference
+from app.routers import (
+    ai_photo,
+    assistant,
+    auth,
+    boxes,
+    health,
+    journey,
+    projects,
+    qr_codes,
+    reference,
+)
 from app.static_site import mount_site
 from app.tracing import current_ids, setup_tracing
 
@@ -197,6 +207,7 @@ api.include_router(boxes.router)
 api.include_router(qr_codes.router)
 api.include_router(assistant.router)
 api.include_router(ai_photo.router)
+api.include_router(journey.router)
 app.include_router(api)
 
 # трейсинг подключается к готовому приложению: внешняя прослойка OpenTelemetry открывает спан до access_log,

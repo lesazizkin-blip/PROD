@@ -3,7 +3,7 @@ import { isCompactCode, isResolvedBox } from '../features/labels/contract'
 import type {
   AppEvent, Box, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Health, Hint, Item, ItemStatus,
   Credentials, InviteInfo, InviteOut, Member, Label, LostItem, Page, PageParams, Progress, Project, ProjectBrief, ProjectCreate, ProjectUpdate, Reminder, SearchHit, User,
-  Stage, Task, TaskCreate, TaskTemplate, TaskUpdate, Tip, TipTopic, PhotoInventory, RoomPlan,
+  Stage, Task, TaskCreate, TaskTemplate, TaskUpdate, Tip, TipTopic, PhotoInventory, RoomPlan, CalculatorIn, CalculatorOut, Budget, Expense, ExpenseCategory,
 } from "./types"
 
 // Все пути — по docs/API.md. Проект выбирается UUID {pid}, коробка — номером {n}.
@@ -77,6 +77,15 @@ export const api = {
     request<Page<Item>>("GET", `${p(pid)}/boxes/${n}/items`, { query: { ...params } }),
   createItem: (pid: string, n: number, body: { name: string; first_day?: boolean; status?: ItemStatus }) =>
     request<Item>("POST", `${p(pid)}/boxes/${n}/items`, { body }),
+  // полный путь переезда: калькулятор (без входа) и бюджет проекта
+  calculator: (body: CalculatorIn) => request<CalculatorOut>("POST", "/calculator", { body }),
+  budget: (pid: string) => request<Budget>("GET", `${p(pid)}/expenses`),
+  addExpense: (pid: string, body: { category: ExpenseCategory; title: string; planned: number; actual?: number | null }) =>
+    request<Expense>("POST", `${p(pid)}/expenses`, { body }),
+  updateExpense: (pid: string, id: number, body: Partial<Pick<Expense, 'category' | 'title' | 'planned' | 'actual'>>) =>
+    request<Expense>("PATCH", `${p(pid)}/expenses/${id}`, { body }),
+  deleteExpense: (pid: string, id: number) =>
+    request<void>("DELETE", `${p(pid)}/expenses/${id}`, { query: { confirm: "true" } }),
   // фото уходит модели только с согласием пользователя; ответ - черновик, ничего не сохраняется
   photoInventory: (pid: string, n: number, image: string) =>
     request<PhotoInventory>("POST", `${p(pid)}/boxes/${n}/photo-inventory`, { body: { image, consent: true } }),

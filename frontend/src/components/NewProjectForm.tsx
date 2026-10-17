@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/endpoints'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
@@ -35,6 +36,7 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
     <form className="card stack narrow" onSubmit={submit(create)}>
       <h2>Новый переезд</h2>
       <p className="muted">Создайте проект и добавьте задачи или получите персональный AI-план.</p>
+      <Link to="/calculator" className="small">Сначала прикинуть бюджет, коробки и сроки → калькулятор</Link>
       <label>
         Название переезда
         <input value={name} disabled={busy || generating} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="Переезд на Лесную" data-autofocus />

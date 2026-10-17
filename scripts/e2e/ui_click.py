@@ -336,6 +336,14 @@ async def main():
             await step("кабинет: адреса сохраняются", await wait("__has('Сохранено')"))
             await go("/about")
             await step("«О нас» для вошедшего", await wait("__has('Перейти к плану')"))
+            # ---- полный путь переезда: калькулятор, бюджет, день переезда ----
+            await go("/calculator")
+            await js("__click('Рассчитать', 'button')")
+            await step("калькулятор: оценка переезда", await wait("__has('Оценка переезда') && __has('коробок')", 8))
+            await js("__click('Перенести смету в бюджет', 'button')")
+            await step("смета переносится в бюджет", await wait("location.pathname === '/budget' && __has('Грузчики')", 10))
+            await go("/moving-day")
+            await step("день переезда: счётчик погрузки", await wait("__has('из 1') && __has('Погрузка')", 8))
             await step("ошибок JavaScript нет", not errors)
             if DEMO:  # временный проект на проде не оставляем
                 gone = await js(

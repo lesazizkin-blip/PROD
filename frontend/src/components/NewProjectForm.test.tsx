@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import { AuthProvider } from '../state/AuthContext'
 import { ProjectProvider } from '../state/ProjectContext'
@@ -16,7 +17,7 @@ vi.mock('../api/endpoints', () => ({
 }))
 
 async function setup(onDone = vi.fn()) {
-  render(<AuthProvider><ProjectProvider><NewProjectForm onDone={onDone} /></ProjectProvider></AuthProvider>)
+  render(<MemoryRouter><AuthProvider><ProjectProvider><NewProjectForm onDone={onDone} /></ProjectProvider></AuthProvider></MemoryRouter>)
   await waitFor(() => expect(localStorage.getItem('movermate.projects.v1')).not.toBeNull()) // список с сервера загружен
   return { onDone }
 }

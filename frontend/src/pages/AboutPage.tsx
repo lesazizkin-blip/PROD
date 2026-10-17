@@ -26,11 +26,15 @@ export default function AboutPage() {
             MoverMate помогает спланировать переезд, промаркировать коробки и найти любую вещь на новом месте.
           </p>
           {user ? (
-            <Link to="/" className="button primary">Перейти к плану</Link>
+            <div className="row wrap">
+              <Link to="/" className="button primary">Перейти к плану</Link>
+              <Link to="/calculator" className="button">Рассчитать переезд</Link>
+            </div>
           ) : (
             <div className="row wrap">
               <Link to="/auth?mode=register" className="button primary">Зарегистрироваться</Link>
               <Link to="/auth" className="button">Войти</Link>
+              <Link to="/calculator" className="button">Рассчитать переезд</Link>
             </div>
           )}
         </div>

@@ -21,7 +21,7 @@ function sectionTitle(pathname: string): string {
   if (box) return `Коробка № ${box[1]}`
   const map: Record<string, string> = {
     '/boxes': 'Коробки', '/labels': 'Этикетки', '/labels/print': 'Печать этикеток', '/progress': 'Прогресс',
-    '/tips': 'Памятки', '/scan': 'Сканер', '/new': 'Новый переезд', '/profile': 'Личный кабинет', '/about': 'О нас',
+    '/tips': 'Памятки', '/calculator': 'Калькулятор', '/budget': 'Бюджет', '/moving-day': 'День переезда', '/scan': 'Сканер', '/new': 'Новый переезд', '/profile': 'Личный кабинет', '/about': 'О нас',
   }
   return map[pathname] ?? (pathname.startsWith('/invite/') ? 'Приглашение' : 'MoverMate')
 }
