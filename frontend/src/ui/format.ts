@@ -53,6 +53,20 @@ export function formatDate(iso: string): string {
   return `${d}.${m}.${y}`
 }
 
+const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
+
+/** Сколько дней до даты (ГГГГ-ММ-ДД) от сегодняшнего дня по календарю: 0 - сегодня, меньше нуля - уже прошла. */
+export function daysUntil(iso: string, today: Date = new Date()): number {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000)
+}
+
+/** «1 мая 2030» коротко, для штампов и плашки проекта: без часовых поясов браузера. */
+export function formatShortDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  return `${d} ${MONTHS_SHORT[m - 1]} ${y}`
+}
+
 /** Путь карточки коробки в приложении: его же кодирует QR (с адресом сайта впереди). */
 export const boxPath = (pid: string, n: number) => `/projects/${pid}/boxes/${n}`
 

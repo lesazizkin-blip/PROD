@@ -1,9 +1,8 @@
-/** Знак MoverMate: контурная коробка мятного цвета. */
-export default function BrandMark() {
+/** Знак MoverMate из макета: контурная коробка (цвет берётся из текста). */
+export default function BrandMark({ size = 36 }: { size?: number }) {
   return (
-    <svg className="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden>
-      <path d="M12 2.8l8.2 4.6v9.2L12 21.2l-8.2-4.6V7.4L12 2.8z" />
-      <path d="M3.8 7.4L12 12l8.2-4.6M12 12v9.2M7.9 5.1l8.2 4.6" />
+    <svg className="brand-mark" width={size} height={size} viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M11.46 7.552L18 4.5L31.5 10.8V26.1L18 32.4L4.5 26.1V10.8L11.46 7.552ZM4.5 10.8L18 18M11.46 7.552L10.8 7.2M11.46 7.552L24.3 14.4M31.5 10.8L18 18M18 32.4V18" />
     </svg>
   )
 }

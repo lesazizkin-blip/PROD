@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
 import { CircleHelp } from 'lucide-react'
 import FaqModal from './FaqModal'
-import { NAV_TABS } from './navTabs'
+import { NAV_TABS, tabNumber } from './navTabs'
 
 /** Каркас для гостя: те же разделы слева, но вместо перехода - уведомление, что сначала нужна регистрация. */
 export default function GuestShell() {
@@ -25,10 +25,12 @@ export default function GuestShell() {
         </Link>
         <p className="brand-caption">УЧЁТ ВЕЩЕЙ<br />И ПЛАН ПЕРЕЕЗДА</p>
         <nav className="tabs" aria-label="Разделы">
-          {NAV_TABS.map((t) => (
-            <button key={t.label} type="button" className="tab" onClick={() => needAccount(t.label)}>
+          {NAV_TABS.map((t, i) => (
+            <button key={t.label} type="button" className="tab" aria-label={t.label} onClick={() => needAccount(t.label)}>
+              <span className="tab-number" aria-hidden>{tabNumber(i)}</span>
               <t.icon className="icon" aria-hidden />
-              <span>{t.label}</span>
+              <span className="tab-label">{t.label}</span>
+              <span className="tab-short">{t.short}</span>
             </button>
           ))}
         </nav>

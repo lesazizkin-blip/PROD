@@ -6,6 +6,7 @@ export interface SavedProject {
   id: string
   name: string
   role?: 'owner' | 'member'
+  move_date?: string
 }
 
 export interface ProjectsState {

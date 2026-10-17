@@ -34,6 +34,13 @@ function BoxRow({ pid, box }: { pid: string; box: Box }) {
   )
 }
 
+/** Подсветка найденного фрагмента в названии вещи. */
+function Highlight({ text, query }: { text: string; query: string }) {
+  const at = text.toLowerCase().indexOf(query.toLowerCase())
+  if (at < 0 || !query) return <>{text}</>
+  return <>{text.slice(0, at)}<mark>{text.slice(at, at + query.length)}</mark>{text.slice(at + query.length)}</>
+}
+
 function Boxes({ pid }: { pid: string }) {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
@@ -75,7 +82,7 @@ function Boxes({ pid }: { pid: string }) {
                   <Link key={h.item_id} to={boxPath(pid, h.box_number)} className="list-row">
                     <span aria-hidden>{h.lost ? '⚠️' : '🔎'}</span>
                     <span className="grow">
-                      <b>{h.name}</b>
+                      <b><Highlight text={h.name} query={q} /></b>
                       <span className="sub">Коробка № {h.box_number} · {h.room}</span>
                     </span>
                     <StatusBadge status={h.status} />

@@ -21,7 +21,7 @@ describe('гость', () => {
         </Routes>
       </MemoryRouter>,
     )
-    await userEvent.click(screen.getByRole('button', { name: 'Коробки' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Коробки и поиск' }))
     expect(screen.getByRole('alert').textContent).toMatch(/доступен после регистрации/)
     expect(screen.getByText('о нас')).toBeTruthy() // страница не сменилась
     expect(screen.queryByRole('link', { name: 'Регистрация' })).toBeNull()
