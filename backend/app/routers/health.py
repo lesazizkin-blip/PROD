@@ -29,5 +29,9 @@ def health(db: Session = Depends(get_db)):
     "/config", response_model=ClientConfigOut, summary="Настройки для сайта (ключ подсказок адреса)"
 )
 def client_config():
-    key = get_settings().google_maps_api_key.strip()
-    return {"maps_api_key": key or None}
+    s = get_settings()
+    if key := s.maptiler_api_key.strip():
+        return {"maps_api_key": key, "maps_provider": "maptiler"}
+    if key := s.google_maps_api_key.strip():
+        return {"maps_api_key": key, "maps_provider": "google"}
+    return {"maps_api_key": None, "maps_provider": None}

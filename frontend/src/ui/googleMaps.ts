@@ -2,6 +2,7 @@
 // Типы минимальные - только то, чем пользуемся (подсказки Places API New и карта с меткой).
 
 export interface LatLng { lat(): number; lng(): number }
+export interface LatLngLiteral { lat: number; lng: number }
 
 export interface PlacePrediction {
   text: { toString(): string }
@@ -16,11 +17,11 @@ interface PlacesLibrary {
 }
 
 interface MapsLibrary {
-  Map: new (el: HTMLElement, o: { center: LatLng; zoom: number; disableDefaultUI: boolean; clickableIcons: boolean }) => unknown
+  Map: new (el: HTMLElement, o: { center: LatLngLiteral; zoom: number; disableDefaultUI: boolean; clickableIcons: boolean }) => unknown
 }
 
 interface MarkerLibrary {
-  Marker: new (o: { position: LatLng; map: unknown }) => unknown
+  Marker: new (o: { position: LatLngLiteral; map: unknown }) => unknown
 }
 
 export interface GoogleMaps {

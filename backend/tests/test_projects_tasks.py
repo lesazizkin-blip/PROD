@@ -210,6 +210,14 @@ def test_task_time_with_timezone_is_rejected_not_500(client, base):
 def test_client_config_hides_empty_maps_key(client, monkeypatch):
     from app.config import get_settings
 
-    assert client.get("/api/config").json() == {"maps_api_key": None}
+    assert client.get("/api/config").json() == {"maps_api_key": None, "maps_provider": None}
     monkeypatch.setattr(get_settings(), "google_maps_api_key", " browser-key ")
-    assert client.get("/api/config").json() == {"maps_api_key": "browser-key"}
+    assert client.get("/api/config").json() == {
+        "maps_api_key": "browser-key",
+        "maps_provider": "google",
+    }
+    monkeypatch.setattr(get_settings(), "maptiler_api_key", "mt-key")  # MapTiler важнее Google
+    assert client.get("/api/config").json() == {
+        "maps_api_key": "mt-key",
+        "maps_provider": "maptiler",
+    }

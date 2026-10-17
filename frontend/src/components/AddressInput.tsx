@@ -3,7 +3,7 @@ import { MapPin } from 'lucide-react'
 import { api } from '../api/endpoints'
 import { useAsync } from '../state/useAsync'
 import { useDebounced } from '../state/useDebounced'
-import { loadGoogleMaps, type GoogleMaps, type LatLng, type PlacePrediction } from '../ui/googleMaps'
+import { google, mapTiler, type Geocoder, type MapsProvider, type Place, type Suggestion } from '../ui/geocoders'
 
 interface Props {
   label: string
@@ -12,80 +12,78 @@ interface Props {
   placeholder?: string
 }
 
-// ключ спрашиваем у сервера один раз; если его нет или запрос не удался - обычное поле адреса
-let configRequest: Promise<string | null> | null = null
-const mapsKey = () =>
+interface MapsConfig {
+  provider: MapsProvider
+  key: string
+}
+
+// какой сервис подсказок включён, спрашиваем у сервера один раз; нет ключа или ошибка - обычное поле адреса
+let configRequest: Promise<MapsConfig | null> | null = null
+const mapsConfig = () =>
   (configRequest ??= Promise.resolve()
     .then(() => api.config())
-    .then((c) => c.maps_api_key)
+    .then((c) => (c.maps_api_key && c.maps_provider ? { provider: c.maps_provider, key: c.maps_api_key } : null))
     .catch(() => null))
 
-/** Поле адреса. Если на сервере задан ключ Google Maps, по кнопке «Найти на карте» появляются подсказки
- *  адреса и карта с меткой. Без нажатия кнопки адрес в Google не отправляется. */
+/** Поле адреса. Если на сервере задан ключ MapTiler или Google, по кнопке «Найти на карте» появляются
+ *  подсказки адреса и карта с меткой. Без нажатия кнопки адрес никуда не отправляется. */
 export default function AddressInput({ label, value, onChange, placeholder }: Props) {
-  const key = useAsync(mapsKey, [])
-  const [maps, setMaps] = useState<GoogleMaps | null>(null)
-  const [loadingMaps, setLoadingMaps] = useState(false)
+  const config = useAsync(mapsConfig, [])
+  const [geo, setGeo] = useState<Geocoder | null>(null)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [suggestions, setSuggestions] = useState<PlacePrediction[]>([])
-  const [location, setLocation] = useState<LatLng | null>(null)
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
+  const [place, setPlace] = useState<Place | null>(null)
   const [typed, setTyped] = useState(false) // подсказки только на ввод пользователя, не на подставленный адрес
-  const token = useRef<unknown>(null)
   const mapEl = useRef<HTMLDivElement>(null)
   const query = useDebounced(value.trim(), 350)
 
   const enable = async () => {
-    if (!key.data) return
-    setLoadingMaps(true)
+    const c = config.data
+    if (!c) return
+    setLoading(true)
     setError(null)
     try {
-      setMaps(await loadGoogleMaps(key.data))
+      setGeo(c.provider === 'maptiler' ? mapTiler(c.key) : await google(c.key))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Google Maps недоступен')
+      setError(e instanceof Error ? e.message : 'Карта недоступна')
     } finally {
-      setLoadingMaps(false)
+      setLoading(false)
     }
   }
 
   // подсказки адреса после паузы в наборе
   useEffect(() => {
-    if (!maps || !typed || query.length < 3) return
+    if (!geo || !typed || query.length < 3) return
     let cancelled = false
-    void maps.importLibrary('places').then(async (places) => {
-      token.current ??= new places.AutocompleteSessionToken()
-      const r = await places.AutocompleteSuggestion.fetchAutocompleteSuggestions({ input: query, language: 'ru', region: 'ru', sessionToken: token.current })
-      if (!cancelled) setSuggestions(r.suggestions.map((s) => s.placePrediction).filter((p): p is PlacePrediction => !!p).slice(0, 5))
-    }).catch(() => !cancelled && setError('Подсказки адреса сейчас недоступны'))
+    geo.suggest(query)
+      .then((list) => !cancelled && setSuggestions(list))
+      .catch(() => !cancelled && setError('Подсказки адреса сейчас недоступны'))
     return () => {
       cancelled = true
     }
-  }, [maps, query, typed])
+  }, [geo, query, typed])
 
-  // карта с меткой выбранного места
+  // карта, которую рисует сам провайдер (Google); у MapTiler - картинка ниже
   useEffect(() => {
-    if (!maps || !location || !mapEl.current) return
-    const el = mapEl.current
-    void Promise.all([maps.importLibrary('maps'), maps.importLibrary('marker')]).then(([m, mk]) => {
-      const map = new m.Map(el, { center: location, zoom: 16, disableDefaultUI: true, clickableIcons: false })
-      new mk.Marker({ position: location, map })
-    })
-  }, [maps, location])
+    if (geo?.drawMap && place && mapEl.current) void geo.drawMap(mapEl.current, place)
+  }, [geo, place])
 
-  const pick = async (p: PlacePrediction) => {
+  const pick = async (s: Suggestion) => {
+    if (!geo) return
     setSuggestions([])
     setTyped(false)
-    const place = p.toPlace()
     try {
-      await place.fetchFields({ fields: ['formattedAddress', 'location'] })
-      onChange(place.formattedAddress ?? p.text.toString())
-      setLocation(place.location ?? null)
+      const p = await geo.resolve(s)
+      onChange(p?.address ?? s.text)
+      setPlace(p)
     } catch {
-      onChange(p.text.toString())
+      onChange(s.text)
     }
-    token.current = null // одна сессия подсказок = один выбранный адрес
   }
 
-  const visible = maps && typed && query.length >= 3 ? suggestions : []
+  const visible = geo && typed && query.length >= 3 ? suggestions : []
+  const image = geo && place ? geo.mapImage(place) : null
 
   return (
     <div className="address-input">
@@ -95,35 +93,39 @@ export default function AddressInput({ label, value, onChange, placeholder }: Pr
           value={value}
           onChange={(e) => {
             setTyped(true)
-            setLocation(null)
+            setPlace(null)
             onChange(e.target.value)
           }}
           maxLength={300}
           placeholder={placeholder}
           autoComplete="off"
-          role={maps ? 'combobox' : undefined}
-          aria-expanded={maps ? visible.length > 0 : undefined}
+          role={geo ? 'combobox' : undefined}
+          aria-expanded={geo ? visible.length > 0 : undefined}
         />
       </label>
       {visible.length ? (
         <ul className="address-input__list" role="listbox">
           {visible.map((s) => (
-            <li key={s.text.toString()}>
+            <li key={s.id}>
               <button type="button" role="option" aria-selected={false} onClick={() => void pick(s)}>
-                <MapPin className="icon-sm" aria-hidden />{s.text.toString()}
+                <MapPin className="icon-sm" aria-hidden />{s.text}
               </button>
             </li>
           ))}
         </ul>
       ) : null}
-      {key.data && !maps ? (
-        <button type="button" className="link small" disabled={loadingMaps} onClick={() => void enable()}>
-          <MapPin className="icon-sm" aria-hidden />{loadingMaps ? 'Загружаем карту…' : 'Найти на карте'}
+      {config.data && !geo ? (
+        <button type="button" className="link small" disabled={loading} onClick={() => void enable()}>
+          <MapPin className="icon-sm" aria-hidden />{loading ? 'Загружаем карту…' : 'Найти на карте'}
         </button>
       ) : null}
-      {maps ? <p className="muted small">Подсказки адреса — Google Maps: введённый адрес отправляется в Google.</p> : null}
+      {geo ? <p className="muted small">Подсказки адреса — {geo.service}: введённый адрес отправляется в {geo.service}.</p> : null}
       {error ? <p className="error-text small" role="status">{error}</p> : null}
-      {location ? <div ref={mapEl} className="address-input__map" role="img" aria-label={`Карта: ${value}`} /> : null}
+      {image ? (
+        <img className="address-input__map" src={image} alt={`Карта: ${value}`} onError={(e) => { e.currentTarget.hidden = true }} />
+      ) : place && geo?.drawMap ? (
+        <div ref={mapEl} className="address-input__map" role="img" aria-label={`Карта: ${value}`} />
+      ) : null}
     </div>
   )
 }
