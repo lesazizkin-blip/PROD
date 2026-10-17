@@ -56,15 +56,18 @@ scripts/preflight.sh https://hack-led-20-vm1-12902f.vmaas-spirit.t-education.com
 
 `deploy/backup.sh` делает онлайн-копию SQLite (backup API, корректно во время записи), проверяет `integrity_check` и число проектов, хранит 48 последних в `/root/backups` (`app-<дата>-<метка>.db`). Запуск: каждый час в :17 (`/etc/cron.d/movermate-backup`, лог `/var/log/movermate-backup.log`) и перед каждой выкаткой (метка `ci`).
 
-Восстановление:
+Восстановление (сторож на время работ выключается файлом `.maintenance`, иначе он поднимет app посреди копирования):
 ```bash
 ssh -i ~/.ssh/vm1.pem root@178.72.185.97
 cd /opt/movermate/deploy && ls -1t /root/backups | head    # выбрать копию
+touch .maintenance                                         # сторож не вмешивается
 docker compose stop app
 docker cp /root/backups/<копия>.db deploy-app-1:/data/app.db
+docker compose run --rm --no-deps -u root --entrypoint sh app -c 'rm -f /data/app.db-journal; chown app:app /data/app.db'
 docker compose start app
+rm .maintenance
 ```
-Затем `scripts/preflight.sh <адрес>`.
+`docker cp` создаёт файл от root, а приложение работает от пользователя `app`: без `chown` база будет только для чтения. Затем `scripts/preflight.sh <адрес>`.
 
 ## 5. Безопасность на границе
 
@@ -81,7 +84,7 @@ Caddy добавляет `Strict-Transport-Security`, `X-Content-Type-Options: n
 | uvicorn | при наплыве больше 300 одновременных запросов лишние сразу получают 503, память не растёт | `Dockerfile` |
 | Docker | лимит памяти app 1,5 ГБ, Caddy 512 МБ; логи контейнеров не больше 50 МБ (не забьют диск) | `deploy/docker-compose.yml` |
 | Цены по городам | раз в сутки в 04:30 по cron: `docker exec deploy-app-1 python -m app.price_update`, лог `/var/log/movermate-prices.log`; при ошибке остаются прежние цены | `backend/app/price_update.py` |
-| Сторож | раз в минуту по cron: упавший стек поднимается, а app, зависший на 3 минуты подряд, перезапускается | `deploy/watchdog.sh`, лог `/var/log/movermate-watchdog.log` |
+| Сторож | раз в минуту по cron: упавший стек поднимается, а app, зависший на 3 минуты подряд, перезапускается; не вмешивается во время выкатки (общая блокировка `flock /run/movermate.lock`) и обслуживания (файл `.maintenance`) | `deploy/watchdog.sh`, лог `/var/log/movermate-watchdog.log` |
 | Демо | демо-проект удалить нельзя; если данные в нём испортили — `ssh … 'docker exec deploy-app-1 python -m app.seed --reset-demo'` пересоздаёт его | `backend/app/seed.py` |
 
 После отключения сети (стоп-кодинг) стек живёт сам: контейнеры с `restart: unless-stopped`, docker стартует при загрузке ВМ, образ лежит локально, сертификат действует до 14.01.2027, логи в Sage без сети просто теряются. При возврате сети ничего делать не нужно; проверка — `scripts/preflight.sh <адрес>`.
