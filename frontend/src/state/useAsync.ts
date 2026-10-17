@@ -11,7 +11,7 @@ export interface AsyncState<T> {
 }
 
 /** Загрузка данных для экрана: состояния «загрузка / ошибка / данные» и повторная попытка. */
-export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T> {
+export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], { refreshOnFocus = false } = {}): AsyncState<T> {
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,6 +43,21 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T
   }, [...deps, tick])
 
   const reload = useCallback(() => setTick((t) => t + 1), [])
+  useEffect(() => {
+    if (!refreshOnFocus) return
+    let lastRefresh = -Infinity
+    const refresh = () => {
+      if (document.hidden || performance.now() - lastRefresh < 1000) return
+      lastRefresh = performance.now()
+      reload()
+    }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [refreshOnFocus, reload])
   const mutate = useCallback((update: (data: T | null) => T | null) => setData(update), [])
   return { data, loading, error, reload, mutate }
 }

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search } from 'lucide-react'
 import { api } from '../api/endpoints'
 import type { Box } from '../api/types'
 import Modal from '../components/Modal'
+import BoxVolume from '../components/BoxVolume'
+import PageHeading from '../components/PageHeading'
 import RequireProject from '../components/RequireProject'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
@@ -11,42 +12,26 @@ import { useDebounced } from '../state/useDebounced'
 import ErrorAlert from '../ui/ErrorAlert'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
+import { roomStyle, roomTheme } from '../ui/roomTheme'
 import { STATUS_LABELS, boxPath, plural } from '../ui/format'
 
 export default function BoxesPage() {
   return <RequireProject>{(pid) => <Boxes pid={pid} />}</RequireProject>
 }
 
-// номер коробки крупно и моноширинно: #014
-const boxNo = (n: number) => `#${String(n).padStart(3, '0')}`
-
-function BoxCard({ pid, box }: { pid: string; box: Box }) {
-  const waiting = box.fill_later && box.items_count === 0
+function BoxRow({ pid, box }: { pid: string; box: Box }) {
   return (
-    <Link to={boxPath(pid, box.number)} className={`box-card st-card-${box.status}`} aria-label={`Коробка № ${box.number}, ${box.room}`}>
-      <span className="row between">
-        <span className="box-card__no">{boxNo(box.number)}</span>
-        <StatusBadge status={box.status} />
-      </span>
-      <span className="room-tag" style={{ ['--tag' as string]: roomHue(box.room) }}>{box.room}</span>
-      <span className="muted small">{box.items_count} {plural(box.items_count, ['вещь', 'вещи', 'вещей'])}</span>
-      {waiting ? <span className="awaiting">⚠️ Ожидает описи</span> : null}
+    <Link to={boxPath(pid, box.number)} className={`box-card ${box.status === 'packing' || box.status === 'unpacked' ? 'carton-open' : 'carton-sealed'}`} style={roomStyle(box.room)}>
+      <span className="carton-lid" aria-hidden="true"><span /></span>
+      <BoxVolume status={box.status} />
+      <div className="box-card-header"><span className="box-number">{String(box.number).padStart(3, '0')}</span><StatusBadge status={box.status} /></div>
+      <h2>{box.room}</h2>
+      <p className="muted small">{box.items_count} {plural(box.items_count, ['вещь', 'вещи', 'вещей'])}{box.fill_later && box.items_count === 0 ? ' · заполнить позже' : ' · посмотреть содержимое →'}</p>
+      <span className="eyebrow muted">↑↑ ВЕРХ</span>
+      <img className="packing-tape" src={`/assets/${roomTheme(box.room).tape}`} alt="" />
+      <img className="packing-bars" src="/assets/packing-bars.svg" alt="" />
     </Link>
   )
-}
-
-/** Пастельный цвет метки комнаты: одна и та же комната всегда одного цвета. */
-function roomHue(room: string): string {
-  let h = 0
-  for (const ch of room) h = (h * 31 + ch.charCodeAt(0)) % 360
-  return `${h}`
-}
-
-/** Подсветка найденного фрагмента в названии вещи. */
-function Highlight({ text, query }: { text: string; query: string }) {
-  const at = text.toLowerCase().indexOf(query.toLowerCase())
-  if (at < 0 || !query) return <>{text}</>
-  return <>{text.slice(0, at)}<mark>{text.slice(at, at + query.length)}</mark>{text.slice(at + query.length)}</>
 }
 
 function Boxes({ pid }: { pid: string }) {
@@ -56,11 +41,11 @@ function Boxes({ pid }: { pid: string }) {
   const [room, setRoom] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
 
-  const boxes = useAsync(() => api.boxes(pid, { page_size: 200 }), [pid])
-  const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 100 }) : Promise.resolve(null)), [pid, q])
+  const boxes = useAsync(() => api.boxes(pid, { page_size: 200 }), [pid], { refreshOnFocus: true })
+  const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 100 }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true })
   // Поиск коробки по номеру: если запрос - число, показываем коробку с этим номером
-  const byNumber = useAsync(() => (/^\d+$/.test(q) ? api.boxes(pid, { number: Number(q) }) : Promise.resolve(null)), [pid, q])
-  const reminders = useAsync(() => api.reminders(pid), [pid])
+  const byNumber = useAsync(() => (/^\d+$/.test(q) ? api.boxes(pid, { number: Number(q) }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true })
+  const reminders = useAsync(() => api.reminders(pid), [pid], { refreshOnFocus: true })
 
   const all = boxes.data?.items ?? []
   const rooms = Array.from(new Set(all.map((b) => b.room))).sort()
@@ -70,14 +55,12 @@ function Boxes({ pid }: { pid: string }) {
 
   return (
     <>
-      <div className="search-bar">
-        <Search className="icon" aria-hidden />
-        <input type="search" placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Поиск" />
-      </div>
+      <PageHeading title="Коробки и вещи" mobileTitle="Коробки">{boxes.data?.total ?? '…'} коробок · {all.filter((b) => b.status === 'packing').length} ещё собираются</PageHeading>
+      <div className="search-tools"><input type="search" placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Поиск" /><Link to="/scan" className="button">Сканировать QR</Link><button className="primary" onClick={() => setAdding(true)}>+ Коробка</button></div>
 
       {q ? (
         <>
-          {numberMatch ? <div className="box-grid"><BoxCard pid={pid} box={numberMatch} /></div> : null}
+          {numberMatch ? <div className="box-grid"><BoxRow pid={pid} box={numberMatch} /></div> : null}
           <StateView
             loading={hits.loading && !hits.data}
             error={hits.error}
@@ -92,7 +75,7 @@ function Boxes({ pid }: { pid: string }) {
                   <Link key={h.item_id} to={boxPath(pid, h.box_number)} className="list-row">
                     <span aria-hidden>{h.lost ? '⚠️' : '🔎'}</span>
                     <span className="grow">
-                      <b><Highlight text={h.name} query={q} /></b>
+                      <b>{h.name}</b>
                       <span className="sub">Коробка № {h.box_number} · {h.room}</span>
                     </span>
                     <StatusBadge status={h.status} />
@@ -112,18 +95,18 @@ function Boxes({ pid }: { pid: string }) {
           ) : null}
           {rooms.length > 1 ? (
             <div className="chips" role="group" aria-label="Фильтр по комнатам">
-              <button className={room === null ? 'chip on' : 'chip'} onClick={() => setRoom(null)}>Все</button>
+              <button className={room === null ? 'chip on' : 'chip'} onClick={() => setRoom(null)}>Все комнаты · {all.length}</button>
               {rooms.map((r) => (
-                <button key={r} className={room === r ? 'chip on' : 'chip'} onClick={() => setRoom(room === r ? null : r)}>{r}</button>
+                <button key={r} className={room === r ? 'chip room-chip on' : 'chip room-chip'} style={roomStyle(r)} onClick={() => setRoom(room === r ? null : r)}>{r} · {all.filter((b) => b.room === r).length}</button>
               ))}
             </div>
           ) : null}
-          <div className="box-grid">{visible.map((b) => <BoxCard key={b.number} pid={pid} box={b} />)}</div>
+          <div className="box-grid">{visible.map((b) => <BoxRow key={b.number} pid={pid} box={b} />)}</div>
           <p className="muted small">Статусы: {Object.values(STATUS_LABELS).join(' → ')}</p>
         </StateView>
       )}
 
-      <button className="primary fab" onClick={() => setAdding(true)}>+ Коробка</button>
+      <div className="packing-tip"><span aria-hidden>↑↑</span><p>Одну кружку оставьте снаружи. Кофе ещё понадобится.</p></div>
       {adding ? (
         <AddBoxModal
           rooms={rooms}

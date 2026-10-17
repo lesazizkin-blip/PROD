@@ -1,0 +1,14 @@
+.planner { border-top: 1px solid var(--border); padding-top: 16px; }
+.planner h3, .planner h4 { margin: 0; }
+.planner p { margin: 8px 0 0; }
+.planner small { line-height: 1.5; }
+.planner-mic { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.planner-mic[aria-pressed="true"] { background: var(--primary-soft, #e7f0ff); }
+.planner-consent { display: flex; align-items: flex-start; gap: 10px; font-size: .85rem; font-weight: 400; }
+.planner-consent input { width: 18px; height: 18px; flex: 0 0 18px; margin-top: 2px; }
+.planner-task { padding: 12px; border: 1px solid var(--border); border-radius: 12px; min-width: 0; }
+.planner-task-meta { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.planner-task-meta label { min-width: 0; }
+.planner-task-meta input, .planner-task-meta select { min-width: 0; }
+.planner-first-day { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+@media (max-width: 380px) { .planner-task-meta { grid-template-columns: minmax(0, 1fr); } }

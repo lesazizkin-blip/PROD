@@ -1,6 +1,5 @@
 import { useState, type ClipboardEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import BrandMark from '../components/BrandMark'
 import { useAuth } from '../state/AuthContext'
 import { useAction } from '../state/useAction'
 import ErrorAlert from '../ui/ErrorAlert'
@@ -34,7 +33,7 @@ export default function AuthPage({ note }: { note?: string }) {
 
   return (
     <div className="auth">
-      <div className="auth__brand"><BrandMark />MoverMate</div>
+      <div className="auth__brand"><img src="/assets/box-mark.svg" width="36" height="36" alt="" />MoverMate</div>
       <p className="muted auth__tagline">Переезд без хаоса: план, коробки и поиск любой вещи</p>
       {note ? <div className="banner" role="status">{note}</div> : null}
       <form className="card stack" onSubmit={submit(enter)}>
