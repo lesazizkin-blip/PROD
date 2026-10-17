@@ -23,7 +23,7 @@
 | 7 | 5.2 Список вещей внутри коробки | `GET/POST /boxes/{n}/items`; карточка коробки | `backend/tests/test_boxes_api.py` | ✅ |
 | 8 | 5.2 Быстрый ввод содержимого | `POST /boxes/{n}/items/bulk` (строка = вещь), `items_text` при создании коробки | `backend/tests/test_boxes_api.py`, `backend/tests/test_box_rules.py` | ✅ |
 | 9 | 5.2 Отложить заполнение с последующим напоминанием | `Box.fill_later`, `remind_at`; `GET /projects/{id}/reminders`; плашка на «Коробках» | `backend/tests/test_extras_api.py` | ✅ |
-| 10 | 5.2 Статусы: собирается → собрана → погружена → доставлена → распакована | `POST /boxes/{n}/transitions`; окно «Сменить статус» в карточке (только следующий этап; ошибочную отметку исправляет `POST …/status-corrections` с причиной); массово — `POST …/boxes/bulk-transitions` (в API) | `backend/tests/test_box_rules.py`, `backend/tests/test_boxes_api.py` | ✅ |
+| 10 | 5.2 Статусы: собирается → собрана → погружена → доставлена → распакована | `POST /boxes/{n}/transitions`; окно «Сменить статус» в карточке (вперёд — только следующий этап, назад — на любой более ранний без причины); массово — `POST …/boxes/bulk-transitions` (в API) | `backend/tests/test_box_rules.py`, `backend/tests/test_boxes_api.py` | ✅ |
 | 11 | 5.2 Удаление коробок и вещей с подтверждением | `DELETE …?confirm=true`, `window.confirm` на сайте | `backend/tests/test_boxes_api.py`, `backend/tests/test_projects_tasks.py` | ✅ |
 | 12 | 5.3 Поиск вещей по названию среди всех коробок | `GET /projects/{id}/search?q=`; поле поиска на «Коробках» | `backend/tests/test_boxes_api.py` | ✅ |
 | 13 | 5.3 Показ найденной коробки, комнаты и статуса | Ответ поиска: `box_number`, `room`, `status` | `backend/tests/test_boxes_api.py` | ✅ |
@@ -42,7 +42,7 @@
 | 26 | 5.5 Памятки: хрупкое, что везти с собой, что паковать последним; хранятся локально | `GET /tips` (из БД, сидятся при старте); страница `/tips`, ссылка «Памятка по упаковке» внизу «Коробок» | `backend/tests/test_projects_tasks.py` | ✅ |
 | 27 | 8 Номера коробок уникальны | Ограничение БД + выдача номера в транзакции | `backend/tests/test_boxes_api.py`, `backend/tests/test_config_and_migrations.py` | ✅ |
 | 28 | 8 Повторный скан QR открывает существующую коробку, без дублей | QR = обычный URL; `GET` карточки ничего не создаёт | `backend/tests/test_boxes_api.py` | ✅ |
-| 29 | 8 Статусы меняются только по допустимым переходам | Таблица `TRANSITIONS` в `backend/app/services/boxes.py`: только следующий этап, прыжок и тот же статус — `409`; исправление назад — отдельно с причиной и записью в журнал (решение Кусмарцева Фёдора 17.10) | `backend/tests/test_box_rules.py` | ✅ |
+| 29 | 8 Статусы меняются только по допустимым переходам | Таблица `TRANSITIONS` в `backend/app/services/boxes.py`: вперёд только следующий этап, прыжок и тот же статус — `409`; назад — на любой ранний этап с записью в журнал (решение владельца 18.10) | `backend/tests/test_box_rules.py` | ✅ |
 | 30 | 8 Одинаковые поисковые запросы дают одинаковый результат | Детерминированная сортировка поиска | `backend/tests/test_boxes_api.py` | ✅ |
 | 31 | 8 Данные сохраняются при перезапуске/обновлении | БД на сервере; список проектов приходит с сервера после входа, в `localStorage` его копия и выбранный проект | `frontend/src/state/projects.test.ts` | ✅ |
 | 32 | 8 Персональные данные и адреса необязательны, адреса используются только внутри проекта | Адреса и ответственный — необязательные поля | `backend/tests/test_projects_tasks.py` | ✅ |
