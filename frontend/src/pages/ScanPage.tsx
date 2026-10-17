@@ -11,6 +11,7 @@ import { acquireCamera, cameraMessage } from '../features/recognition/camera'
 import { isCompactCode, lookupMessage, parseUniversalCode } from '../features/recognition/qr'
 import { saveIntent, clearIntent, readIntent } from '../features/recognition/intent'
 import PhotoCrop from '../features/recognition/PhotoCrop'
+import LiveNumberCamera from '../features/recognition/LiveNumberCamera'
 import { cropPhoto, FULL_CROP } from '../features/recognition/crop'
 import { normalizeCandidates, normalizeNumber, type HandwritingResult, type LocalHandwriting, type ResolveCode } from '../features/recognition/number'
 import '../features/recognition/scanner.css'
@@ -32,7 +33,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [number, setNumber] = useState('')
-  const [mode, setMode] = useState<'qr' | 'photo'>('qr')
+  const [mode, setMode] = useState<'qr' | 'photo' | 'live'>('qr')
   const [active, setActive] = useState(true)
   const [attempt, setAttempt] = useState(0)
   const [visible, setVisible] = useState(!document.hidden)
@@ -152,9 +153,9 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
     setAttempt((v) => v + 1)
   }
 
-  async function openNumber(e: FormEvent) {
-    e.preventDefault()
-    const n = normalizeNumber(number)
+  async function openNumber(e?: FormEvent, supplied?: number) {
+    e?.preventDefault()
+    const n = supplied ?? normalizeNumber(number)
     if (!pid || n === null) { setError('Введите положительный номер целиком, например #001.'); return }
     if (locked.current) return
     locked.current = true
@@ -216,10 +217,20 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
   }
 
   return <div className="recognition-page">
-    <PageHeading title="Сканирование QR">Наведите камеру на этикетку или найдите коробку по номеру.</PageHeading>
+    <PageHeading title={mode === 'live' ? 'Распознать номер' : 'Сканирование QR'}>{mode === 'live' ? 'Наведите камеру на рукописный номер коробки.' : 'Наведите камеру на этикетку или найдите коробку по номеру.'}</PageHeading>
     <p>Проект для номера и фото: <strong>{projectName ?? 'не выбран'}</strong></p>
     <div className="recognition-modes">
       <button type="button" onClick={restart} disabled={busy}>Запустить QR снова</button>
+      <button type="button" disabled={!pid || busy || !recognizeHandwriting} onClick={async () => {
+        setActive(false)
+        const id = ++operation.current
+        ocrAbort.current?.abort()
+        try {
+          await camera.current?.stop()
+          if (id !== operation.current) return
+          setMode('live'); setError(null); setStatus('Наведите на номер в рамке.')
+        } catch (e) { if (id === operation.current) setError(cameraMessage(e)) }
+      }}>Камера номера</button>
       <button type="button" disabled={!pid || busy} onClick={async () => {
         setActive(false)
         setStatus('Останавливаем QR-камеру…')
@@ -234,6 +245,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
     <div className="scan-layout">
       <div className="scan-stage stack">
         <div id="qr-reader" className="scanner" hidden={mode !== 'qr'} />
+        {mode === 'live' && pid && recognizeHandwriting ? <LiveNumberCamera pid={pid} recognize={recognizeHandwriting} onConfirm={n => openNumber(undefined, n)} /> : null}
         {mode === 'photo' ? <div className="stack">
           <p>Экспериментальное распознавание. Качество на реальном почерке пока не проверено. Фото не отправляется на сервер.</p>
           <p>Поместите только надпись в кадр, без адресов и других чисел.</p>
@@ -244,7 +256,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
           {result ? <p>Распознано: <output>{result.text || '(пусто)'}</output></p> : null}
           {candidates.map((c) => <button type="button" key={c.n} disabled={busy} onClick={() => setNumber(String(c.n))}>Выбрать #{String(c.n).padStart(3, '0')} · {c.room}</button>)}
         </div> : null}
-        <p role="status" aria-live="polite">{status}</p>
+        {mode !== 'live' ? <p role="status" aria-live="polite">{status}</p> : null}
         <ErrorAlert message={error ?? (!window.isSecureContext ? 'Камера работает только по HTTPS (или на localhost). Введите номер коробки вручную.' : null)} />
       </div>
       {pid ? <form className="card stack scan-number" onSubmit={(e) => { void openNumber(e) }}>
