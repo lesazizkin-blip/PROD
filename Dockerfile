@@ -3,7 +3,8 @@
 # Для деплоя по шаблону организаторов (Kaniko в CI) нужен именно Dockerfile в корне.
 
 # ---- 1. сайт
-FROM node:22-alpine AS web
+# базовые образы - через зеркало Google: у Docker Hub лимит скачиваний с общих раннеров
+FROM mirror.gcr.io/library/node:22-alpine AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
@@ -11,7 +12,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # ---- 2. сервер
-FROM python:3.11-slim
+FROM mirror.gcr.io/library/python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
