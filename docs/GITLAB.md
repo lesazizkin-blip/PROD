@@ -5,7 +5,7 @@
 ## Текущее состояние (17.10)
 - **Источник истины — GitLab `hack-led-20/prod_1`**, ветка `master`. GitHub `MOVERMATE` — запасная копия.
 - `master` защищён: push только у Maintainer, сливать Merge Request могут Developer и Maintainer. Поэтому изменения идут так: push в ветку `dev` с открытием MR (`git push -o merge_request.create -o merge_request.target=master gitlab HEAD:refs/heads/dev`) → зелёный пайплайн MR → Merge → пайплайн `master` с деплоем.
-- Код отправлен, MR №1–3 слиты. Пайплайн проходит целиком, включая `setup:vm`, `deploy:vm` и `preflight:prod` (пайплайн 11105, 17.10).
+- Все изменения идут через MR (к вечеру 17.10 слито 38). Пайплайн проходит целиком, включая `setup:vm`, `deploy:vm` и `preflight:prod`.
 - SSH до GitLab с компьютера не проходит (порт 22 сбрасывает соединение), работает HTTPS с токеном; токен лежит в связке ключей macOS (`scripts/gitlab-login.sh`).
 
 ## Как отправить код
