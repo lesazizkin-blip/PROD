@@ -13,13 +13,15 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.db import SessionLocal
 from app.errors import AppError
-from app.logging_setup import log, setup_logging
+from app.logging_setup import close_logging, log, setup_logging
 from app.reference_data import ensure_reference_data
 from app.routers import assistant, auth, boxes, health, projects, reference
 from app.static_site import mount_site
 
 settings = get_settings()
-logger = setup_logging(settings.log_level)
+logger = setup_logging(
+    settings.log_level, settings.app_env, settings.sage_logs_url, settings.sage_api_key
+)
 
 
 @asynccontextmanager
@@ -30,8 +32,10 @@ async def lifespan(app: FastAPI):
         from app.seed import run as seed_demo
 
         seed_demo()
-    log(logger, "startup")
+    log(logger, "startup", sage_appender=bool(settings.sage_logs_url and settings.sage_api_key))
     yield
+    log(logger, "shutdown")
+    close_logging()
 
 
 app = FastAPI(
@@ -62,26 +66,34 @@ async def access_log(request: Request, call_next):
     try:
         response = await call_next(request)
     except Exception as exc:
-        # Стек пишем в лог с request_id; клиенту отдаём только id - по нему находим запись в логах
-        log(
-            logger,
+        # Одна запись со стеком и request_id; клиенту отдаём только id - по нему находим запись в логах
+        logger.error(
             "unhandled_exception",
-            level=logging.ERROR,
-            request_id=request_id,
-            path=request.url.path,
-            error=repr(exc),
+            exc_info=exc,
+            extra={
+                "extra_fields": {
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "error": repr(exc),
+                }
+            },
         )
-        logger.exception("traceback", extra={"extra_fields": {"request_id": request_id}})
         response = _internal_error(request_id)
     response.headers["x-request-id"] = request_id
+    status = response.status_code
+    # уровень по ответу: 5xx - ошибка сервера, 4xx - ошибка запроса клиента, остальное - обычная запись
+    level = logging.ERROR if status >= 500 else logging.WARNING if status >= 400 else logging.INFO
     log(
         logger,
         "request",
+        level=level,
         request_id=request_id,
         method=request.method,
         path=request.url.path,
-        status=response.status_code,
+        status=status,
         latency_ms=round((time.perf_counter() - t0) * 1000, 2),
+        user_id=getattr(request.state, "user_id", None),
     )
     return response
 
@@ -98,6 +110,19 @@ app.add_middleware(
 
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError):
+    # ошибка бизнес-правила: какой код, почему (текст для пользователя) и где
+    log(
+        logger,
+        "app_error",
+        level=logging.WARNING,
+        request_id=request.state.request_id,
+        method=request.method,
+        path=request.url.path,
+        status=exc.status_code,
+        code=exc.code,
+        reason=exc.message,
+        user_id=getattr(request.state, "user_id", None),
+    )
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.message, "code": exc.code, "request_id": request.state.request_id},
@@ -109,6 +134,17 @@ async def validation_handler(request: Request, exc: RequestValidationError):
     errors = [
         {"field": ".".join(str(p) for p in e["loc"][1:]), "message": e["msg"]} for e in exc.errors()
     ]
+    # какие поля не прошли проверку (сами значения не пишем: там может быть пароль)
+    log(
+        logger,
+        "validation_failed",
+        level=logging.WARNING,
+        request_id=request.state.request_id,
+        method=request.method,
+        path=request.url.path,
+        fields=[e["field"] for e in errors],
+        reasons=[e["message"] for e in errors],
+    )
     return JSONResponse(
         status_code=422,
         content={

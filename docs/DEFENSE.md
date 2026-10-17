@@ -23,7 +23,7 @@
 | Индекс / оптимизировать запрос | `Index(...)` в `__table_args__` модели (`models.py`, например `ix_boxes_project_room_status`) → миграция; запрос показать в `services/` (поиск и прогресс в `services/boxes.py`) |
 | Логика из контроллера в сервис | роутеры (`backend/app/routers/`) только принимают запрос и отдают ответ; правила в `backend/app/services/` |
 | Новый тест-кейс | скопировать похожий из `backend/tests/`, поменять вход и ожидание, `cd backend && .venv/bin/python -m pytest` |
-| Показать логи после запроса | запрос в Swagger (`/api/docs`) → на ВМ `docker logs --tail 50 deploy-app-1` → найти строку по `request_id` из ответа |
+| Показать логи после запроса | запрос в Swagger (`/api/docs`) → на ВМ `docker logs --tail 50 deploy-app-1` (или в Sage: `group="hack-led-20" system="movermate" request_id="…"`) → найти строку по `request_id` из ответа; действия ищутся по `action="box.status_changed"`, ошибки — по `level="WARN"`/`"ERROR"` |
 | «Что делать при 500 после релиза?» | клиент получает `request_id` → ищем в логах traceback → воспроизводим тестом → правим → тесты → передеплой (`docs/DEPLOY_VM.md`) → `scripts/preflight.sh` |
 | Новое правило валидации | pydantic `Field(...)` / валидатор в `schemas.py` + та же граница на форме (пример: конец задачи позже начала) |
 

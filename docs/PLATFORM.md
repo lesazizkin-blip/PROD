@@ -29,5 +29,5 @@
 
 ## Что из этого можно сделать
 1. ✅ **Автодеплой из GitLab** (критерий Backend-жюри): сделан 17.10, `docs/GITLAB.md`.
-2. **Логи в Sage:** Vector на ВМ читает логи контейнера `app` и отправляет в группу `hack-led-20`; дашборд в Grafana и алерт на ошибки 5xx.
+2. **Логи в Sage:** сделано в коде. Логи уже в формате Sage (`@timestamp`, `env`, `system=movermate`, `inst`), аппендер `backend/app/sage_appender.py` отправляет их в Logs Collector (`POST <хост>/api/hack-led-20/multiline/`, `Authorization: JWT <Spirit API ключ>`). Включить: на ВМ в `deploy/.env` задать `SAGE_LOGS_URL` и `SAGE_API_KEY`, перезапустить `app`. Хост Logs Collector в документации Sage не указан — узнать в Spirit. Дальше — алерт MageQL на `level="ERROR"` и дашборд в Grafana.
 3. **Функции раздела 6 ТЗ через LLM-прокси** («план упаковки комнаты», «опись по фото»): только с явным согласием пользователя, ТЗ запрещает скрытые передачи данных.

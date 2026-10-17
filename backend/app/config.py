@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # ключ Google Maps JavaScript API для подсказок адреса; пусто -> подсказки на сайте выключены.
     # Это ключ для браузера (он виден на странице), его ограничивают по адресу сайта в Google Cloud
     google_maps_api_key: str = ""
+    # аппендер логов в Sage: полный адрес Logs Collector с группой
+    # (https://<хост коллектора>/api/hack-led-20/multiline/) и Spirit API ключ. Пусто -> логи только в stdout
+    sage_logs_url: str = ""
+    sage_api_key: str = ""
 
 
 @lru_cache

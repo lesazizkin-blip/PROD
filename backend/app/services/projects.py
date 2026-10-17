@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.errors import ValidationFailed
+from app.logging_setup import audit
 from app.models import FirstDayItem, Project, ProjectMember
 from app.reference_data import FIRST_DAY
 from app.schemas import ProjectCreate, ProjectUpdate
@@ -49,5 +50,6 @@ class ProjectService:
         return project
 
     def delete(self, project: Project) -> None:
+        audit("project.deleted", project_id=project.id)
         self.db.delete(project)  # каскадом уходит всё содержимое (и журнал вместе с ним)
         self.db.commit()
