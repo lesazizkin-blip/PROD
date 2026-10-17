@@ -18,6 +18,8 @@ services:
       # пароль демо-аккаунта (логин demo); кнопка «Посмотреть демо» входит и без него
       DEMO_PASSWORD: "${DEMO_PASSWORD:-demo-pereezd}"
       GOOGLE_MAPS_API_KEY: "${GOOGLE_MAPS_API_KEY:-}"
+      SAGE_LOGS_URL: "${SAGE_LOGS_URL:-}"
+      SAGE_API_KEY: "${SAGE_API_KEY:-}"
     volumes:
       - movermate-data:/data
 

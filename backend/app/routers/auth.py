@@ -5,6 +5,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.deps import SESSION_COOKIE, get_current_user
 from app.errors import NotFoundError
+from app.logging_setup import audit
 from app.models import User
 from app.schemas import Credentials, InviteInfo, PasswordChange, ProjectOut, UserOut
 from app.services.auth import AuthService
@@ -56,6 +57,7 @@ def demo_login(response: Response, db: Session = Depends(get_db)):
     user = db.query(User).filter_by(username=s.demo_username).first() if s.seed_demo else None
     if not user:
         raise NotFoundError("Демо-аккаунт выключен")
+    audit("auth.demo_login", user_id=user.id)
     _set_session(response, service.start_session(user))
     return user
 
