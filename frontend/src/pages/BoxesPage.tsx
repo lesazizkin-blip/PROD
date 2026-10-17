@@ -15,7 +15,7 @@ import ErrorAlert from '../ui/ErrorAlert'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
 import { roomStyle } from '../ui/roomTheme'
-import { STATUS_LABELS, boxPath, plural } from '../ui/format'
+import { STATUS_LABELS, boxNumberFromInput, boxPath, plural } from '../ui/format'
 import { BoxLink, useBoxNavigation } from '../features/boxes/BoxNavigation'
 import Pagination from '../ui/Pagination'
 
@@ -46,7 +46,9 @@ function Boxes({ pid }: { pid: string }) {
   const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 50, page }) : Promise.resolve(null)), [pid, q, page], { refreshOnFocus: true, initialData: saved?.hits })
   const summary = useAsync(() => api.progress(pid), [pid], { refreshOnFocus: true, initialData: saved?.summary })
   // Поиск коробки по номеру: если запрос - число, показываем коробку с этим номером
-  const byNumber = useAsync(() => (/^\d+$/.test(q) ? api.boxes(pid, { number: Number(q) }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true, initialData: saved?.byNumber })
+  // «17», «#017», «№ 17» или ссылка из QR этого проекта
+  const typedNumber = boxNumberFromInput(q, pid)
+  const byNumber = useAsync(() => (typeof typedNumber === 'number' ? api.boxes(pid, { number: typedNumber }) : Promise.resolve(null)), [pid, typedNumber], { refreshOnFocus: true, initialData: saved?.byNumber })
   const reminders = useAsync(() => api.reminders(pid), [pid], { refreshOnFocus: true })
   const activeTotal = q ? hits.data?.total : boxes.data?.total
   const activeLoading = q ? hits.loading : boxes.loading

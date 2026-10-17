@@ -44,8 +44,8 @@ cd frontend && npm install && npm run dev                                      #
 
 ## Тесты и проверки
 ```bash
-cd backend && .venv/bin/python -m pytest --cov=app        # 240 тестов (+2 пропущены: параллельность — на PostgreSQL в CI, аннотации — на Python 3.14), покрытие 98%
-cd frontend && npm test && npm run lint && npm run build  # 208 тестов; npm run test:ci — с покрытием
+cd backend && .venv/bin/python -m pytest --cov=app        # 241 тест (+2 пропущены: параллельность — на PostgreSQL в CI, аннотации — на Python 3.14), покрытие 98%
+cd frontend && npm test && npm run lint && npm run build  # 209 тестов; npm run test:ci — с покрытием
 scripts/preflight.sh <адрес>                              # сценарий ТЗ на запущенном сайте
 scripts/e2e.sh                                            # прод по API + локально права, приглашения и проклик интерфейса
 ```

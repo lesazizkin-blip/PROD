@@ -277,3 +277,19 @@ def test_removed_member_cannot_come_back_with_old_link(make_client):
     assert owner.delete(f"/api/projects/{pid}/members/{helper_id}?confirm=true").status_code == 204
     assert helper.post(f"/api/invites/{token}/accept").status_code == 404
     assert helper.get(f"/api/projects/{pid}").status_code == 404
+
+
+def test_login_limiter_memory_stays_bounded_when_logins_are_enumerated(monkeypatch):
+    from app.services.auth import LoginLimiter
+
+    limiter = LoginLimiter()
+    monkeypatch.setattr(LoginLimiter, "SWEEP_AT", 50)
+    for i in range(500):
+        limiter.check(("1.2.3.4", f"user{i}"))  # проверка без неудачи ничего не хранит
+    assert len(limiter._fails) == 0
+    clock = [1000.0]
+    monkeypatch.setattr("app.services.auth.time.monotonic", lambda: clock[0])
+    for i in range(500):
+        limiter.fail(("1.2.3.4", f"user{i}"))
+        clock[0] += 60  # каждая неудача старше окна для следующих
+    assert len(limiter._fails) <= 50

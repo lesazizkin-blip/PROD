@@ -79,6 +79,16 @@ export function parseBoxLink(text: string): { pid: string; n: number } | null {
   return n >= 1 ? { pid: m[1].toLowerCase(), n } : null
 }
 
+/** Номер коробки из поля ввода: «17», «#017», «№ 17» или ссылка из QR (ручной сканер «печатает» её целиком).
+ *  Ссылка на коробку другого проекта - 'other-project', непонятный текст - null. */
+export function boxNumberFromInput(text: string, pid: string): number | 'other-project' | null {
+  const link = parseBoxLink(text)
+  if (link) return link.pid === pid.toLowerCase() ? link.n : 'other-project'
+  const m = text.trim().match(/^(?:#|№)?\s*(\d{1,6})$/)
+  const n = m ? Number(m[1]) : 0
+  return n >= 1 ? n : null
+}
+
 /** Склонение по числу: plural(1, ['вещь', 'вещи', 'вещей']) -> «вещь», 2 -> «вещи», 5 -> «вещей». */
 export function plural(n: number, forms: [string, string, string]): string {
   const mod100 = n % 100

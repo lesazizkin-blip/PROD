@@ -31,19 +31,31 @@ def _aware(dt: datetime) -> datetime:
 class LoginLimiter:
     """Не больше N неудачных входов на пару (IP, логин) за окно. Память одного процесса: у нас один процесс."""
 
+    # сколько пар (IP, логин) держим, прежде чем выбросить устаревшие: перебор логинов не раздувает память
+    SWEEP_AT = 10_000
+
     def __init__(self) -> None:
         self._fails: dict[tuple[str, str], deque[float]] = defaultdict(deque)
 
     def check(self, key: tuple[str, str]) -> None:
         s = get_settings()
-        q = self._fails[key]
+        q = self._fails.get(key)  # проверка не заводит запись: её заводит только неудачный вход
+        if not q:
+            return
         while q and q[0] < time.monotonic() - s.login_window_seconds:
             q.popleft()
-        if len(q) >= s.login_attempts:
+        if not q:
+            del self._fails[key]
+        elif len(q) >= s.login_attempts:
             raise TooManyRequestsError("Слишком много попыток входа. Подождите несколько минут.")
 
     def fail(self, key: tuple[str, str]) -> None:
-        self._fails[key].append(time.monotonic())
+        now = time.monotonic()
+        if len(self._fails) >= self.SWEEP_AT:
+            cutoff = now - get_settings().login_window_seconds
+            for stale in [k for k, q in self._fails.items() if not q or q[-1] < cutoff]:
+                del self._fails[stale]
+        self._fails[key].append(now)
 
     def reset(self, key: tuple[str, str]) -> None:
         self._fails.pop(key, None)

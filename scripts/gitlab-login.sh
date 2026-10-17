@@ -19,7 +19,7 @@ AUTH="$(printf 'oauth2:%s' "$TOKEN" | base64 | tr -d '\n')"
 if GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c "http.extraheader=Authorization: Basic $AUTH" \
      ls-remote "$PROJECT_URL" >/dev/null 2>&1; then
   printf 'protocol=https\nhost=%s\nusername=oauth2\npassword=%s\n\n' "$HOST" "$TOKEN" | git credential approve
-  say "Токен подошёл и сохранён в связке ключей macOS. Теперь можно запускать scripts/push-to-gitlab.sh"
+  say "Токен подошёл и сохранён в связке ключей macOS. Отправка - через MR: git push -o merge_request.create -o merge_request.target=master gitlab HEAD:refs/heads/dev"
   exit 0
 fi
 

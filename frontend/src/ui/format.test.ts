@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boxPath, boxUrl, formatDate, formatTimeRange, parseBoxLink, plural } from './format'
+import { boxNumberFromInput, boxPath, boxUrl, formatDate, formatTimeRange, parseBoxLink, plural } from './format'
 
 const PID = '00000000-0000-4000-8000-000000000001'
 
@@ -50,5 +50,23 @@ describe('formatTimeRange', () => {
     expect(formatTimeRange('09:00:00', null)).toBe('с 09:00')
     expect(formatTimeRange(null, '12:30:00')).toBe('до 12:30')
     expect(formatTimeRange(null, null)).toBe('')
+  })
+})
+
+describe('boxNumberFromInput', () => {
+  const PID = '00000000-0000-4000-8000-000000000001'
+  it('номер вручную в любом привычном виде', () => {
+    expect(boxNumberFromInput('17', PID)).toBe(17)
+    expect(boxNumberFromInput(' #017 ', PID)).toBe(17)
+    expect(boxNumberFromInput('№ 5', PID)).toBe(5)
+  })
+  it('ссылка из QR от ручного сканера: номер, а не склейка всех цифр', () => {
+    expect(boxNumberFromInput(`https://site.example/projects/${PID}/boxes/12`, PID)).toBe(12)
+    expect(boxNumberFromInput(`https://site.example/projects/${PID.replace('1', '2')}/boxes/12`, PID)).toBe('other-project')
+  })
+  it('мусор и ноль не номер', () => {
+    expect(boxNumberFromInput('кухня 3', PID)).toBeNull()
+    expect(boxNumberFromInput('0', PID)).toBeNull()
+    expect(boxNumberFromInput('', PID)).toBeNull()
   })
 })

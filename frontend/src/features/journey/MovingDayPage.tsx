@@ -11,7 +11,7 @@ import { useAsync } from '../../state/useAsync'
 import ProgressBar from '../../ui/ProgressBar'
 import StateView from '../../ui/StateView'
 import StatusBadge from '../../ui/StatusBadge'
-import { boxPath } from '../../ui/format'
+import { boxNumberFromInput, boxPath } from '../../ui/format'
 import './journey.css'
 
 type Mode = 'load' | 'accept'
@@ -79,10 +79,12 @@ function MovingDay({ pid }: { pid: string }) {
           </div>
           <form className="day-x__scan" onSubmit={(e) => {
             e.preventDefault()
-            const n = Number(number.replace(/\D/g, ''))
+            const n = boxNumberFromInput(number, pid)
             setNumber('')
             input.current?.focus()
-            if (n > 0) void mark(n)
+            if (n === 'other-project') note('Этикетка от другого проекта: откройте его в «Все проекты»', false)
+            else if (n === null) note(`«${number.trim().slice(0, 40)}» — не номер коробки`, false)
+            else void mark(n)
           }}>
             <label>Номер коробки
               <input ref={input} inputMode="numeric" autoComplete="off" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="017" autoFocus />
