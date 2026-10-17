@@ -15,7 +15,7 @@ from app.db import SessionLocal
 from app.errors import AppError
 from app.logging_setup import close_logging, log, setup_logging
 from app.reference_data import ensure_reference_data
-from app.routers import assistant, auth, boxes, health, projects, qr_codes, reference
+from app.routers import ai_photo, assistant, auth, boxes, health, projects, qr_codes, reference
 from app.static_site import mount_site
 
 settings = get_settings()
@@ -170,6 +170,7 @@ api.include_router(projects.router)
 api.include_router(boxes.router)
 api.include_router(qr_codes.router)
 api.include_router(assistant.router)
+api.include_router(ai_photo.router)
 app.include_router(api)
 
 if settings.static_dir and not mount_site(app, settings.static_dir):

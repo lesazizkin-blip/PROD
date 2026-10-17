@@ -90,30 +90,19 @@ def ensure_planner_configured(settings: Settings) -> None:
         )
 
 
-def generate_plan(body: PlanRequest, settings: Settings) -> PersonalPlan:
+def chat_completion(settings: Settings, messages: list[dict], max_tokens: int) -> str:
+    """Один запрос к совместимому с Chat Completions провайдеру, ответ - JSON-текст модели.
+    Без повторов и редиректов; тело запроса и ключ не журналируются. Общий для плана и фото-функций."""
     ensure_planner_configured(settings)
     payload = {
         "model": settings.ai_model,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": json.dumps(
-                    {
-                        "move_date": body.move_date.isoformat(),
-                        "description": body.description,
-                    },
-                    ensure_ascii=False,
-                ),
-            },
-        ],
+        "messages": messages,
         "response_format": {"type": "json_object"},
-        "max_tokens": 3000,
+        "max_tokens": max_tokens,
     }
     try:
-        # Один запрос без автоматических повторов, редиректов и журналирования тела/ключа.
         with httpx.Client(
-            timeout=httpx.Timeout(settings.ai_timeout_seconds, connect=5, write=5, pool=5),
+            timeout=httpx.Timeout(settings.ai_timeout_seconds, connect=5, write=10, pool=5),
             follow_redirects=False,
         ) as client:
             response = client.post(
@@ -144,8 +133,29 @@ def generate_plan(body: PlanRequest, settings: Settings) -> PersonalPlan:
         ) from None
     try:
         content = response.json()["choices"][0]["message"]["content"]
-        if not isinstance(content, str) or len(content) > 30_000:
-            raise ValueError("Invalid content")
+    except (ValueError, KeyError, IndexError, TypeError):
+        raise PlannerInvalidResponse("Модель вернула пустой ответ. Попробуйте ещё раз.") from None
+    if not isinstance(content, str) or len(content) > 30_000:
+        raise PlannerInvalidResponse("Модель вернула некорректный ответ. Попробуйте ещё раз.")
+    return content
+
+
+def generate_plan(body: PlanRequest, settings: Settings) -> PersonalPlan:
+    content = chat_completion(
+        settings,
+        [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {"move_date": body.move_date.isoformat(), "description": body.description},
+                    ensure_ascii=False,
+                ),
+            },
+        ],
+        max_tokens=3000,
+    )
+    try:
         plan = PersonalPlan.model_validate_json(content)
         # Модель может повторить предложение; не отправляем дубли в предпросмотр.
         tasks = {}

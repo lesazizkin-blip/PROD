@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
-import { ITEM_STATUSES, type BoxStatus, type Item, type ItemStatus } from '../api/types'
+import { ITEM_STATUSES, type BoxStatus, type Item, type ItemStatus, type PhotoItem } from '../api/types'
 import { errorMessage } from '../api/client'
 import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
+import PhotoPicker from '../components/PhotoPicker'
 import StatusPickerModal, { type StatusOption } from '../components/StatusPickerModal'
 import { boxStatusOptions } from '../components/statusOptions'
 import { useConfirm } from '../state/confirm'
@@ -190,7 +191,20 @@ export default function BoxPage() {
               onClose={() => setPickingItem(null)}
             />
           ) : null}
-          {adding ? <AddItemsModal onClose={() => setAdding(false)} onSave={async (text) => { await api.createItemsBulk(pid, number, text); setAdding(false); card.reload() }} /> : null}
+          {adding ? (
+            <AddItemsModal
+              onClose={() => setAdding(false)}
+              recognize={async (image) => (await api.photoInventory(pid, number, image)).items}
+              onSave={async (text, firstDay) => {
+                const { created } = await api.createItemsBulk(pid, number, text)
+                // вещи первого дня, которые нашла модель, сразу получают пометку
+                const marked = created.filter((it) => firstDay.has(it.name.trim().toLowerCase()))
+                await Promise.all(marked.map((it) => api.updateItem(pid, it.id, { first_day: true })))
+                setAdding(false)
+                card.reload()
+              }}
+            />
+          ) : null}
           {editing ? (
             <EditBoxModal
               room={box.room}
@@ -205,16 +219,37 @@ export default function BoxPage() {
   )
 }
 
-function AddItemsModal({ onClose, onSave }: { onClose: () => void; onSave: (text: string) => Promise<void> }) {
+function AddItemsModal({ onClose, onSave, recognize }: {
+  onClose: () => void
+  onSave: (text: string, firstDay: Set<string>) => Promise<void>
+  recognize: (image: string) => Promise<PhotoItem[]>
+}) {
   const [text, setText] = useState('')
+  const [firstDay, setFirstDay] = useState<Set<string>>(new Set())
+  const [found, setFound] = useState<number | null>(null)
   const { busy, error, submit } = useAction()
+
+  const fromPhoto = async (image: string) => {
+    const items = await recognize(image)
+    setFound(items.length)
+    if (items.length === 0) return
+    setText((prev) => [prev.trim(), ...items.map((i) => (i.fragile ? `${i.name} (хрупкое)` : i.name))].filter(Boolean).join('\n'))
+    setFirstDay((prev) => new Set([...prev, ...items.filter((i) => i.first_day).map((i) => (i.fragile ? `${i.name} (хрупкое)` : i.name).trim().toLowerCase())]))
+  }
+
   return (
     <Modal title="Добавить вещи" onClose={onClose} dirty={text.trim() !== ''}>
-      <form className="stack" onSubmit={submit(() => onSave(text))}>
+      <form className="stack" onSubmit={submit(() => onSave(text, firstDay))}>
         <label>
           Каждая вещь с новой строки
           <textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} data-autofocus />
         </label>
+        <PhotoPicker label="Заполнить по фото" busyLabel="Распознаём фото…" onPhoto={fromPhoto} />
+        {found !== null ? (
+          <p className="muted small" role="status">
+            {found === 0 ? 'На фото не нашлось вещей. Попробуйте снять ближе.' : `Добавлено из фото: ${found}. Проверьте список перед сохранением${firstDay.size ? `; вещи первого дня получат пометку (${firstDay.size})` : ''}.`}
+          </p>
+        ) : null}
         <ErrorAlert message={error} />
         <button className="primary" type="submit" disabled={busy || !text.trim()}>Добавить</button>
       </form>

@@ -3,7 +3,7 @@ import { isCompactCode, isResolvedBox } from '../features/labels/contract'
 import type {
   AppEvent, Box, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Health, Hint, Item, ItemStatus,
   Credentials, InviteInfo, InviteOut, Member, Label, LostItem, Page, PageParams, Progress, Project, ProjectBrief, ProjectCreate, ProjectUpdate, Reminder, SearchHit, User,
-  Stage, Task, TaskCreate, TaskTemplate, TaskUpdate, Tip, TipTopic,
+  Stage, Task, TaskCreate, TaskTemplate, TaskUpdate, Tip, TipTopic, PhotoInventory, RoomPlan,
 } from "./types"
 
 // Все пути — по docs/API.md. Проект выбирается UUID {pid}, коробка — номером {n}.
@@ -77,6 +77,11 @@ export const api = {
     request<Page<Item>>("GET", `${p(pid)}/boxes/${n}/items`, { query: { ...params } }),
   createItem: (pid: string, n: number, body: { name: string; first_day?: boolean; status?: ItemStatus }) =>
     request<Item>("POST", `${p(pid)}/boxes/${n}/items`, { body }),
+  // фото уходит модели только с согласием пользователя; ответ - черновик, ничего не сохраняется
+  photoInventory: (pid: string, n: number, image: string) =>
+    request<PhotoInventory>("POST", `${p(pid)}/boxes/${n}/photo-inventory`, { body: { image, consent: true } }),
+  roomPlan: (pid: string, room: string, image: string) =>
+    request<RoomPlan>("POST", `${p(pid)}/room-plan`, { body: { image, room, consent: true } }),
   createItemsBulk: (pid: string, n: number, text: string) =>
     request<{ created: Item[] }>("POST", `${p(pid)}/boxes/${n}/items/bulk`, { body: { text } }),
   updateItem: (pid: string, id: number, body: { name?: string; status?: ItemStatus; first_day?: boolean }) =>
