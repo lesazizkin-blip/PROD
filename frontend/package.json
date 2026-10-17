@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "prepare:ocr": "node src/features/recognition/vendor-assets.mjs"
+    "prepare:ocr": "node src/features/recognition/vendor-assets.mjs",
+    "test:ci": "vitest run --coverage --reporter=default --reporter=junit --outputFile.junit=report.xml"
   },
   "dependencies": {
     "html5-qrcode": "^2.3.8",
@@ -28,6 +29,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/coverage-v8": "^5.0.4",
     "jsdom": "^30.1.2",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",

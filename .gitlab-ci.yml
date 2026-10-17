@@ -123,8 +123,20 @@ test-frontend:
   script:
     - cd frontend
     - npm ci
-    - npm test
+    - npm run test:ci
     - npm run build
+  # процент строк из text-summary vitest; отчёты: тесты в MR (junit) и покрытие строк в диффе (cobertura)
+  coverage: '/^Lines\s*:\s*(\d+(?:\.\d+)?)%/'
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - frontend/coverage/
+    reports:
+      junit: frontend/report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: frontend/coverage/cobertura-coverage.xml
 
 # ---------------------------------------------------------------- сборка образа (шаблон .dp_build)
 # Kaniko собирает корневой Dockerfile (сайт + сервер в одном образе) и публикует его в Spirit Registry.
