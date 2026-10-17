@@ -9,7 +9,7 @@ import Avatar from './Avatar'
 import BrandMark from './BrandMark'
 import SidebarToggle from './SidebarToggle'
 import NotificationsModal from './NotificationsModal'
-import { NAV_TABS, tabNumber } from './navTabs'
+import { JOURNEY_TABS, NAV_TABS, tabNumber } from './navTabs'
 import { BoxNavigationProvider } from '../features/boxes/BoxNavigation'
 
 
@@ -55,6 +55,16 @@ export default function Shell() {
               <t.icon className="icon" aria-hidden />
               <span className="tab-label">{t.label}</span>
               <span className="tab-short">{t.short}</span>
+            </Link>
+          })}
+        </nav>
+        <p className="sidebar-group">Путь переезда</p>
+        <nav className="tabs tabs-journey" aria-label="Путь переезда">
+          {JOURNEY_TABS.map((t) => {
+            const active = pathname === t.to
+            return <Link key={t.to} to={t.to} aria-current={active ? 'page' : undefined} aria-label={t.label} title={sidebarCompact ? t.label : undefined} className={active ? 'tab active' : 'tab'}>
+              <t.icon className="icon" aria-hidden />
+              <span className="tab-label">{t.label}</span>
             </Link>
           })}
         </nav>

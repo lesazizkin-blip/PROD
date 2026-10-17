@@ -761,3 +761,11 @@ a.tips-card:hover { background: color-mix(in srgb, var(--primary-soft) 70%, var(
 a.tips-card .sub, .scan-card .sub { display: block; color: var(--muted); font-size: .85rem; margin-top: 2px; }
 .scan-card { background: var(--surface); border-left-color: var(--text); flex-wrap: wrap; }
 .scan-card .button { flex: none; }
+
+/* группа «Путь переезда» в меню слева: только на ноутбуке, на телефоне внизу остаются 4 вкладки */
+.sidebar-group, .tabs.tabs-journey { display: none; }
+@media (min-width: 1000px) {
+  .sidebar-group { display: block; margin: 8px 0 -8px; padding: 0 12px; font: 10px/1.6 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); white-space: nowrap; }
+  .sidebar .tabs.tabs-journey { display: grid; position: static; }
+  .is-sidebar-compact .sidebar .sidebar-group { opacity: 0; visibility: hidden; }
+}

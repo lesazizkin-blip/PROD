@@ -4,7 +4,7 @@ import { CircleHelp } from 'lucide-react'
 import FaqModal from './FaqModal'
 import BrandMark from './BrandMark'
 import SidebarToggle from './SidebarToggle'
-import { NAV_TABS, tabNumber } from './navTabs'
+import { JOURNEY_TABS, NAV_TABS, tabNumber } from './navTabs'
 
 /** Каркас для гостя: те же разделы слева, но вместо перехода - уведомление, что сначала нужна регистрация. */
 export default function GuestShell() {
@@ -36,6 +36,15 @@ export default function GuestShell() {
               <span className="tab-label">{t.label}</span>
               <span className="tab-short">{t.short}</span>
             </button>
+          ))}
+        </nav>
+        <p className="sidebar-group">Путь переезда</p>
+        <nav className="tabs tabs-journey" aria-label="Путь переезда">
+          {JOURNEY_TABS.filter((t) => t.guest).map((t) => (
+            <Link key={t.to} to={t.to} className="tab" aria-label={t.label}>
+              <t.icon className="icon" aria-hidden />
+              <span className="tab-label">{t.label}</span>
+            </Link>
           ))}
         </nav>
         <div className="guest-faq">
