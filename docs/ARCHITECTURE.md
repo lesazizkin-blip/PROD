@@ -59,6 +59,7 @@ stateDiagram-v2
 
 - Вперёд — только на следующий этап (`POST …/transitions`); прыжок или тот же статус — `409`.
 - Ошибочную отметку исправляют отдельно (`POST …/status-corrections`): только назад, с причиной (5–300 символов), событие с `reason` и автором в журнале.
+- Пустую коробку (нет вещей, не «заполнить позже») нельзя перевести дальше «собирается».
 - Массовая отметка (`bulk-transitions`) атомарна: один недопустимый номер отклоняет всю операцию, статусы не меняются.
 - Каждый переход пишется в журнал событий в той же транзакции.
 
@@ -113,18 +114,21 @@ erDiagram
         string token_hash PK "SHA-256 токена"
         int user_id FK
         timestamp expires_at "30 дней"
+        timestamp created_at
     }
     PROJECT_MEMBERS {
         int id PK
         uuid project_id FK
         int user_id FK
         string role "owner | member"
+        timestamp created_at
     }
     INVITES {
         string token_hash PK "SHA-256 токена"
         uuid project_id FK
         int created_by FK "nullable"
         timestamp expires_at "7 дней"
+        timestamp created_at
     }
     PROJECTS {
         uuid id PK
@@ -142,6 +146,7 @@ erDiagram
         string title
         int planned "₽"
         int actual "₽, nullable"
+        timestamp created_at
     }
     BOX_QR_CODES {
         string code PK "MM1:…, 80 бит"
@@ -236,7 +241,7 @@ erDiagram
 
 | Группа | Пути |
 |---|---|
-| Служебные | `GET /api/health`, `GET /api/task-templates`, `GET /api/tips` |
+| Служебные | `GET /api/health`, `GET /api/config` (провайдер подсказок адреса), `GET /api/task-templates`, `GET /api/tips` |
 | Вход | `POST /api/auth/register`, `/login`, `/demo`, `/logout`, `/password`; `GET /api/auth/me` |
 | Приглашения и участники | `GET /api/invites/{token}`, `POST /api/invites/{token}/accept`; `POST/DELETE /api/projects/{pid}/invites`; `GET /api/projects/{pid}/members`, `DELETE …/members/{user_id}` |
 | Проекты | `GET/POST /api/projects`, `GET/PATCH/DELETE /api/projects/{pid}`, `GET …/events` |
@@ -244,7 +249,7 @@ erDiagram
 | Коробки | `GET/POST …/boxes`, `GET/PATCH/DELETE …/boxes/{n}`, `POST …/boxes/{n}/transitions`, `POST …/boxes/{n}/status-corrections`, `POST …/boxes/bulk-transitions`, `POST /api/boxes/resolve-code` (компактный QR) |
 | Вещи | `GET/POST …/boxes/{n}/items`, `POST …/boxes/{n}/items/bulk`, `PATCH/DELETE …/items/{item_id}`, `GET …/items/lost`, `GET …/items/{item_id}/hints` |
 | Поиск и этикетки | `GET …/search?q=`, `GET …/boxes/{n}/label`, `GET …/labels?numbers=` |
-| Контроль | `GET …/progress`, `GET …/reminders`, `GET/POST …/first-day`, `PATCH/DELETE …/first-day/{item_id}` |
+| Контроль | `GET …/progress`, `GET …/reminders`, `GET/POST …/first-day`, `PATCH/DELETE …/first-day/{item_id}`, `POST …/first-day/{item_id}/bind` (положить пункт в коробку) |
 | Ассистент | `POST …/assistant/checklist` (предложение), `POST …/assistant/checklist/apply` (добавить, без дублей) |
 | ИИ (по согласию) | `POST /api/projects/plan-questions` (уточняющие вопросы), `POST /api/projects/plan-preview` (черновик плана с `answers`), `POST …/boxes/{n}/photo-inventory` (опись по фото), `POST …/room-plan` (раскладка комнаты по фото) |
 | Путь переезда | `POST /api/calculator` (после входа), `GET/POST …/expenses`, `PATCH/DELETE …/expenses/{id}` |
