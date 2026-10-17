@@ -15,7 +15,7 @@ import { CATEGORY_LABELS, rub } from './money'
 import './journey.css'
 
 export default function BudgetPage() {
-  return <RequireProject>{(pid) => <Budget pid={pid} />}</RequireProject>
+  return <RequireProject>{(pid) => <Budget key={pid} pid={pid} />}</RequireProject>
 }
 
 /** Бюджет «план–факт»: план - из калькулятора или вручную, факт вносится по мере оплаты. */
@@ -56,9 +56,9 @@ function Budget({ pid }: { pid: string }) {
                 {b.items.map((e) => (
                   <div key={`${e.id}-${e.planned}-${e.actual}`} className="budget-row" role="row">
                     <span className="grow"><b>{e.title}</b><span className="sub">{CATEGORY_LABELS[e.category]}</span></span>
-                    <input type="number" min={0} aria-label={`План: ${e.title}`} defaultValue={e.planned} onBlur={(ev) => { if (ev.target.value.trim() === '') ev.target.value = String(e.planned); save(e, 'planned', ev.target.value) }} />
-                    <input type="number" min={0} aria-label={`Факт: ${e.title}`} placeholder="—" defaultValue={e.actual ?? ''} onBlur={(ev) => save(e, 'actual', ev.target.value)}
-                      className={e.actual !== null && e.actual > e.planned ? 'over' : ''} />
+                    <label className="budget-amount"><span>План, ₽</span><input type="number" min={0} aria-label={`План: ${e.title}`} defaultValue={e.planned} onBlur={(ev) => { if (ev.target.value.trim() === '') ev.target.value = String(e.planned); save(e, 'planned', ev.target.value) }} /></label>
+                    <label className="budget-amount"><span>Факт, ₽</span><input type="number" min={0} aria-label={`Факт: ${e.title}`} placeholder="—" defaultValue={e.actual ?? ''} onBlur={(ev) => save(e, 'actual', ev.target.value)}
+                      className={e.actual !== null && e.actual > e.planned ? 'over' : ''} /></label>
                     <button className="link small" aria-label={`Удалить «${e.title}»`} onClick={async () => {
                       if (await confirm({ title: `Удалить «${e.title}»?`, message: 'Статья пропадёт из бюджета.' })) void run(() => api.deleteExpense(pid, e.id))
                     }}><Trash2 className="icon-sm" aria-hidden /></button>

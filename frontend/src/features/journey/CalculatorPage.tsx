@@ -32,12 +32,18 @@ export default function CalculatorPage() {
   const cities = useAsync(() => api.cities(), [])
   const toBudget = useAction()
   const set = <K extends keyof CalculatorIn>(key: K, value: CalculatorIn[K]) => {
-    setForm({ ...form, [key]: value })
+    const next = { ...form, [key]: value }
+    if (!next.elevator_from) next.floor_from = Math.min(next.floor_from, 15)
+    if (!next.elevator_to) next.floor_to = Math.min(next.floor_to, 15)
+    setForm(next)
     setResult(null)
   }
   const setElevator = (key: 'elevator_from' | 'elevator_to', on: boolean) => {
     const floorKey = key === 'elevator_from' ? 'floor_from' : 'floor_to'
-    setForm({ ...form, [key]: on, [floorKey]: on ? form[floorKey] : Math.min(form[floorKey], NO_ELEVATOR_MAX_FLOOR) })
+    // набранный, но ещё не принятый этаж тоже приводим к пределу без лифта
+    const base = committed()
+    setForm({ ...base, [key]: on, [floorKey]: on ? base[floorKey] : Math.min(base[floorKey], NO_ELEVATOR_MAX_FLOOR) })
+    setDrafts({})
     setResult(null)
   }
   // Поле можно стереть и набрать число заново: черновик - строка, в форму оно попадает при уходе
@@ -88,7 +94,7 @@ export default function CalculatorPage() {
       })}>
         <div className="calc-grid">
           <label>
-            Город (цены грузчиков и машины)
+            Город
             <select value={form.city ?? ''} onChange={(e) => set('city', e.target.value || null)}>
               <option value="">Другой — средние по крупным городам</option>
               {(cities.data ?? []).map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
@@ -96,7 +102,7 @@ export default function CalculatorPage() {
           </label>
           {num('rooms', 'Комнат (студия = 1)', 1, 8)}
           {num('people', 'Сколько человек переезжает', 1, 10)}
-          {num('distance_km', 'Расстояние, км (до 500)', 0, 500)}
+          {num('distance_km', 'Расстояние, км', 0, 500)}
           <label>
             Дата переезда (необязательно)
             <input type="date" value={form.move_date ?? ''} onChange={(e) => set('move_date', e.target.value || null)} />
