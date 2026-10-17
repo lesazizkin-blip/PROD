@@ -481,6 +481,7 @@ class BoxService:
                 name=i.name,
                 item_status=i.status,
                 lost=i.status == ItemStatus.LOST,
+                damaged=bool(i.damaged),
                 box_number=b.number,
                 room=b.room,
                 status=b.status,

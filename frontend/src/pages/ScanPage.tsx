@@ -28,6 +28,8 @@ export default function ScanPage(services: Services) {
 function Scanner({ pid, projectName, resolveCode }: Services & { pid: string | null; projectName?: string }) {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
+  // ошибка ручного ввода номера - под полем ввода, а не под камерой
+  const [numberError, setNumberError] = useState<string | null>(null)
   const [number, setNumber] = useState('')
   const [active, setActive] = useState(true)
   const [attempt, setAttempt] = useState(0)
@@ -156,11 +158,12 @@ function Scanner({ pid, projectName, resolveCode }: Services & { pid: string | n
   async function openNumber(e?: FormEvent, supplied?: number) {
     e?.preventDefault()
     const n = supplied ?? normalizeNumber(number)
-    if (!pid || n === null) { setError('Введите положительный номер целиком, например #001.'); return }
+    const fail = supplied === undefined ? setNumberError : setError
+    if (!pid || n === null) { fail('Введите положительный номер целиком, например #001.'); return }
     if (locked.current) return
     locked.current = true
     const id = ++operation.current
-    setBusy(true); setActive(false); setError(null); setStatus('Проверяем коробку…')
+    setBusy(true); setActive(false); setError(null); setNumberError(null); setStatus('Проверяем коробку…')
     try {
       await camera.current?.stop()
       if (id !== operation.current) return
@@ -169,7 +172,7 @@ function Scanner({ pid, projectName, resolveCode }: Services & { pid: string | n
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) saveIntent(boxPath(pid, n))
       else if (id === operation.current) clearIntent()
-      if (id === operation.current) { setError(lookupMessage(e)); setStatus('Не удалось открыть коробку') }
+      if (id === operation.current) { fail(lookupMessage(e)); setStatus('Не удалось открыть коробку') }
     }
     finally { if (id === operation.current) { setBusy(false); locked.current = false } }
   }
@@ -192,7 +195,8 @@ function Scanner({ pid, projectName, resolveCode }: Services & { pid: string | n
       </div>
       {pid ? <form className="card stack scan-number" onSubmit={(e) => { void openNumber(e) }}>
         <h2>Знаете номер?</h2><p className="muted small">Введите его без сканирования. Найдём коробку в выбранном проекте.</p>
-        <label>Или введите номер коробки<input type="text" inputMode="numeric" autoComplete="off" placeholder="#001" value={number} onChange={(e) => setNumber(e.target.value)} /></label>
+        <label>Или введите номер коробки<input type="text" inputMode="numeric" autoComplete="off" placeholder="#001" value={number} aria-describedby={numberError ? 'scan-number-error' : undefined} onChange={(e) => { setNumber(e.target.value); setNumberError(null) }} /></label>
+        <div id="scan-number-error"><ErrorAlert message={numberError} /></div>
         <button className="primary" type="submit" disabled={!number || busy}>Подтвердить и открыть</button>
       </form> : <p className="muted">Ручной ввод номера доступен после выбора проекта.</p>}
     </div>

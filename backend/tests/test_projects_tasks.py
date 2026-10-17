@@ -283,3 +283,13 @@ def test_task_due_date_has_the_same_bounds_as_move_date(client, base):
         ).status_code
         == 422
     )
+
+
+def test_project_update_logs_only_changed_fields(client, base):
+    p = client.get(base).json()
+    same = {"name": p["name"], "move_date": p["move_date"], "address_from": None}
+    client.patch(base, json={**same, "name": "Новое имя"})
+    events = client.get(f"{base}/events?type=project.updated").json()["items"]
+    assert events[0]["data"]["fields"] == ["name"]
+    client.patch(base, json={**same, "name": "Новое имя"})  # ничего не поменялось
+    assert client.get(f"{base}/events?type=project.updated").json()["total"] == 1

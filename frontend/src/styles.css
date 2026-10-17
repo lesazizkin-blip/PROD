@@ -606,6 +606,7 @@ a.tips-card:hover { background: color-mix(in srgb, var(--primary-soft) 70%, var(
 a.tips-card .sub, .scan-card .sub { display: block; color: var(--muted); font-size: .85rem; margin-top: 2px; }
 .scan-card { background: var(--surface); border-left-color: var(--text); flex-wrap: wrap; }
 .scan-card .button { flex: none; }
+.scan-card .grow { flex: 1 1 220px; }  /* на телефоне текст не сжимается в столбик: кнопка уходит на новую строку */
 
 /* группа «Путь переезда» в меню слева: только на ноутбуке, на телефоне внизу остаются 4 вкладки */
 .sidebar-group, .tabs.tabs-journey { display: none; }

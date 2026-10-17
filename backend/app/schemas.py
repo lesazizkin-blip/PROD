@@ -677,6 +677,7 @@ class SearchHit(BaseModel):
     name: str
     item_status: ItemStatus
     lost: bool
+    damaged: bool = False
     box_number: int
     room: str
     status: BoxStatus

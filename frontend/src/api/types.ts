@@ -125,6 +125,7 @@ export interface SearchHit {
   name: string
   item_status: ItemStatus
   lost: boolean
+  damaged?: boolean
   box_number: number
   room: string
   status: BoxStatus

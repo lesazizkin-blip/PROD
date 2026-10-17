@@ -94,11 +94,19 @@ class ProjectService:
                 )
             ):
                 task.due_date = task.due_date + shift
+        # в журнал - только поля, которые действительно изменились (форма шлёт все поля сразу)
+        changes = {k: v for k, v in changes.items() if getattr(project, k) != v}
         for field, value in changes.items():
             setattr(project, field, value)
-        log_event(
-            self.db, project.id, "project.updated", "project", project.id, fields=sorted(changes)
-        )
+        if changes:  # сохранение без изменений не засоряет журнал
+            log_event(
+                self.db,
+                project.id,
+                "project.updated",
+                "project",
+                project.id,
+                fields=sorted(changes),
+            )
         self.db.commit()
         return project
 
