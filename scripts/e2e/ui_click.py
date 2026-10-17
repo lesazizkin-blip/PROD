@@ -122,6 +122,8 @@ async def main():
                     )
 
             await cmd("Page.enable")
+            await cmd("Network.enable")
+            await cmd("Network.setExtraHTTPHeaders", headers={"X-MoverMate-Check": "ui"})  # метка для логов
             await cmd("Runtime.enable")
             await cmd(
                 "Emulation.setDeviceMetricsOverride",

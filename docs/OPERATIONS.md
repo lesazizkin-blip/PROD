@@ -33,7 +33,7 @@ lint ──► test ──► build:image ──► setup:vm ──► deploy:vm
 | `test-frontend` | любая ветка | vitest с покрытием, сборка сайта; отчёты junit и cobertura, html в артефактах |
 | `build:image` | MR и `master` | Kaniko (шаблон `.dp_build`): `registry.spirit.t-education.com/hack-led-20/prod_1:<sha>` |
 | `setup:vm` | `master` | ставит на ВМ Spirit CLI `dp`, если его нет |
-| `deploy:vm` | `master` | копия базы, новые `docker-compose.yml`/`Caddyfile`/`backup.sh`, вход в registry ключом сервис-аккаунта, `pull` и `up` нового образа, запись `APP_IMAGE` в `.env`; Caddy пересоздаётся, только если изменился `Caddyfile` |
+| `deploy:vm` | `master` | копия базы, новые `docker-compose.yml`/`Caddyfile`/`backup.sh`, вход в registry ключом сервис-аккаунта, `pull` и `up` нового образа, запись `APP_IMAGE` в `.env`; `caddy reload` применяет новый `Caddyfile` без простоя (ошибочный не применяется) |
 | `preflight:prod` | `master` | `scripts/preflight.sh` по живому сайту: весь сценарий ТЗ на временном проекте демо-аккаунта |
 
 Отличия от шаблона организаторов (`templates/l2sh-template`): деплой в существующий стек `/opt/movermate/deploy` (адрес и сертификат сохраняются), адреса `culab.ru` заменены на `t-education.com`, образ `base-noble` — на `kroniak/ssh-client:3.19`, базовые образы — через `mirror.gcr.io` (у Docker Hub лимит с общих раннеров).
@@ -103,7 +103,7 @@ scripts/e2e.sh                 # прод по API (ТЗ, доп. функции
 
 | Запись | Поля |
 |---|---|
-| `msg="request"` — каждый запрос к API | `method`, `path`, `status`, `latency_ms`, `user_id`, `request_id`; уровень по статусу (5xx ERROR, 4xx WARN) |
+| `msg="request"` — каждый запрос к API | `method`, `path` (токен приглашения маскируется), `status`, `latency_ms`, `user_id`, `request_id`, `check` (только у автоматических проверок: `e2e`, `preflight`, `ui`); уровень по статусу (5xx ERROR, 4xx WARN). WARN от проверок ожидаемы: они нарочно проверяют отказы 401/403/404/409/422 |
 | `msg="audit"` — действия пользователей | `action` (`auth.login`, `auth.login_failed`, `box.created`, `box.status_changed`, `project.deleted`, `invite.created`…), только id |
 | `msg="unhandled_exception"` | стек, `request_id`, `path` |
 | `msg="app_error"`, `msg="validation_failed"` | код ошибки, путь |

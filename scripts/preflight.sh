@@ -18,6 +18,8 @@ check() {  # check "описание" команда...
 }
 
 EMPTY_BODY='{}'
+# все запросы проверки помечены: в логах Sage они отделяются от живых пользователей (поле check)
+curl() { command curl -H "X-MoverMate-Check: preflight" "$@"; }
 api() { curl -fsS -b "$JAR" "$BASE/api$1"; }  # api /путь -> тело ответа, ненулевой код при 4xx/5xx
 post() { curl -fsS -b "$JAR" -c "$JAR" -X POST "$BASE/api$1" -H 'content-type: application/json' -d "${2:-$EMPTY_BODY}"; }
 code() {  # code МЕТОД /путь [тело] -> HTTP-код (без падения на 4xx)

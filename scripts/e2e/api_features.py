@@ -6,7 +6,7 @@ import uuid
 import httpx
 
 BASE = sys.argv[1].rstrip("/") + "/api"
-c = httpx.Client(timeout=30)
+c = httpx.Client(timeout=30, headers={"X-MoverMate-Check": "e2e"})
 res = {}
 
 

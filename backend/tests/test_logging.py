@@ -234,3 +234,13 @@ def test_invite_token_never_reaches_the_request_log(client, base, logs):
     client.get(f"/api/invites/{token}")
     everything = json.dumps(logs.lines, ensure_ascii=False)
     assert token not in everything and "/api/invites/***" in everything
+
+
+def test_error_logs_mask_invite_tokens_and_checks_are_tagged(client, logs):
+    client.post("/api/invites/secret-token-123/accept", headers={"X-MoverMate-Check": "e2e"})
+    everything = json.dumps(logs.lines, ensure_ascii=False)
+    assert "secret-token-123" not in everything  # и в app_error, не только в request
+    request = next(
+        x for x in logs.lines if x.get("msg") == "request" and "invites" in x.get("path", "")
+    )
+    assert request["check"] == "e2e"

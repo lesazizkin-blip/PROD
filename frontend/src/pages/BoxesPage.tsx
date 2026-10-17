@@ -94,7 +94,7 @@ function Boxes({ pid }: { pid: string }) {
                     <span aria-hidden>{h.lost ? '⚠️' : '🔎'}</span>
                     <span className="grow">
                       <b><Highlight text={h.name} query={q} /></b>
-                      <span className="sub">Коробка № {h.box_number} · {h.room}</span>
+                      <span className="sub">Коробка № {h.box_number} · {h.room}{h.lost ? ' · не могу найти' : ''}{h.damaged ? ' · повреждена' : ''}</span>
                     </span>
                     <StatusBadge status={h.status} />
                   </BoxLink>

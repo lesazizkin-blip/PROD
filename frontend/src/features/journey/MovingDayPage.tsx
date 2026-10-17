@@ -104,7 +104,9 @@ function MovingDay({ pid }: { pid: string }) {
               <div key={b.number} className="list-row">
                 <span className="grow"><Link to={boxPath(pid, b.number)}><b>№ {b.number}</b></Link> <span className="sub">{b.room} · {b.items_count} вещ.</span></span>
                 <StatusBadge status={b.status} />
-                <button className="small" disabled={!canAdvanceBox(b.status, target) || inFlight.has(b.number)} title={!canAdvanceBox(b.status, target) ? (mode === 'load' ? 'Сначала соберите коробку' : 'Сначала отметьте погрузку') : undefined} onClick={() => void mark(b.number)}>{mode === 'load' ? 'Погружена' : 'Принята'}</button>
+                {canAdvanceBox(b.status, target)
+                  ? <button className="small" disabled={inFlight.has(b.number)} onClick={() => void mark(b.number)}>{mode === 'load' ? 'Погружена' : 'Принята'}</button>
+                  : <span className="small muted">{mode === 'load' ? 'сначала «Собрана»' : 'сначала погрузка'}</span>}
               </div>
             ))}
           </div>

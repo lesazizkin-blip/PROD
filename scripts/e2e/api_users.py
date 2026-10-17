@@ -16,9 +16,9 @@ def check(name, ok):
 suffix = secrets.token_hex(3)
 owner_pw, helper_pw = secrets.token_urlsafe(12), secrets.token_urlsafe(12)
 owner, helper, anon = (
-    httpx.Client(timeout=30),
-    httpx.Client(timeout=30),
-    httpx.Client(timeout=30),
+    httpx.Client(timeout=30, headers={"X-MoverMate-Check": "e2e"}),
+    httpx.Client(timeout=30, headers={"X-MoverMate-Check": "e2e"}),
+    httpx.Client(timeout=30, headers={"X-MoverMate-Check": "e2e"}),
 )
 check(
     "регистрация",
@@ -111,7 +111,7 @@ check(
     "помощник выходит сам",
     helper.delete(f"{P}/members/{hid}", params={"confirm": "true"}).status_code == 204,
 )
-second = httpx.Client(timeout=30)
+second = httpx.Client(timeout=30, headers={"X-MoverMate-Check": "e2e"})
 second.post(
     f"{BASE}/auth/login", json={"username": f"own{suffix}", "password": owner_pw}
 )
