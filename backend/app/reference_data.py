@@ -63,8 +63,8 @@ TIPS = [
 
 # Цены на переезд по городам для калькулятора. Источник - Профи.ру, страницы «Стоимость грузчиков» и
 # «Стоимость газели на час» в каждом городе: вилка ставок исполнителей (schema.org lowPrice/highPrice)
-# и число исполнителей (offerCount). Проверено 17.10.2026. Обновить: поменять числа и дату, при старте
-# приложения таблица city_prices обновится сама.
+# и число исполнителей (offerCount). Проверено 17.10.2026. Это начальный снимок: свежие цены раз в сутки
+# подтягивает python -m app.price_update (cron на ВМ). slug совпадает с кодом города в адресе Профи.ру.
 PRICES_CHECKED_ON = date(2026, 10, 17)
 PRICES_SOURCE = "Профи.ру: стоимость грузчиков и газели на час"
 # slug, город, грузчик ₽/ч (мин, макс, исполнителей), Газель с водителем ₽/ч (мин, макс, исполнителей)
@@ -98,7 +98,11 @@ def ensure_reference_data(db: Session) -> None:
     for topic, title, body in TIPS:
         if (topic, title) not in have_tips:
             db.add(Tip(topic=topic, title=title, body=body))
-    for slug, name, movers, trucks in CITY_PRICES:  # цены обновляются при каждом старте
+    # снимок из кода не перетирает цены, обновлённые скриптом позже: записывается, только если он новее
+    have_prices = {c.slug: c.checked_on for c in db.scalars(select(CityPrice))}
+    for slug, name, movers, trucks in CITY_PRICES:
+        if slug in have_prices and have_prices[slug] >= PRICES_CHECKED_ON:
+            continue
         db.merge(
             CityPrice(
                 slug=slug,

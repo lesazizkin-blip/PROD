@@ -18,7 +18,7 @@ from app.schemas import (
     ExpenseUpdate,
 )
 from app.services.budget import BudgetService
-from app.services.calculator import city_rates, estimate
+from app.services.calculator import average_rates, city_rates, estimate
 
 router = APIRouter(tags=["journey"])
 
@@ -33,17 +33,16 @@ def calculator(
     _user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    rates = None
+    def prices(row: CityPrice):
+        movers = (row.mover_low, row.mover_high, row.movers_offers)
+        return movers, (row.truck_low, row.truck_high, row.trucks_offers), row.checked_on
+
     if body.city:
         row = db.get(CityPrice, body.city)
         if row is None:
             raise ValidationFailed("Такого города нет в списке: выберите из GET /api/cities")
-        rates = city_rates(
-            row.name,
-            (row.mover_low, row.mover_high, row.movers_offers),
-            (row.truck_low, row.truck_high, row.trucks_offers),
-        )
-    return estimate(body, rates)
+        return estimate(body, city_rates(row.name, *prices(row)))
+    return estimate(body, average_rates([prices(r) for r in db.query(CityPrice).all()]))
 
 
 @router.get(

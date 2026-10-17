@@ -40,32 +40,47 @@ class Rates:
     mover: tuple[int, int]
     truck: tuple[int, int]
     offers: int
+    checked_on: date
+    cities: int = 1  # по скольким городам усреднено (город не выбран)
 
 
 def _typical(low: int, high: int) -> tuple[int, int]:
     return low, round((low + high) / 2)
 
 
-def city_rates(name: str, movers: tuple[int, int, int], trucks: tuple[int, int, int]) -> Rates:
-    return Rates(name, _typical(*movers[:2]), _typical(*trucks[:2]), movers[2] + trucks[2])
+Prices = tuple[int, int, int]  # мин ₽/ч, макс ₽/ч, исполнителей
 
 
-def average_rates() -> Rates:
-    """Город не выбран: средние ставки по всем городам справочника."""
-    n = len(CITY_PRICES)
-    ml = round(sum(c[2][0] for c in CITY_PRICES) / n)
-    mh = round(sum(c[2][1] for c in CITY_PRICES) / n)
-    tl = round(sum(c[3][0] for c in CITY_PRICES) / n)
-    th = round(sum(c[3][1] for c in CITY_PRICES) / n)
-    offers = sum(c[2][2] + c[3][2] for c in CITY_PRICES)
-    return Rates(None, _typical(ml, mh), _typical(tl, th), offers)
+def city_rates(name: str, movers: Prices, trucks: Prices, checked_on: date) -> Rates:
+    return Rates(
+        name, _typical(*movers[:2]), _typical(*trucks[:2]), movers[2] + trucks[2], checked_on
+    )
+
+
+def average_rates(rows: list[tuple[Prices, Prices, date]] | None = None) -> Rates:
+    """Город не выбран: средние ставки по всем городам (из базы; без неё - по снимку в коде)."""
+    if not rows:
+        rows = [(m, t, PRICES_CHECKED_ON) for _, _, m, t in CITY_PRICES]
+    n = len(rows)
+
+    def avg(i: int, j: int) -> int:
+        return round(sum(r[i][j] for r in rows) / n)
+
+    return Rates(
+        None,
+        _typical(avg(0, 0), avg(0, 1)),
+        _typical(avg(1, 0), avg(1, 1)),
+        sum(r[0][2] + r[1][2] for r in rows),
+        min(r[2] for r in rows),
+        n,
+    )
 
 
 def _assumptions(r: Rates) -> str:
-    where = f"в г. {r.city}" if r.city else f"в среднем по {len(CITY_PRICES)} крупным городам"
+    where = f"в г. {r.city}" if r.city else f"в среднем по {r.cities} крупным городам"
     return (
         f"Цены {where}: грузчик {r.mover[0]}–{r.mover[1]} ₽/ч, Газель {r.truck[0]}–{r.truck[1]} ₽/ч "
-        f"({PRICES_SOURCE}, {r.offers} исполнителей, проверено {PRICES_CHECKED_ON:%d.%m.%Y}). "
+        f"({PRICES_SOURCE}, {r.offers} исполнителей, проверено {r.checked_on:%d.%m.%Y}). "
         f"Коробки {BOX_PRICE[0]}–{BOX_PRICE[1]} ₽, упаковка, уборка и межгород — средние по России. "
         "Точную цену назовёт подрядчик."
     )
