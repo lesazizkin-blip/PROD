@@ -32,3 +32,20 @@ ssh -i ~/.ssh/vm1.pem root@178.72.185.97 'docker ps; docker logs --tail 50 deplo
 
 ## Автодеплой из GitLab
 Основной путь. Пайплайн `.gitlab-ci.yml` (шаблон организаторов) на каждое слияние в `master` собирает образ в Spirit Registry, копирует базу в `/root/backups` и обновляет на этой ВМ только контейнер `app`, затем прогоняет `preflight.sh` (`docs/GITLAB.md`). Работает с 17.10 (пайплайн 11105). Ручной передеплой выше остаётся запасным путём.
+
+## Резервные копии
+- `deploy/backup.sh` делает онлайн-копию SQLite через backup API (корректна и во время записи), проверяет `pragma integrity_check` и число проектов, хранит последние 48 копий в `/root/backups` (`app-<дата>-<метка>.db`).
+- Запуск: каждый час по cron (`/etc/cron.d/movermate-backup`, лог `/var/log/movermate-backup.log`) и перед каждой выкаткой из CI (метка `ci`). Cron и скрипт ставит задание `deploy:vm`.
+- Восстановление из копии:
+```bash
+ssh -i ~/.ssh/vm1.pem root@178.72.185.97
+cd /opt/movermate/deploy && ls -1t /root/backups | head        # выбрать копию
+docker compose stop app
+docker cp /root/backups/<копия>.db deploy-app-1:/data/app.db
+docker compose start app
+```
+Затем с компьютера: `scripts/preflight.sh https://hack-led-20-vm1-12902f.vmaas-spirit.t-education.com`.
+
+## Заголовки безопасности
+Caddy добавляет `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` (камера только для самого сайта) и скрывает заголовок `Server`. `preflight.sh` проверяет их на HTTPS-адресе; при выкатке Caddy перечитывает `Caddyfile` (`caddy reload`).
+

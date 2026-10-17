@@ -43,7 +43,8 @@
 **Григорий (Бэкенд 1)**
 - Помочь каждому со стартом: клон, токен, `git config`, первый MR (до 12:00).
 - Заголовки безопасности в `deploy/Caddyfile` (`Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`), проверить `curl -I`.
-- Резервные копии по расписанию: cron на ВМ, `sqlite3 .backup` раз в час в `/root/backups`, хранить последние 48; один раз проверить восстановление на копии.
+- ✅ Резервные копии по расписанию: `deploy/backup.sh` по cron раз в час, последние 48, проверка целостности (сделано 17.10).
+- ✅ Заголовки безопасности в `deploy/Caddyfile` (HSTS, nosniff, X-Frame-Options, Referrer-Policy, Permissions-Policy), проверяются в `preflight.sh`.
 
 **Демид (Бэкенд 2)**
 - Контракт выше — в `docs/API.md` (первый час), сообщение в чат.
