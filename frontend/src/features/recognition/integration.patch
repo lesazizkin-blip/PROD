@@ -1,0 +1,39 @@
+--- a/frontend/src/App.tsx
++++ b/frontend/src/App.tsx
+@@ -13,6 +13,14 @@
+ import ProgressPage from './pages/ProgressPage'
+ import TipsPage from './pages/TipsPage'
+ import { useAuth } from './state/AuthContext'
++import { resolveCompactCode } from './features/recognition/qr'
++import { recognizeWithLocalPrototype } from './features/recognition/loadLocalOcr'
++
++// Enable compact codes only after backend verification. OCR remains experimental.
++const recognitionServices = {
++  resolveCode: import.meta.env.VITE_COMPACT_QR_ENABLED === 'true' ? resolveCompactCode : undefined,
++  recognizeHandwriting: import.meta.env.VITE_LOCAL_OCR_PROTOTYPE === 'true' ? recognizeWithLocalPrototype : undefined,
++}
+ 
+ // Сканер (библиотека камеры тяжёлая) грузится только при открытии экрана
+ const ScanPage = lazy(() => import('./pages/ScanPage'))
+@@ -46,7 +54,7 @@
+         <Route path="labels/print" element={<PrintAllPage />} />
+         <Route path="progress" element={<ProgressPage />} />
+         <Route path="tips" element={<TipsPage />} />
+-        <Route path="scan" element={<Suspense fallback={<div className="state" role="status">Загрузка…</div>}><ScanPage /></Suspense>} />
++        <Route path="scan" element={<Suspense fallback={<div className="state" role="status">Загрузка…</div>}><ScanPage {...recognitionServices} /></Suspense>} />
+         <Route path="new" element={<NewProjectPage />} />
+         <Route path="projects/:pid/boxes/:n" element={<BoxPage />} />
+         <Route path="projects/:pid/boxes/:n/label" element={<LabelPage />} />
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -15,7 +15,9 @@
+     "qrcode.react": "^4.2.0",
+     "react": "^19.2.8",
+     "react-dom": "^19.2.8",
+-    "react-router-dom": "^7.18.4"
++    "react-router-dom": "^7.18.4",
++    "tesseract.js": "6.0.1",
++    "tesseract.js-core": "6.1.2"
+   },
+   "devDependencies": {
+     "@testing-library/react": "^16.3.3",
