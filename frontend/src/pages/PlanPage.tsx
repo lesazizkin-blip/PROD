@@ -4,6 +4,7 @@ import { api } from '../api/endpoints'
 import type { Stage, Task, TaskCreate } from '../api/types'
 import ChecklistModal from '../components/ChecklistModal'
 import Modal from '../components/Modal'
+import PageHeading from '../components/PageHeading'
 import RequireProject from '../components/RequireProject'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
@@ -22,11 +23,14 @@ export default function PlanPage() {
 
 function Plan({ pid }: { pid: string }) {
   const project = useAsync(() => api.getProject(pid), [pid])
+  const progress = useAsync(() => api.progress(pid), [pid])
   const tasks = useAsync(() => api.tasks(pid), [pid])
   const firstDay = useAsync(() => api.firstDay(pid), [pid])
   // null - форма закрыта, 'new' - новая задача, Task - правка существующей
   const [form, setForm] = useState<'new' | Task | null>(null)
   const [smart, setSmart] = useState(false)
+  const [activeStage, setActiveStage] = useState<Stage>('before')
+  const [today] = useState(() => new Date(new Date().toDateString()).getTime())
 
   const reloadAll = () => {
     project.reload()
@@ -38,29 +42,38 @@ function Plan({ pid }: { pid: string }) {
   const list = tasks.data ?? []
   const done = list.filter((t) => t.done).length
   const first = firstDay.data ?? []
+  const days = project.data ? Math.ceil((new Date(`${project.data.move_date}T00:00:00`).getTime() - today) / 86400000) : null
+  const countdown = days === null ? '…' : days > 0 ? `${days} дн.` : days === 0 ? 'Сегодня' : 'Уже дома'
+  const dateStamp = project.data ? new Date(`${project.data.move_date}T12:00:00`).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }).replace('.', ' / ') : '…'
   const toggleTask = (t: Task) => act(() => api.updateTask(pid, t.id, { done: !t.done }))
 
   return (
     <StateView loading={tasks.loading && !tasks.data} error={tasks.error} onRetry={reloadAll}>
-      <div className="card hero stack">
-        <div>
-          <h2>{project.data?.name ?? '…'}</h2>
-          <div className="muted">{project.data ? `Переезд ${formatDate(project.data.move_date)}` : ' '}</div>
+      <PageHeading title="Всё идёт по плану.">Новый дом начинается с маленьких шагов. {days !== null && days > 0 ? `До переезда — ${days} дн.` : 'Каждая вещь на своём месте.'}</PageHeading>
+      <div className="move-ticket">
+        <div className="stack">
+          <span className="eyebrow">МАРШРУТ / {project.data?.name ?? 'ВАШ ПЕРЕЕЗД'}</span>
+          <h2>Собираем вещи.<br />Сохраняем спокойствие.</h2>
+          <p className="small">{[project.data?.address_from, project.data?.address_to].filter(Boolean).join(' → ') || 'Впереди — новый дом.'}</p>
         </div>
-        <ProgressBar value={done} max={list.length} label="Выполнено задач" />
-        <div className="row between">
-          <span className="small">Выполнено {done} из {list.length}</span>
-          <span className="row">
-            <button className="link small" style={{ color: 'inherit' }} onClick={() => setSmart(true)}>Умный чек-лист</button>
-            <Link to="/tips" className="small" style={{ color: 'inherit' }}>Памятки →</Link>
-          </span>
-        </div>
+        <div className="date-stamp"><strong>{dateStamp}</strong><span>ДАТА ПЕРЕЕЗДА</span><span className="stamp-arrows">↑↑ THIS SIDE UP</span></div>
       </div>
+      <div className="plan-stats">
+        <div className="stat"><b>{done} / {list.length}</b><span>задач выполнено</span><ProgressBar value={done} max={list.length} label="Выполнено задач" /></div>
+        <div className="stat"><b>{progress.data ? progress.data.boxes_total - progress.data.by_status.packing : '…'} / {progress.data?.boxes_total ?? '…'}</b><span>коробок собрано</span></div>
+        <div className="stat"><b>{countdown}</b><span>до нового дома</span></div>
+      </div>
+      <div className="plan-layout">
+      <div className="plan-tasks stack">
+        <div className="row between"><h2>Ближайшие дела</h2><button className="link small" onClick={() => setSmart(true)}>Умный чек-лист →</button></div>
       <ErrorAlert message={error} />
 
-      {STAGES.map((stage) => {
+      <div className="stage-tabs" role="group" aria-label="Этапы переезда">
+        {STAGES.map((stage) => <button key={stage} className={stage === activeStage ? 'on' : ''} aria-pressed={stage === activeStage} onClick={() => setActiveStage(stage)}>{STAGE_LABELS[stage]}</button>)}
+      </div>
+      {STAGES.filter((stage) => stage === activeStage).map((stage) => {
         const items = list.filter((t) => t.stage === stage)
-        if (items.length === 0) return null
+        if (items.length === 0) return <p key={stage} className="muted">На этом этапе задач пока нет. Добавьте свою.</p>
         return (
           <section key={stage}>
             <SectionTitle>{STAGE_LABELS[stage]}</SectionTitle>
@@ -88,6 +101,11 @@ function Plan({ pid }: { pid: string }) {
         )
       })}
 
+      </div>
+      <aside className="first-day stack">
+        <span className="eyebrow accent">ОТКРЫТЬ ПЕРВОЙ</span>
+        <h2>Первый вечер<br />без поисков.</h2>
+        <p>Чайник, зарядки, зубные щётки и постельное бельё — в одну коробку.</p>
       <section>
         <SectionTitle>Коробка первого дня</SectionTitle>
         <div className="card flush">
@@ -102,6 +120,10 @@ function Plan({ pid }: { pid: string }) {
         </div>
       </section>
 
+        <Link to="/tips" className="button dark">Памятки по упаковке →</Link>
+        <span className="eyebrow muted">ПАМЯТКА № 01</span>
+      </aside>
+      </div>
       <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button>
       {smart ? <ChecklistModal pid={pid} onClose={() => setSmart(false)} onApplied={reloadAll} /> : null}
       {form ? (

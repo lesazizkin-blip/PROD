@@ -14,7 +14,7 @@ afterEach(cleanup)
 describe('сканер', () => {
   it('открывается без выбранного проекта (новое устройство) и не просит создать проект', () => {
     render(<MemoryRouter><AuthProvider><ProjectProvider><ScanPage /></ProjectProvider></AuthProvider></MemoryRouter>)
-    expect(screen.getByRole('heading', { name: 'Сканер QR' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Сканирование QR' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Создать проект' })).toBeNull()
     expect(screen.queryByLabelText('Или введите номер коробки')).toBeNull()
   })

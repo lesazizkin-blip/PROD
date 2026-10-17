@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/endpoints'
 import type { Box } from '../api/types'
 import Modal from '../components/Modal'
+import PageHeading from '../components/PageHeading'
 import RequireProject from '../components/RequireProject'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
@@ -18,15 +19,13 @@ export default function BoxesPage() {
 
 function BoxRow({ pid, box }: { pid: string; box: Box }) {
   return (
-    <Link to={boxPath(pid, box.number)} className="list-row">
-      <span aria-hidden>📦</span>
-      <span className="grow">
-        <b>№ {box.number} · {box.room}</b>
-        <span className="sub">
-          {box.items_count} {plural(box.items_count, ['вещь', 'вещи', 'вещей'])}{box.fill_later && box.items_count === 0 ? ' · заполнить позже' : ''}
-        </span>
-      </span>
-      <StatusBadge status={box.status} />
+    <Link to={boxPath(pid, box.number)} className="box-card">
+      <div className="box-card-header"><span className="box-number">{String(box.number).padStart(3, '0')}</span><StatusBadge status={box.status} /></div>
+      <h2>{box.room}</h2>
+      <p className="muted small">{box.items_count} {plural(box.items_count, ['вещь', 'вещи', 'вещей'])}{box.fill_later && box.items_count === 0 ? ' · заполнить позже' : ' · посмотреть содержимое →'}</p>
+      <span className="eyebrow muted">↑↑ ВЕРХ</span>
+      <img className="packing-tape" src="/assets/packing-tape.svg" alt="" />
+      <img className="packing-bars" src="/assets/packing-bars.svg" alt="" />
     </Link>
   )
 }
@@ -52,11 +51,12 @@ function Boxes({ pid }: { pid: string }) {
 
   return (
     <>
-      <input type="search" placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Поиск" />
+      <PageHeading title="Каждой вещи — своё место." mobileTitle="Коробки">{boxes.data?.total ?? '…'} коробок · ни одной загадочной коробки</PageHeading>
+      <div className="search-tools"><input type="search" placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Поиск" /><Link to="/scan" className="button">Сканировать QR</Link><button className="primary" onClick={() => setAdding(true)}>+ Коробка</button></div>
 
       {q ? (
         <>
-          {numberMatch ? <div className="card flush"><BoxRow pid={pid} box={numberMatch} /></div> : null}
+          {numberMatch ? <div className="box-grid"><BoxRow pid={pid} box={numberMatch} /></div> : null}
           <StateView
             loading={hits.loading && !hits.data}
             error={hits.error}
@@ -91,18 +91,18 @@ function Boxes({ pid }: { pid: string }) {
           ) : null}
           {rooms.length > 1 ? (
             <div className="chips" role="group" aria-label="Фильтр по комнатам">
-              <button className={room === null ? 'chip on' : 'chip'} onClick={() => setRoom(null)}>Все</button>
+              <button className={room === null ? 'chip on' : 'chip'} onClick={() => setRoom(null)}>Все комнаты · {all.length}</button>
               {rooms.map((r) => (
-                <button key={r} className={room === r ? 'chip on' : 'chip'} onClick={() => setRoom(room === r ? null : r)}>{r}</button>
+                <button key={r} className={room === r ? 'chip on' : 'chip'} onClick={() => setRoom(room === r ? null : r)}>{r} · {all.filter((b) => b.room === r).length}</button>
               ))}
             </div>
           ) : null}
-          <div className="card flush">{visible.map((b) => <BoxRow key={b.number} pid={pid} box={b} />)}</div>
+          <div className="box-grid">{visible.map((b) => <BoxRow key={b.number} pid={pid} box={b} />)}</div>
           <p className="muted small">Статусы: {Object.values(STATUS_LABELS).join(' → ')}</p>
         </StateView>
       )}
 
-      <button className="primary fab" onClick={() => setAdding(true)}>+ Коробка</button>
+      <div className="packing-tip"><span aria-hidden>↑↑</span><p>Совет: подпишите коробку с двух сторон — её будет проще найти в стопке.</p></div>
       {adding ? (
         <AddBoxModal
           rooms={rooms}

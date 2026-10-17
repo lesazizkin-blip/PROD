@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
+import PageHeading from '../components/PageHeading'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
@@ -45,11 +46,13 @@ export default function BoxPage() {
     <StateView loading={card.loading && !box} error={card.error} onRetry={card.reload}>
       {box ? (
         <>
-          <div className="card stack">
+          <PageHeading title={`Коробка ${String(box.number).padStart(3, '0')}`}>{box.room} · {box.items.length} вещей · {STATUS_LABELS[box.status]}</PageHeading>
+          <div className="box-detail-layout">
+          <aside className="box-summary stack">
             <div className="row between">
               <div>
                 <div className="muted small">Коробка</div>
-                <h1 style={{ fontSize: '2.4rem', margin: 0 }}>№ {box.number}</h1>
+                <div className="detail-number">{String(box.number).padStart(3, '0')}</div>
                 <div style={{ fontSize: '1.2rem' }}>{box.room}</div>
               </div>
               <div className="stack" style={{ justifyItems: 'end' }}>
@@ -67,8 +70,8 @@ export default function BoxPage() {
               <button className="tonal" onClick={() => setAdding(true)}>+ Вещи</button>
               <button onClick={() => setEditing(true)}>Изменить</button>
             </div>
-          </div>
-
+          </aside>
+          <section className="box-contents stack">
           <SectionTitle>{`Содержимое (${box.items.length})`}</SectionTitle>
           {box.items.length === 0 ? <p className="muted">Пока пусто. Добавьте вещи кнопкой «+ Вещи».</p> : null}
           {box.items.length > 0 ? (
@@ -89,6 +92,9 @@ export default function BoxPage() {
           ) : null}
 
           <button className="danger" disabled={busy} onClick={deleteBox}>Удалить коробку</button>
+          </section>
+          </div>
+          <Link to="/boxes" className="button back-link">← К коробкам</Link>
 
           {adding ? <AddItemsModal onClose={() => setAdding(false)} onSave={async (text) => { await api.createItemsBulk(pid, number, text); setAdding(false); card.reload() }} /> : null}
           {editing ? (

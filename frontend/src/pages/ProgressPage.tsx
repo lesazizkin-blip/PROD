@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/endpoints'
 import type { BoxStatus, Hint, LostItem } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
 import Modal from '../components/Modal'
+import PageHeading from '../components/PageHeading'
 import RequireProject from '../components/RequireProject'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
@@ -57,14 +58,11 @@ function ProgressView({ pid }: { pid: string }) {
   const lostList = lost.data ?? []
 
   return (
+    <>
+    <PageHeading title="Всё доедет до дома.">Контролируйте путь коробок — от скотча до последней распакованной вещи.</PageHeading>
     <StateView loading={progress.loading && !p} error={progress.error} empty={!!p && p.boxes_total === 0} emptyText="Коробок пока нет: прогресс появится после первой коробки" emptyIcon="📊" onRetry={reloadAll}>
       {p ? (
         <>
-          <div className="card hero stack">
-            <div style={{ fontSize: '2.4rem', fontWeight: 700, lineHeight: 1 }}>{p.boxes_total}</div>
-            <div>коробок · распаковано {Math.round(p.unpacked_percent)}%</div>
-            <ProgressBar value={p.unpacked_percent} label="Распаковано коробок" />
-          </div>
           <ErrorAlert message={error} />
 
           <div className="stat-grid">
@@ -76,7 +74,11 @@ function ProgressView({ pid }: { pid: string }) {
             ))}
           </div>
 
-          <SectionTitle>По комнатам</SectionTitle>
+          <div className="progress-layout">
+          <section className="room-progress stack">
+          <h2>Готовность по комнатам</h2>
+          <span className="eyebrow accent">УПАКОВКА → ПОГРУЗКА → РАСПАКОВКА</span>
+          <p className="muted small">Всего {p.boxes_total} коробок · распаковано {Math.round(p.unpacked_percent)}%</p>
           {p.rooms.map((r) => (
             <div key={r.room} className="card stack">
               <b>{r.room} · {r.total} кор.</b>
@@ -94,6 +96,15 @@ function ProgressView({ pid }: { pid: string }) {
             </div>
           ))}
 
+          </section>
+          <aside className="first-day stack">
+            <span className="eyebrow accent">ДЕНЬ ПЕРЕЕЗДА</span>
+            <h2>Перед закрытием<br />двери</h2>
+            <p>Проверьте шкафы и балкон, снимите показания счётчиков, заберите документы и передайте ключи.</p>
+            <Link to="/scan" className="button dark">Открыть сканер →</Link>
+            <p className="muted small">Сканирование открывает карточку. Статус меняется по нажатию.</p>
+          </aside>
+          </div>
           <SectionTitle>Потерянные вещи</SectionTitle>
           <div className="card flush">
             {lostList.length === 0 ? <div className="list-row muted">Ничего не потеряно</div> : null}
@@ -129,5 +140,6 @@ function ProgressView({ pid }: { pid: string }) {
         </Modal>
       ) : null}
     </StateView>
+    </>
   )
 }

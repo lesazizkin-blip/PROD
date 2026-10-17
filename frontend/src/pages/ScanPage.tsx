@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjects } from '../state/ProjectContext'
 import ErrorAlert from '../ui/ErrorAlert'
+import PageHeading from '../components/PageHeading'
 import { boxPath, parseBoxLink } from '../ui/format'
 
 // Проект не нужен: QR сам содержит ссылку на проект, поэтому сканер работает и на новом устройстве (у помощника).
@@ -50,12 +51,16 @@ function Scanner({ pid }: { pid: string | null }) {
 
   return (
     <>
-      <h2>Сканер QR</h2>
-      <p className="muted">Наведите камеру на QR-код на коробке: откроется её карточка.</p>
-      <div id={READER_ID} className="scanner" />
-      <ErrorAlert message={error} />
+      <PageHeading title="Сканирование QR">Наведите камеру на этикетку или введите номер коробки.</PageHeading>
+      <div className="scan-layout">
+      <div className="scan-stage stack">
+        <span className="eyebrow">КАМЕРА / ПРЕДПРОСМОТР</span>
+        <div id={READER_ID} className="scanner" />
+        <ErrorAlert message={error} />
+      </div>
       {pid ? (
-      <form className="card stack" onSubmit={openNumber}>
+      <form className="card stack scan-number" onSubmit={openNumber}>
+        <h2>Поиск по номеру</h2>
         <label>
           Или введите номер коробки
           <input type="number" min={1} inputMode="numeric" value={number} onChange={(e) => setNumber(e.target.value)} />
@@ -63,6 +68,7 @@ function Scanner({ pid }: { pid: string | null }) {
         <button className="primary" type="submit" disabled={!number}>Открыть</button>
       </form>
       ) : <p className="muted">Номер вручную можно ввести после выбора проекта.</p>}
+      </div>
     </>
   )
 }

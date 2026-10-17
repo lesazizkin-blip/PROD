@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/endpoints'
 import LabelSheet from '../components/LabelSheet'
+import PageHeading from '../components/PageHeading'
 import { useAsync } from '../state/useAsync'
 import StateView from '../ui/StateView'
 import { boxPath } from '../ui/format'
@@ -14,10 +15,16 @@ export default function LabelPage() {
     <StateView loading={label.loading && !label.data} error={label.error} onRetry={label.reload}>
       {label.data ? (
         <>
-          <div className="card"><LabelSheet label={label.data} /></div>
-          <div className="row wrap no-print">
+          <PageHeading title={`Этикетка · коробка ${String(number).padStart(3, '0')}`}>{label.data.room} · Приклейте на две стороны коробки</PageHeading>
+          <div className="single-label-layout">
+          <div className="single-label-preview"><LabelSheet label={label.data} /></div>
+          <div className="card stack no-print label-actions">
+            <h2>Параметры этикетки</h2>
+            <p>Номер: {String(number).padStart(3, '0')} · Комната: {label.data.room}</p>
+            <p className="muted small">QR-код открывает карточку этой коробки.</p>
             <button className="primary" onClick={() => window.print()}>Печать / PDF</button>
             <Link to={boxPath(pid, number)} className="button">К коробке</Link>
+          </div>
           </div>
         </>
       ) : null}

@@ -6,11 +6,13 @@ import MembersPanel from './MembersPanel'
 import PasswordModal from './PasswordModal'
 import Icon from './Icons'
 import Modal from './Modal'
+import { api } from '../api/endpoints'
+import { useAsync } from '../state/useAsync'
 
 const TABS = [
-  { to: '/', label: 'План', icon: 'plan', end: true },
-  { to: '/boxes', label: 'Коробки', icon: 'boxes' },
-  { to: '/labels', label: 'Этикетки', icon: 'labels' },
+  { to: '/', label: 'План переезда', icon: 'plan', end: true },
+  { to: '/boxes', label: 'Коробки и поиск', icon: 'boxes' },
+  { to: '/labels', label: 'QR-этикетки', icon: 'labels' },
   { to: '/progress', label: 'Прогресс', icon: 'progress' },
 ] as const
 
@@ -23,29 +25,42 @@ export default function Shell() {
   const [changingPassword, setChangingPassword] = useState(false)
   const current = projects.find((p) => p.id === currentId)
 
+  const project = useAsync(() => currentId ? api.getProject(currentId) : Promise.resolve(null), [currentId])
+
   function closeProjects() {
     setSwitching(false)
   }
 
   return (
     <div className="shell">
-      <header className="topbar">
-        <Link to="/" className="brand">MoverMate</Link>
+      <aside className="sidebar">
+        <Link to="/" className="brand">
+          <img src="/assets/box-mark.svg" width="36" height="36" alt="" />
+          <span>MoverMate</span>
+        </Link>
+        <p className="brand-caption">ПЕРЕЕЗД ПО<br />КОРОБОЧКАМ</p>
         <button className="project-switch" onClick={() => setSwitching(true)} aria-label={`Проект: ${current?.name ?? 'нет'}. Сменить`}>
           <span>{current?.name ?? 'Нет проекта'}</span>
-          <Icon name="swap" />
+          <span className="project-date">{project.data ? new Date(`${project.data.move_date}T12:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : 'Создайте свой переезд'} <Icon name="swap" /></span>
+        </button>
+        <nav className="tabs" aria-label="Разделы">
+          {TABS.map((t, i) => (
+            <NavLink key={t.to} to={t.to} end={'end' in t ? t.end : false} className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+              <span className="tab-number" aria-hidden>{String(i + 1).padStart(2, '0')}</span>
+              <Icon name={t.icon} />
+              <span>{t.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+        <p className="sidebar-note">↑↑ БЕРЕЖНО<br />Внутри — ваш дом.</p>
+      </aside>
+      <header className="topbar">
+        <span className="breadcrumb">ЛИЧНОЕ ПРОСТРАНСТВО / {current?.name ?? 'НОВЫЙ ПЕРЕЕЗД'}</span>
+        <button className="account-button" onClick={() => setSwitching(true)} aria-label="Проекты и аккаунт">
+          <span>{user?.username}</span><span className="avatar" aria-hidden>{user?.username.slice(0, 2).toUpperCase()}</span>
         </button>
         <Link to="/scan" className="icon-link" aria-label="Сканировать QR"><Icon name="scan" /></Link>
       </header>
-
-      <nav className="tabs" aria-label="Разделы">
-        {TABS.map((t) => (
-          <NavLink key={t.to} to={t.to} end={'end' in t ? t.end : false} className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
-            <Icon name={t.icon} />
-            <span>{t.label}</span>
-          </NavLink>
-        ))}
-      </nav>
 
       <main className="container">
         <Outlet />
