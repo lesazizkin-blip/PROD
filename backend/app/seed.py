@@ -65,6 +65,27 @@ def _keep_demo_lost_item(db) -> None:
         svc.update_item(DEMO_ID, hits[0].item_id, None, ItemStatus.LOST)
 
 
+# вещи демо-проекта для чек-листа по распаковке первого дня; True - уже распакована
+DEMO_FIRST_DAY = {
+    "Чайник": True,
+    "Постельное бельё": True,
+    "Зубные щётки": False,
+    "Удлинитель": False,
+}
+
+
+def _keep_demo_first_day(db) -> None:
+    """Если в демо не осталось вещей первого дня (или их ещё не было), отмечаем их снова."""
+    svc = BoxService(db)
+    if LostService(db).first_day_items(DEMO_ID):
+        return
+    for name, unpacked in DEMO_FIRST_DAY.items():
+        hits = svc.search(DEMO_ID, name, 0, 1)[0]
+        if hits:
+            status = ItemStatus.UNPACKED if unpacked else None
+            svc.update_item(DEMO_ID, hits[0].item_id, None, status, first_day=True)
+
+
 def run(load: bool = False) -> None:
     with SessionLocal() as db:
         ensure_reference_data(db)
@@ -95,6 +116,7 @@ def run(load: bool = False) -> None:
             )  # покажет напоминание об описи
             print(f"Демо-проект: {DEMO_ID}")
         _keep_demo_lost_item(db)
+        _keep_demo_first_day(db)
         # демо-проект мог появиться раньше аккаунтов: отдаём его демо-аккаунту
         AuthService(db).add_member(DEMO_ID, demo.id, "owner")
         db.commit()

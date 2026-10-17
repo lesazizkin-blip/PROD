@@ -33,7 +33,7 @@ export default function ChecklistModal({ pid, onClose, onApplied }: { pid: strin
   const anyFlag = flags.with_children || flags.with_pets || flags.other_city
   const ownList = parseTaskLines(ownTasks)
   const typicalCount = typical ? (templates.data?.length ?? 0) : 0
-  const total = (suggestion?.suggested_tasks.length ?? 0) + (suggestion?.suggested_first_day.length ?? 0) + typicalCount
+  const total = (suggestion?.suggested_tasks.length ?? 0) + typicalCount
 
   const finish = (message: string) => {
     setDone(message)
@@ -43,14 +43,9 @@ export default function ChecklistModal({ pid, onClose, onApplied }: { pid: strin
   const applyReady = () =>
     run(async () => {
       let tasks = 0
-      let firstDay = 0
-      if (anyFlag) {
-        const r = await api.applyChecklist(pid, flags)
-        tasks += r.added_tasks
-        firstDay += r.added_first_day
-      }
+      if (anyFlag) tasks += (await api.applyChecklist(pid, flags)).added_tasks
       if (typical) tasks += (await api.applyTemplates(pid)).added
-      finish(`Добавлено: задач ${tasks}, пунктов для первого дня ${firstDay}. Уже имеющиеся не дублировались.`)
+      finish(`Добавлено задач: ${tasks}. Уже имеющиеся не дублировались.`)
     })
 
   const applyOwn = () =>
@@ -71,7 +66,7 @@ export default function ChecklistModal({ pid, onClose, onApplied }: { pid: strin
         </>
       ) : (
         <>
-          <p className="muted">Отметьте особенности переезда: добавим подходящие задачи и вещи для первого дня. Уже имеющиеся не дублируются.</p>
+          <p className="muted">Отметьте особенности переезда: добавим подходящие задачи. Уже имеющиеся не дублируются.</p>
           <label className="row">
             <input type="checkbox" checked={typical} onChange={(e) => { setTypical(e.target.checked); setSuggestion(null) }} />
             Обычный переезд: типовые задачи{templates.data ? ` (${templates.data.length})` : ''}
@@ -103,12 +98,6 @@ export default function ChecklistModal({ pid, onClose, onApplied }: { pid: strin
                 <div>
                   <b>Задачи</b>
                   <ul>{suggestion.suggested_tasks.map((t) => <li key={t.title}>{t.title} <span className="muted small">({STAGE_LABELS[t.stage]})</span></li>)}</ul>
-                </div>
-              ) : null}
-              {suggestion.suggested_first_day.length > 0 ? (
-                <div>
-                  <b>Для первого дня</b>
-                  <ul>{suggestion.suggested_first_day.map((t) => <li key={t}>{t}</li>)}</ul>
                 </div>
               ) : null}
               <button className="primary" disabled={busy || total === 0} onClick={applyReady}>Добавить всё ({total})</button>

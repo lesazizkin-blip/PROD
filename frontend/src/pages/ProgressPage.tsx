@@ -2,13 +2,11 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { errorMessage } from '../api/client'
 import { api } from '../api/endpoints'
-import type { BoxStatus, Hint, LostItem, RoomProgress } from '../api/types'
+import type { Hint, LostItem } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
 import { TipList } from './TipsPage'
 import Modal from '../components/Modal'
 import RequireProject from '../components/RequireProject'
-import StatusPickerModal from '../components/StatusPickerModal'
-import { boxStatusOptions } from '../components/statusOptions'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
@@ -16,8 +14,7 @@ import ProgressBar from '../ui/ProgressBar'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
-import { BOX_STATUS_HINTS, STATUS_LABELS, boxPath } from '../ui/format'
-
+import { STATUS_LABELS, boxPath } from '../ui/format'
 
 const REASONS: Record<string, string> = {
   recorded: 'записана в этой коробке',
@@ -35,20 +32,11 @@ function ProgressView({ pid }: { pid: string }) {
   const lost = useAsync<LostItem[]>(() => api.lostItems(pid), [pid])
   const { busy, error, run } = useAction()
   const [hints, setHints] = useState<{ name: string; list: Hint[] } | null>(null)
-  const [roomPicking, setRoomPicking] = useState<RoomProgress | null>(null)
   const tips = useAsync(() => api.tips(), [])
 
   const reloadAll = () => {
     progress.reload()
     lost.reload()
-  }
-
-  // Все коробки комнаты, которые ещё не в выбранном статусе, переводятся в него одним запросом (всё или ничего)
-  const moveRoom = async (room: string, to: BoxStatus) => {
-    const boxes = await api.boxes(pid, { room, page_size: 200 })
-    const numbers = boxes.items.filter((b) => b.status !== to).map((b) => b.number)
-    if (numbers.length) await api.bulkTransition(pid, numbers, to)
-    reloadAll()
   }
 
   const showHints = (entry: LostItem) =>
@@ -85,9 +73,6 @@ function ProgressView({ pid }: { pid: string }) {
               <ProgressBar value={r.loaded_percent} label={`${r.room}: погружено`} color="var(--st-loaded-fg)" />
               <div className="small muted">Распаковано {r.unpacked} из {r.total}</div>
               <ProgressBar value={r.unpacked_percent} label={`${r.room}: распаковано`} />
-              <div className="row wrap">
-                <button className="tonal small" disabled={busy} onClick={() => setRoomPicking(r)}>Отметить коробки комнаты</button>
-              </div>
             </div>
           ))}
 
@@ -114,17 +99,6 @@ function ProgressView({ pid }: { pid: string }) {
         </>
       ) : null}
 
-      {roomPicking ? (
-        <StatusPickerModal
-          title={`${roomPicking.room}: все коробки (${roomPicking.total})`}
-          options={boxStatusOptions((s) => ({
-            hint: roomPicking.by_status[s] ? `${BOX_STATUS_HINTS[s]} · сейчас ${roomPicking.by_status[s]} из ${roomPicking.total}` : BOX_STATUS_HINTS[s],
-            disabled: roomPicking.by_status[s] === roomPicking.total,
-          }))}
-          onPick={(to) => moveRoom(roomPicking.room, to)}
-          onClose={() => setRoomPicking(null)}
-        />
-      ) : null}
 
       {hints ? (
         <Modal title={`Где искать: ${hints.name}`} onClose={() => setHints(null)}>
@@ -146,17 +120,19 @@ function ProgressView({ pid }: { pid: string }) {
   )
 }
 
-/** Чек-лист первого дня (раздел 5.4 ТЗ): что положить в коробку, которую откроете первой. Отметка срабатывает сразу. */
+/** Чек-лист по распаковке вещей первого дня (раздел 5.4 ТЗ): вещи с пометкой «Первый день»;
+ *  галочка = вещь распакована (статус вещи «Распакована»), снятая галочка возвращает «Упакована». */
 function FirstDayWidget({ pid }: { pid: string }) {
-  const items = useAsync(() => api.firstDay(pid), [pid])
+  const items = useAsync(() => api.firstDayItems(pid), [pid])
   const [error, setError] = useState<string | null>(null)
   const list = items.data ?? []
-  const done = list.filter((i) => i.done).length
+  const done = list.filter((x) => x.item.status === 'unpacked').length
   if (!items.data) return null
-  const toggle = (id: number, value: boolean) => {
+  const toggle = (id: number, unpacked: boolean) => {
+    const status = unpacked ? 'unpacked' : 'packed'
     setError(null)
-    items.mutate((xs) => xs?.map((x) => (x.id === id ? { ...x, done: value } : x)) ?? xs)
-    api.updateFirstDay(pid, id, { done: value }).catch((e) => {
+    items.mutate((xs) => xs?.map((x) => (x.item.id === id ? { ...x, item: { ...x.item, status } } : x)) ?? xs)
+    api.updateItem(pid, id, { status }).catch((e) => {
       setError(errorMessage(e))
       items.reload()
     })
@@ -164,20 +140,26 @@ function FirstDayWidget({ pid }: { pid: string }) {
   return (
     <section className="card stack first-day">
       <div className="row between">
-        <b>Чек-лист первого дня</b>
+        <b>Чек-лист по распаковке вещей первого дня</b>
         <span className="muted small">{done} из {list.length}</span>
       </div>
-      <ProgressBar value={done} max={list.length} label="Чек-лист первого дня" />
-      <ul className="plain first-day__list">
-        {list.map((i) => (
-          <li key={i.id} className={i.done ? 'done' : ''}>
-            <label className="row">
-              <input type="checkbox" className="check" checked={i.done} onChange={() => toggle(i.id, !i.done)} />
-              {i.title}
-            </label>
-          </li>
-        ))}
-      </ul>
+      {list.length === 0 ? (
+        <p className="muted small">Пока пусто: отметьте «Первый день» у нужных вещей в карточке коробки или добавьте их на вкладке «Первый день» в «Плане».</p>
+      ) : (
+        <>
+          <ProgressBar value={done} max={list.length} label="Распаковано вещей первого дня" />
+          <ul className="plain first-day__list">
+            {list.map((x) => (
+              <li key={x.item.id} className={x.item.status === 'unpacked' ? 'done' : ''}>
+                <label className="row">
+                  <input type="checkbox" className="check" checked={x.item.status === 'unpacked'} onChange={() => toggle(x.item.id, x.item.status !== 'unpacked')} />
+                  {x.item.name} <span className="muted small">· № {x.box_number}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <ErrorAlert message={error} />
     </section>
   )

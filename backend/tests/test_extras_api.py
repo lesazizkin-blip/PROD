@@ -1,6 +1,5 @@
 from datetime import UTC, datetime, timedelta
 
-from app.reference_data import FIRST_DAY
 from tests.conftest import make_box
 
 
@@ -10,9 +9,8 @@ def advance(client, base, n, path):
 
 
 # ---------- чек-лист первого дня ----------
-def test_first_day_template_crud(client, base):
-    items = client.get(f"{base}/first-day").json()
-    assert [i["title"] for i in items] == FIRST_DAY and not any(i["done"] for i in items)
+def test_first_day_checklist_starts_empty_and_crud_works(client, base):
+    assert client.get(f"{base}/first-day").json() == []  # заранее ничего не кладём
     new = client.post(f"{base}/first-day", json={"title": " Тапочки "}).json()
     assert new["title"] == "Тапочки" and new["done"] is False
     assert client.patch(f"{base}/first-day/{new['id']}", json={"done": True}).json()["done"] is True
@@ -25,7 +23,9 @@ def test_first_day_template_crud(client, base):
 
 def test_first_day_is_per_project(client, base):
     other = client.post("/api/projects", json={"name": "Другой", "move_date": "2026-12-01"}).json()
-    other_item = client.get(f"/api/projects/{other['id']}/first-day").json()[0]
+    other_item = client.post(
+        f"/api/projects/{other['id']}/first-day", json={"title": "Чайник"}
+    ).json()
     assert (
         client.patch(f"{base}/first-day/{other_item['id']}", json={"done": True}).status_code == 404
     )

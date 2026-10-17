@@ -27,7 +27,7 @@ def test_new_project_has_empty_plan_templates_come_by_button(client, base, proje
     fresh = client.post("/api/projects", json={"name": "Пустой", "move_date": "2026-12-01"}).json()
     fresh_base = f"/api/projects/{fresh['id']}"
     assert client.get(f"{fresh_base}/tasks").json() == []  # план не заполняется сам
-    assert len(client.get(f"{fresh_base}/first-day").json()) > 0  # чек-лист первого дня есть
+    assert client.get(f"{fresh_base}/first-day").json() == []  # заготовок первого дня нет
     assert client.post(f"{fresh_base}/tasks/apply-templates").json() == {
         "added": len(TASK_TEMPLATES)
     }

@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
-import { UserPlus } from 'lucide-react'
 import BrandMark from './BrandMark'
 import { NAV_TABS } from './navTabs'
 
@@ -30,12 +29,6 @@ export default function GuestShell() {
             </button>
           ))}
         </nav>
-        <div className="sidebar__footer">
-          <Link to="/auth?mode=register" className="sidebar__me">
-            <UserPlus className="icon" aria-hidden />
-            <span className="sidebar__name">Регистрация</span>
-          </Link>
-        </div>
       </aside>
 
       <div className="workspace">
@@ -44,7 +37,6 @@ export default function GuestShell() {
           <span className="crumbs">MoverMate</span>
           <div className="topbar__actions">
             <Link to="/auth" className="button small">Войти</Link>
-            <Link to="/auth?mode=register" className="button small primary">Регистрация</Link>
           </div>
         </header>
         <main className="container">
