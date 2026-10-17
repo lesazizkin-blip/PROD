@@ -41,7 +41,9 @@ export default function PrintWorkspace({ labels, pid, preview = false, single = 
   return <div className="mm-print-workspace">
     <div className="mm-print-controls no-print">
       <h1>{single ? `Этикетка · коробка ${String(labels[0].number).padStart(3, '0')}` : preview ? 'Предпросмотр печати' : 'Этикетки для коробок'}</h1>
-      <p>Универсальный QR открывает карточку обычной камерой телефона или сканером MoverMate.</p>
+      <p>{import.meta.env.VITE_COMPACT_QR_ENABLED === 'true' && selected.some(l => l.qr_payload?.startsWith('MM1:'))
+        ? 'Компактный QR сканируется внутри MoverMate. Универсальные этикетки открываются и обычной камерой телефона.'
+        : 'Универсальный QR открывает карточку обычной камерой телефона или сканером MoverMate.'}</p>
       <div className="mm-print-settings">
         <label>Шаблон<select value={template} onChange={e => update({ template: e.target.value })}>{Object.entries(TEMPLATES).map(([key, title]) => <option key={key} value={key}>{title}</option>)}</select></label>
         <label>Раскладка A4<select value={preset} onChange={e => update({ layout: e.target.value, qr: null })}>{Object.entries(PRESETS).map(([key, p]) => <option key={key} value={key}>{p.title}</option>)}</select></label>
@@ -67,7 +69,7 @@ export default function PrintWorkspace({ labels, pid, preview = false, single = 
     {!pages.length ? <p className="no-print">Выберите хотя бы одну коробку для печати.</p> : null}
     <div className="mm-print-preview" aria-label="Листы A4">
       {pages.map((page, index) => <section key={index} className={`mm-a4 mm-a4--${preset}`} style={{ '--label-height': `${PRESETS[preset].height}mm`, '--label-rows': PRESETS[preset].rows } as CSSProperties} aria-label={`Лист ${index + 1} из ${pages.length}`}>
-        {page.map((label, item) => <LabelSheet key={`${label.number}-${item}`} label={label} template={template} qrMm={qr} writing={writing} />)}
+        {page.map((label, item) => <LabelSheet key={`${label.number}-${item}`} label={label} template={template} qrMm={qr} writing={writing} qrPayload={import.meta.env.VITE_COMPACT_QR_ENABLED === 'true' ? label.qr_payload : undefined} />)}
       </section>)}
     </div>
   </div>

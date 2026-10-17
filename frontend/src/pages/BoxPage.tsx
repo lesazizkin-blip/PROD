@@ -19,7 +19,7 @@ export default function BoxPage() {
   const navigate = useNavigate()
   const { projects, currentId, select } = useProjects()
   const valid = pid !== '' && Number.isInteger(number) && number >= 1
-  const card = useAsync(() => (valid ? api.getBox(pid, number) : Promise.reject(new Error('Некорректная ссылка на коробку'))), [pid, number])
+  const card = useAsync(() => (valid ? api.getBox(pid, number) : Promise.reject(new Error('Некорректная ссылка на коробку'))), [pid, number], { refreshOnFocus: true })
   const { busy, error, run } = useAction(() => card.reload())
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -65,6 +65,12 @@ export default function BoxPage() {
               {next ? <button className="primary" disabled={busy} onClick={() => run(() => api.transition(pid, number, next))}>{STATUS_LABELS[next]} →</button> : null}
             </div>
             <ErrorAlert message={error} />
+            <details className="stack">
+              <summary>Нет принтера?</summary>
+              <p>Напишите маркером на коробке <strong>#{String(box.number).padStart(3, '0')}</strong> и комнату «{box.room}». Лучше подписать с двух сторон.</p>
+              <p>Открыть коробку можно по номеру в выбранном проекте.</p>
+              <Link to="/scan" className="button tonal">Найти по номеру</Link>
+            </details>
             <div className="row wrap">
               <Link to={labelPath(pid, number)} className="button tonal">Этикетка</Link>
               <button className="tonal" onClick={() => setAdding(true)}>+ Вещи</button>

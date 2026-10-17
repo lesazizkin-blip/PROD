@@ -8,7 +8,7 @@ export default function LabelsPage() {
   return <RequireProject>{pid => <LabelList key={pid} pid={pid} />}</RequireProject>
 }
 function LabelList({ pid }: { pid: string }) {
-  const labels = useAsync(() => api.labels(pid), [pid])
+  const labels = useAsync(() => api.labels(pid), [pid], { refreshOnFocus: true })
   return <StateView loading={labels.loading && !labels.data} error={labels.error} empty={labels.data?.length === 0} emptyText="Сначала создайте коробку на вкладке «Коробки»" emptyIcon="🏷️" onRetry={labels.reload}>
     {labels.data?.length ? <PrintWorkspace labels={labels.data} pid={pid} /> : null}
   </StateView>

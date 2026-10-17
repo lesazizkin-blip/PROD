@@ -34,8 +34,8 @@ export default function ProgressPage() {
 
 function ProgressView({ pid }: { pid: string }) {
   const navigate = useNavigate()
-  const progress = useAsync(() => api.progress(pid), [pid])
-  const lost = useAsync<LostItem[]>(() => api.lostItems(pid), [pid])
+  const progress = useAsync(() => api.progress(pid), [pid], { refreshOnFocus: true })
+  const lost = useAsync<LostItem[]>(() => api.lostItems(pid), [pid], { refreshOnFocus: true })
   const { busy, error, run } = useAction()
   const [hints, setHints] = useState<{ name: string; list: Hint[] } | null>(null)
 

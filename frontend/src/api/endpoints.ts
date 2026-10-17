@@ -1,4 +1,5 @@
 import { request } from "./client"
+import { isCompactCode, isResolvedBox } from '../features/labels/contract'
 import type {
   AppEvent, Box, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Health, Hint, Item,
   Credentials, InviteInfo, InviteOut, Member, Label, LostItem, Page, PageParams, Progress, Project, ProjectBrief, ProjectCreate, ProjectUpdate, Reminder, SearchHit, User,
@@ -10,6 +11,12 @@ import type {
 const p = (pid: string) => `/projects/${pid}`
 
 export const api = {
+  resolveBoxCode: async (code: string) => {
+    if (!isCompactCode(code)) throw new Error('Неверный формат компактного QR.')
+    const result = await request<unknown>('POST', '/boxes/resolve-code', { body: { code: code.trim() } })
+    if (!isResolvedBox(result)) throw new Error('Сервер вернул некорректную ссылку на коробку.')
+    return result
+  },
   // Служебные
   health: () => request<Health>("GET", "/health"),
   taskTemplates: () => request<TaskTemplate[]>("GET", "/task-templates"),

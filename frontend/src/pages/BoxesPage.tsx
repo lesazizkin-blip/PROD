@@ -37,11 +37,11 @@ function Boxes({ pid }: { pid: string }) {
   const [room, setRoom] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
 
-  const boxes = useAsync(() => api.boxes(pid, { page_size: 200 }), [pid])
-  const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 100 }) : Promise.resolve(null)), [pid, q])
+  const boxes = useAsync(() => api.boxes(pid, { page_size: 200 }), [pid], { refreshOnFocus: true })
+  const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 100 }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true })
   // Поиск коробки по номеру: если запрос - число, показываем коробку с этим номером
-  const byNumber = useAsync(() => (/^\d+$/.test(q) ? api.boxes(pid, { number: Number(q) }) : Promise.resolve(null)), [pid, q])
-  const reminders = useAsync(() => api.reminders(pid), [pid])
+  const byNumber = useAsync(() => (/^\d+$/.test(q) ? api.boxes(pid, { number: Number(q) }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true })
+  const reminders = useAsync(() => api.reminders(pid), [pid], { refreshOnFocus: true })
 
   const all = boxes.data?.items ?? []
   const rooms = Array.from(new Set(all.map((b) => b.room))).sort()

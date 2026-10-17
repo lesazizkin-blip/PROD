@@ -133,6 +133,8 @@ export interface Hint {
 }
 
 export interface Label {
+  /** Optional until the compact QR backend contract is deployed. */
+  qr_payload?: string
   number: number
   room: string
   project_name: string
