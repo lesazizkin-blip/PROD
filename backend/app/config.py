@@ -71,6 +71,10 @@ class Settings(BaseSettings):
     # коллектор трейсов Sage (OTLP gRPC, например https://<хост>:4319); ключ тот же SAGE_API_KEY.
     # Пусто -> трейсы не отправляются, но trace_id/span_id всё равно пишутся в логи
     sage_traces_endpoint: str = ""
+    # метрики в Sage по Remote Write (Frost), ключ тот же SAGE_API_KEY; пусто -> не отправляются
+    # (https://sage.spirit.t-education.com/frost_remote_write/api/v1/write)
+    sage_metrics_url: str = ""
+    sage_metrics_interval: float = Field(default=30.0, ge=5)
 
 
 @lru_cache

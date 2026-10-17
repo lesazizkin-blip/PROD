@@ -116,6 +116,18 @@ group="hack-led-20" system="movermate" trace_id="<trace_id>"
 
 **Трейсы** (`backend/app/tracing.py`, OpenTelemetry): спан запроса по шаблону маршрута (у Sage лимит 300 операций), внутри SQL без значений параметров и вызов модели `ai.chat_completion`; 5xx помечает спан ERROR. Отправка (OTLP gRPC) включается адресом коллектора `scripts/vm-env.sh SAGE_TRACES_ENDPOINT` (`https://<хост>:4319`). **Не включено:** на `sage.spirit.t-education.com` порты 4317–4319 закрыты (17.10), хост уточнить у организаторов.
 
+**Метрики** (`backend/app/metrics.py`) уходят в Sage по Prometheus Remote Write раз в 30 с на `https://sage.spirit.t-education.com/frost_remote_write/api/v1/write` (`SAGE_METRICS_URL`, ключ тот же `SAGE_API_KEY`, без ключа выключены). Лейблы `group`, `system="movermate"`, `env`, `dc`, `inst`. Отправка в фоне: ошибки Sage пишутся в лог не чаще раза в 10 минут и сайт не трогают.
+
+| Метрика | Что показывает |
+|---|---|
+| `movermate_http_requests_total{method,code}` | запросы по классу ответа (2xx/4xx/5xx) |
+| `movermate_http_request_duration_ms_sum/_count/_bucket{le}` | время ответа (среднее, гистограмма) |
+| `movermate_actions_total{action}` | действия из аудита: входы, регистрации, коробки, приглашения |
+| `movermate_users`, `movermate_projects`, `movermate_items`, `movermate_items_lost` | состояние данных |
+| `movermate_boxes{status}` | коробки по статусам: сколько собирается, погружено, доставлено, распаковано |
+
+Запросы (Поиск, MageQL): `pql rate(movermate_http_requests_total{system="movermate",code="5xx"}[5m])` — доля ошибок; `pql movermate_boxes{system="movermate"}` — коробки по статусам; `pql rate(movermate_http_request_duration_ms_sum[5m]) / rate(movermate_http_request_duration_ms_count[5m])` — среднее время ответа. Если Remote Write не принят (в логе `metrics_push_failed`), те же числа строятся из логов через Logs2Metrics: Метрики → Logs2Metrics → «+ Метрика», запрос `group="hack-led-20" system="movermate" msg="request"`, поле `latency_ms`, лейблы `status`, `method`.
+
 **Алерты** — `deploy/sage/alerts.yaml`: ошибки сервера, подбор паролей, медленные ответы, сервис молчит. В интерфейсе Sage: Алертинг → «+ Алерт» → MageQL; запрос из `expr`, интервал из `for`, адрес доставки — заранее в «Алертинг → Адреса». **В интерфейсе пока не заведены.**
 
 **Дашборд** — запросы для панелей (Поиск → «Визуализация», ось X `@timestamp`):
