@@ -113,7 +113,7 @@ jobs:
       - run: npm run build
 
   # Продовый образ (тот же Dockerfile, что на ВМ): собрать, запустить, прогнать сценарий ТЗ.
-  # Деплоя из GitHub нет: стенд обновляется вручную (docs/DEPLOY_VM.md).
+  # Деплоя из GitHub нет: стенд обновляется вручную (docs/OPERATIONS.md).
   image:
     needs: [backend, frontend]
     runs-on: ubuntu-latest
