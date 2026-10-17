@@ -1,0 +1,9 @@
+.room-loading > summary { cursor: pointer; padding: 4px 0; }
+.room-loading > summary > .small { display: block; margin: 5px 0 0 18px; }
+.room-loading[open] > summary { margin-bottom: 12px; }
+.loading-boxes { margin-top: 16px; }
+.loading-box-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+.loading-box-row > a { flex: 1 1 130px; font-weight: 600; }
+.loading-check { display: flex; align-items: center; justify-content: center; width: 44px; min-height: 44px; flex: none; cursor: pointer; }
+.loading-box-row > button { margin-left: auto; }
+.loading-box-row > .muted { flex-basis: 100%; padding-left: 34px; }

@@ -769,3 +769,5 @@ a.tips-card .sub, .scan-card .sub { display: block; color: var(--muted); font-si
   .sidebar .tabs.tabs-journey { display: grid; position: static; }
   .is-sidebar-compact .sidebar .sidebar-group { opacity: 0; visibility: hidden; }
 }
+
+.pagination { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-block: 16px; }

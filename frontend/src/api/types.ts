@@ -210,6 +210,8 @@ export interface Health {
 // Запросы
 
 export interface ProjectCreate {
+  plan_mode?: "standard" | "empty"
+  first_day?: string[]
   qr_mode?: QrMode
   personal_plan?: import('../features/planner/types').PersonalPlan
   name: string
@@ -218,7 +220,7 @@ export interface ProjectCreate {
   address_to?: string | null
 }
 
-export type ProjectUpdate = Partial<Omit<ProjectCreate, 'personal_plan'>>
+export type ProjectUpdate = Partial<Omit<ProjectCreate, 'personal_plan' | 'plan_mode' | 'first_day'>>
 
 export interface TaskCreate {
   stage: Stage

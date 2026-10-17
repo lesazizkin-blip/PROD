@@ -10,7 +10,7 @@ def advance(client, base, n, path):
 
 # ---------- чек-лист первого дня ----------
 def test_first_day_checklist_starts_empty_and_crud_works(client, base):
-    assert client.get(f"{base}/first-day").json() == []  # заранее ничего не кладём
+    assert len(client.get(f"{base}/first-day").json()) == 4  # базовый список доступен до коробок
     new = client.post(f"{base}/first-day", json={"title": " Тапочки "}).json()
     assert new["title"] == "Тапочки" and new["done"] is False
     assert client.patch(f"{base}/first-day/{new['id']}", json={"done": True}).json()["done"] is True

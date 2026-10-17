@@ -54,13 +54,16 @@ scenario() {  # временный проект всегда удаляется,
 }
 scenario_body() {
   local pid="$1" n lbl
-  api "/projects/$pid/tasks" | ok_if "len(d)==0" || return 1                         # план не заполняется сам
-  post "/projects/$pid/tasks/apply-templates" | ok_if "d['added']>=10" || return 1    # шаблоны задач по кнопке
+  api "/projects/$pid/tasks" | ok_if "len(d)>=10 and all(t['due_date'] for t in d)" || return 1  # стандартный план и сроки создаются сервером
+  post "/projects/$pid/tasks/apply-templates" | ok_if "d['added']==0" || return 1  # повторное применение не дублирует шаблоны
   n="$(post "/projects/$pid/boxes" '{"room":"Кухня","items_text":"Чайник\nКружки"}' | json "d['number']")" || return 1
   [ "$n" = 1 ] || return 1                                                            # номер выдаёт сервер
-  post "/projects/$pid/boxes/$n/transitions" '{"to":"unpacked"}' | ok_if "d['status']=='unpacked'" || return 1   # статус выбирается свободно
-  [ "$(code POST "/projects/$pid/boxes/$n/transitions" '{"to":"unpacked"}')" = 409 ] || return 1   # тот же статус - 409
-  post "/projects/$pid/boxes/$n/transitions" '{"to":"packed"}' | ok_if "d['status']=='packed'" || return 1
+  [ "$(code POST "/projects/$pid/boxes/$n/transitions" '{"to":"unpacked"}')" = 409 ] || return 1
+  for stage in packed loaded delivered unpacked; do
+    post "/projects/$pid/boxes/$n/transitions" "{\"to\":\"$stage\"}" | ok_if "d['status']=='$stage'" || return 1
+  done
+  [ "$(code POST "/projects/$pid/boxes/$n/transitions" '{"to":"packed"}')" = 409 ] || return 1
+  post "/projects/$pid/boxes/$n/status-corrections" '{"to":"packed","reason":"Проверка исправления ошибочной отметки"}' | ok_if "d['status']=='packed'" || return 1
   lbl="$(api "/projects/$pid/boxes/$n/label" | json "d['qr_path']")" || return 1
   [ "$lbl" = "/projects/$pid/boxes/$n" ] || return 1                                  # QR ведёт на карточку коробки
   [ "$(code GET "/projects/$pid/boxes/$n")" = 200 ] || return 1                       # повторное открытие карточки

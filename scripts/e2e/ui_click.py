@@ -180,7 +180,7 @@ async def main():
             )
             await js("__click('Создать проект')")
             await step(
-                "проект создан, план пуст", await wait("__has('Пока задач нет')", 8)
+                "проект создан, план открыт", await wait("__has('Ближайшие дела')", 8)
             )
 
             # ---- умный чек-лист: типовые задачи и своя особенность ----
@@ -260,11 +260,12 @@ async def main():
             )
             await js("__click('Сменить статус')")
             await wait("__has('Статус коробки')")
-            await js("__click('Доставлена', 'dialog button')")
+            # статусы идут по порядку (решение Фёдора 17.10): из «Собирается» доступна «Собрана»
+            await js("__click('Собрана', 'dialog button')")
             await step(
-                "статус коробки меняется любым выбором",
+                "статус коробки меняется в окне (по порядку)",
                 await wait(
-                    "!document.querySelector('dialog[open]') && __has('Доставлена')"
+                    "!document.querySelector('dialog[open]') && __has('Собрана')"
                 ),
             )
             await js("__click('Упакована', '.badge-button')")
@@ -290,21 +291,21 @@ async def main():
             await go("/")
             await js("__click('Первый день', '[role=tab]')")
             await step(
-                "вкладка «Первый день» показывает вещь",
-                await wait("__has('Коробка № 1')"),
+                "вкладка «Первый день»: список «Что подготовить» и вещи в коробках",
+                await wait("__has('Что подготовить') && __has('В коробках')"),
             )
             await go("/progress")
             await step(
-                "прогресс: чек-лист распаковки вещей первого дня",
-                await wait("__has('Чек-лист по распаковке вещей первого дня')"),
+                "прогресс: список первого дня",
+                await wait("!!document.querySelector('.first-day-checklist') && __has('Что подготовить')"),
             )
             await js(
-                "document.querySelector('.first-day input[type=checkbox]')?.click()"
+                "document.querySelector('.first-day-checklist input[type=checkbox]')?.click()"
             )
             await step(
-                "прогресс: отметка «распакована»",
+                "прогресс: отметка в списке первого дня",
                 await wait(
-                    "document.querySelector('.first-day input[type=checkbox]')?.checked"
+                    "document.querySelector('.first-day-checklist input[type=checkbox]')?.checked"
                 ),
             )
             await go("/boxes")

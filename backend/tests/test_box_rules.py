@@ -8,11 +8,14 @@ from app.errors import ConflictError, ValidationFailed
 from app.services.boxes import ORDER, TRANSITIONS, check_transition, normalize, parse_lines
 
 
-def test_any_status_can_be_chosen_from_any_other():
+def test_only_the_next_lifecycle_stage_is_allowed():
     for a, b in itertools.product(ORDER, ORDER):
-        if a != b:
-            check_transition(a, b)  # свободный выбор: шаги можно пропускать и возвращаться
-    assert all(len(TRANSITIONS[s]) == len(ORDER) - 1 for s in ORDER)
+        if ORDER.index(b) == ORDER.index(a) + 1:
+            check_transition(a, b)
+        else:
+            with pytest.raises(ConflictError):
+                check_transition(a, b)
+    assert TRANSITIONS["unpacked"] == frozenset()
 
 
 @pytest.mark.parametrize("s", ORDER)

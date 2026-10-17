@@ -1,8 +1,9 @@
+import FirstDayChecklist from '../features/planner/FirstDayChecklist'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Clock, Package, Pencil, Sparkles, UserRound } from 'lucide-react'
+import { CalendarDays, Clock, Pencil, Sparkles, UserRound } from 'lucide-react'
 import { api } from '../api/endpoints'
-import { ITEM_STATUSES, type ItemStatus, type Stage, type Task, type TaskCreate } from '../api/types'
+import { type Stage, type Task, type TaskCreate } from '../api/types'
 import ChecklistModal from '../components/ChecklistModal'
 import PageHeading from '../components/PageHeading'
 import Modal from '../components/Modal'
@@ -13,7 +14,7 @@ import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
 import ProgressBar from '../ui/ProgressBar'
 import StateView from '../ui/StateView'
-import { ITEM_STATUS_LABELS, STAGES, STAGE_LABELS, boxPath, daysUntil, formatDate, formatTimeRange, plural } from '../ui/format'
+import { STAGES, STAGE_LABELS, daysUntil, formatDate, formatTimeRange, plural } from '../ui/format'
 import { errorMessage } from '../api/client'
 
 // Вкладки плана: три этапа переезда и отдельно коробка первого дня
@@ -33,7 +34,6 @@ function Plan({ pid }: { pid: string }) {
   const progress = useAsync(() => api.progress(pid), [pid])
   // null - форма закрыта, 'new' - новая задача, Task - правка существующей
   const [form, setForm] = useState<'new' | Task | null>(null)
-  const [addingItem, setAddingItem] = useState(false)
   const [quickError, setQuickError] = useState<string | null>(null)
   const [smart, setSmart] = useState(false)
   const [tab, setTab] = useState<PlanTab | null>(null)
@@ -69,7 +69,8 @@ function Plan({ pid }: { pid: string }) {
       tasks.reload,
     )
   }
-  const thingsForDay = firstDayItems.data ?? []
+  const plannedFirstDay = useAsync(() => api.firstDay(pid), [pid])
+  const thingsForDay = [...(firstDayItems.data ?? []), ...(plannedFirstDay.data ?? [])]
   const boxes = progress.data
   const days = project.data ? daysUntil(project.data.move_date) : null
   const countdown = days === null ? '…' : days > 0 ? `${days} дн.` : days === 0 ? 'Сегодня' : 'Уже дома'
@@ -119,24 +120,7 @@ function Plan({ pid }: { pid: string }) {
       </div>
 
       {activeTab === 'first-day' ? (
-        <section role="tabpanel" aria-label="Первый день" className="stack">
-          {thingsForDay.length === 0 ? (
-            <div className="state"><p>Пока нет. Добавьте вещь кнопкой «+ Вещь» или отметьте «Первый день» у вещи в карточке коробки.</p></div>
-          ) : (
-          <div className="card flush">
-            {thingsForDay.map((x) => (
-              <Link key={x.item.id} to={boxPath(pid, x.box_number)} className="list-row">
-                <Package className="icon-sm" aria-hidden />
-                <span className="grow">
-                  <b>{x.item.name}</b>
-                  <span className="sub">Коробка № {x.box_number} · {x.room}</span>
-                </span>
-                <span className={`badge it-${x.item.status}`}>{ITEM_STATUS_LABELS[x.item.status]}</span>
-              </Link>
-            ))}
-          </div>
-          )}
-        </section>
+        <section role="tabpanel" aria-label="Первый день"><FirstDayChecklist pid={pid} /></section>
       ) : (
       <section className="task-list" role="tabpanel" aria-label={STAGE_LABELS[activeTab]}>
         {list.length === 0 ? (
@@ -166,19 +150,7 @@ function Plan({ pid }: { pid: string }) {
       )}
       </div>
 
-      {activeTab === 'first-day'
-        ? <button className="primary fab" onClick={() => setAddingItem(true)}>+ Вещь</button>
-        : <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button>}
-      {addingItem ? (
-        <FirstDayItemModal
-          pid={pid}
-          onClose={() => setAddingItem(false)}
-          onSaved={() => {
-            setAddingItem(false)
-            firstDayItems.reload()
-          }}
-        />
-      ) : null}
+      {activeTab !== 'first-day' ? <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button> : null}
       {smart ? <ChecklistModal pid={pid} onClose={() => setSmart(false)} onApplied={reloadAll} /> : null}
       {form ? (
         <TaskModal
@@ -310,41 +282,3 @@ export function TaskModal({ initial, defaultStage, onClose, onSave, onDelete, ca
 }
 
 /** «+ Вещь» на вкладке «Первый день»: вещь сразу кладётся в выбранную коробку и помечается вещью первого дня. */
-function FirstDayItemModal({ pid, onClose, onSaved }: { pid: string; onClose: () => void; onSaved: () => void }) {
-  const boxes = useAsync(() => api.boxes(pid, { page_size: 200 }), [pid])
-  const [name, setName] = useState('')
-  const [box, setBox] = useState('')
-  const [status, setStatus] = useState<ItemStatus>('packed')
-  const { busy, error, submit } = useAction()
-  const list = boxes.data?.items ?? []
-  const invalid = !name.trim() || !box
-
-  return (
-    <Modal title="Вещь первого дня" onClose={onClose} dirty={name.trim() !== ''}>
-      <form className="stack" onSubmit={submit(async () => {
-        await api.createItem(pid, Number(box), { name: name.trim(), first_day: true, status })
-        onSaved()
-      })}>
-        <label>
-          Что это
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="Например: чайник" data-autofocus />
-        </label>
-        <label>
-          В какой коробке
-          <select value={box} onChange={(e) => setBox(e.target.value)} disabled={boxes.loading && !boxes.data}>
-            <option value="">{list.length ? 'Выберите коробку' : 'Сначала создайте коробку на вкладке «Коробки»'}</option>
-            {list.map((b) => <option key={b.number} value={b.number}>№ {b.number} · {b.room}</option>)}
-          </select>
-        </label>
-        <label>
-          Где вещь сейчас
-          <select value={status} onChange={(e) => setStatus(e.target.value as ItemStatus)}>
-            {ITEM_STATUSES.map((s) => <option key={s} value={s}>{ITEM_STATUS_LABELS[s]}</option>)}
-          </select>
-        </label>
-        <ErrorAlert message={error ?? boxes.error} />
-        <button className="primary" type="submit" disabled={busy || invalid}>Добавить</button>
-      </form>
-    </Modal>
-  )
-}

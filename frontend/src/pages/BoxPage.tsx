@@ -7,6 +7,7 @@ import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
 import PhotoPicker from '../components/PhotoPicker'
 import StatusPickerModal, { type StatusOption } from '../components/StatusPickerModal'
+import CorrectBoxStatusModal from '../components/CorrectBoxStatusModal'
 import { boxStatusOptions } from '../components/statusOptions'
 import { useConfirm } from '../state/confirm'
 import CartonLid from '../components/CartonLid'
@@ -21,8 +22,7 @@ import StatusBadge from '../ui/StatusBadge'
 import { roomStyle } from '../ui/roomTheme'
 import { ITEM_STATUS_HINTS, ITEM_STATUS_LABELS, labelPath, plural } from '../ui/format'
 
-// Варианты статуса коробки: любой, шаги можно пропускать и возвращаться
-const boxOptions = boxStatusOptions()
+// Обычная смена статуса проходит по порядку; исправление вынесено отдельно.
 
 const itemOptions: StatusOption<ItemStatus>[] = ITEM_STATUSES.map((s) => ({
   value: s,
@@ -86,6 +86,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
     optimistic((items) => items.filter((x) => x.id !== id), () => api.deleteItem(pid, id))
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [correcting, setCorrecting] = useState(false)
   const [pickingBox, setPickingBox] = useState(false)
   const [pickingItem, setPickingItem] = useState<Item | null>(null)
 
@@ -104,6 +105,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
   }
 
   const box = card.data
+  const boxOptions = box ? boxStatusOptions(box.status) : []
 
   return (
     <>
@@ -175,6 +177,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
           <button className="manifest-add" onClick={() => setAdding(true)}><Plus className="icon-sm" aria-hidden />Добавить вещи</button>
           </section>
           <footer className="carton-footer">
+            {box.status !== 'packing' ? <button onClick={() => setCorrecting(true)}>Исправить ошибочный статус</button> : null}
             <details className="carton-help">
               <summary>Нет принтера?</summary>
               <p>Напишите маркером на коробке <strong>#{String(box.number).padStart(3, '0')}</strong> и комнату «{box.room}». Подпишите с двух сторон — так её проще найти в стопке.</p>
@@ -188,6 +191,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
           </article>
           </div>
 
+          {correcting && box ? <CorrectBoxStatusModal current={box.status} number={number} onClose={() => setCorrecting(false)} onSave={async (to, reason) => { await api.correctBoxStatus(pid, number, to, reason); card.reload() }} /> : null}
           {pickingBox ? (
             <StatusPickerModal
               title={`Статус коробки № ${box.number}`}

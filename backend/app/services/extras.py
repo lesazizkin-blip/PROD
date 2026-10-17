@@ -3,13 +3,14 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.errors import NotFoundError, ValidationFailed
 from app.models import Box, FirstDayItem, Item
 from app.schemas import BoxStatus, HintOut, ItemStatus, LostItemOut, ReminderOut
 from app.services.boxes import BoxService, _box_out, _item_out, normalize
+from app.services.events import log_event
 
 MAX_HINTS = 10
 
@@ -51,6 +52,45 @@ class FirstDayService:
     def delete(self, project_id: uuid.UUID, item_id: int) -> None:
         self.db.delete(self.get(project_id, item_id))
         self.db.commit()
+
+    def bind(self, project_id: uuid.UUID, entry_id: int, number: int, name: str | None):
+        # Lock the box and preparation entry; all inventory changes and retirement
+        # of the preparation entry commit together, including reuse of an existing item.
+        box = BoxService(self.db).get_box(project_id, number, lock=True)
+        entry = self.db.scalar(
+            select(FirstDayItem)
+            .where(FirstDayItem.id == entry_id, FirstDayItem.project_id == project_id)
+            .with_for_update()
+        )
+        if entry is None:
+            raise NotFoundError("Пункт не найден или уже помещён в коробку")
+        title = (name if name is not None else entry.title).strip()
+        if not title or len(title) > 120:
+            raise ValidationFailed("Название вещи: от 1 до 120 символов")
+        # Claim the entry before touching inventory; a concurrent retry cannot
+        # bind the same preparation entry twice, including on SQLite.
+        claimed = self.db.scalar(
+            delete(FirstDayItem)
+            .where(FirstDayItem.id == entry_id, FirstDayItem.project_id == project_id)
+            .returning(FirstDayItem.id)
+            .execution_options(synchronize_session=False)
+        )
+        if claimed is None:
+            raise NotFoundError("Пункт уже помещён в коробку")
+        item = self.db.scalar(
+            select(Item)
+            .where(Item.box_id == box.id, Item.name_norm == normalize(title))
+            .order_by(Item.id)
+        )
+        if item is None:
+            item = Item(box_id=box.id, name=title, name_norm=normalize(title), first_day=True)
+            self.db.add(item)
+        else:
+            item.first_day = True
+        self.db.flush()
+        log_event(self.db, project_id, "first_day.bound", "item", item.id, box_number=number)
+        self.db.commit()
+        return _item_out(item, number)
 
 
 def _words(text: str) -> set[str]:

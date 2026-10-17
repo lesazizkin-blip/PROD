@@ -69,6 +69,8 @@ export const api = {
     request<void>("DELETE", `${p(pid)}/boxes/${n}`, { query: { confirm: true } }),
   transition: (pid: string, n: number, to: BoxStatus) =>
     request<Box>("POST", `${p(pid)}/boxes/${n}/transitions`, { body: { to } }),
+  correctBoxStatus: (pid: string, n: number, to: BoxStatus, reason: string) => request<Box>("POST", `${p(pid)}/boxes/${n}/status-corrections`, { body: { to, reason } }),
+  bindFirstDay: (pid: string, id: number, box_number: number, name: string) => request<Item>("POST", `${p(pid)}/first-day/${id}/bind`, { body: { box_number, name } }),
   bulkTransition: (pid: string, numbers: number[], to: BoxStatus) =>
     request<{ updated: Box[] }>("POST", `${p(pid)}/boxes/bulk-transitions`, { body: { numbers, to } }),
 
@@ -102,7 +104,7 @@ export const api = {
   hints: (pid: string, id: number) => request<Hint[]>("GET", `${p(pid)}/items/${id}/hints`),
 
   // Поиск и этикетки
-  search: (pid: string, q: string, params: PageParams = {}) =>
+  search: (pid: string, q: string, params: PageParams & { room?: string } = {}) =>
     request<Page<SearchHit>>("GET", `${p(pid)}/search`, { query: { q, ...params } }),
   label: (pid: string, n: number) => request<Label>("GET", `${p(pid)}/boxes/${n}/label`),
   labels: (pid: string, numbers?: number[]) =>

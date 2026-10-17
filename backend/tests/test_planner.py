@@ -401,7 +401,7 @@ def test_reviewed_plan_created_with_templates_dates_owner_and_first_day(client, 
         next(t for t in tasks if t["title"] == PLAN["tasks"][1]["title"])["due_date"]
         == "2026-11-02"
     )
-    assert len(client.get(f"{base}/first-day").json()) == len(PLAN["first_day"])
+    assert len(client.get(f"{base}/first-day").json()) == len(PLAN["first_day"]) + 4
     assert client.get(f"{base}/members").json()[0]["role"] == "owner"
     assert make_client("outsider").get(f"{base}/tasks").status_code in (403, 404)
 
