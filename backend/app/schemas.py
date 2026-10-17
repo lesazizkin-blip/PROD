@@ -604,9 +604,10 @@ class BoxCardOut(BoxOut):
 
 class StatusCorrectionIn(BaseModel):
     to: BoxStatus = Field(examples=["packed"])
-    reason: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=5, max_length=300)
-    ] = Field(examples=["Ошибочно нажали погрузку"])
+    # необязательна: назад статус меняется и обычным переходом, без причины
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)] = Field(
+        default="", examples=["Ошибочно нажали погрузку"]
+    )
 
 
 class FirstDayBindIn(BaseModel):
