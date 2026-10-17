@@ -700,3 +700,6 @@ label.photo-picker__button.disabled { opacity: .5; cursor: default; pointer-even
 .room-plan__box { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); background: var(--surface); font-weight: 400; }
 .room-plan__box .sub { display: block; color: var(--muted); font-size: .85rem; margin-top: 4px; }
 .room-plan__tip { font-style: italic; }
+
+/* полосатая лента под заголовками убрана везде (по просьбе владельца) */
+.heading-stripe { display: none !important; }
