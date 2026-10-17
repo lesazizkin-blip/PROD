@@ -23,7 +23,7 @@
 | 7 | 5.2 Список вещей внутри коробки | `GET/POST /boxes/{n}/items`; карточка коробки | `backend/tests/test_boxes_api.py` | 🟦 |
 | 8 | 5.2 Быстрый ввод содержимого | `POST /boxes/{n}/items/bulk` (строка = вещь), `items_text` при создании коробки | `backend/tests/test_boxes_api.py`, `backend/tests/test_box_rules.py` | 🟦 |
 | 9 | 5.2 Отложить заполнение с последующим напоминанием | `Box.fill_later`, `remind_at`; `GET /projects/{id}/reminders`; плашка на «Коробках» | `backend/tests/test_extras_api.py` | 🟦 |
-| 10 | 5.2 Статусы: собирается → собрана → погружена → доставлена → распакована | `POST /boxes/{n}/transitions`; кнопки шага в карточке | `backend/tests/test_box_rules.py`, `backend/tests/test_boxes_api.py` | 🟦 |
+| 10 | 5.2 Статусы: собирается → собрана → погружена → доставлена → распакована | `POST /boxes/{n}/transitions`; окно «Сменить статус» в карточке (доступны соседние шаги, остальные с объяснением) | `backend/tests/test_box_rules.py`, `backend/tests/test_boxes_api.py` | 🟦 |
 | 11 | 5.2 Удаление коробок и вещей с подтверждением | `DELETE …?confirm=true`, `window.confirm` на сайте | `backend/tests/test_boxes_api.py`, `backend/tests/test_projects_tasks.py` | 🟦 |
 | 12 | 5.3 Поиск вещей по названию среди всех коробок | `GET /projects/{id}/search?q=`; поле поиска на «Коробках» | `backend/tests/test_boxes_api.py` | 🟦 |
 | 13 | 5.3 Показ найденной коробки, комнаты и статуса | Ответ поиска: `box_number`, `room`, `status` | `backend/tests/test_boxes_api.py` | 🟦 |
