@@ -60,11 +60,11 @@ export default function FirstDayChecklist({ pid }: { pid: string }) {
         </div>
       </li>)}</ul> : <div className="stack"><p className="muted small">Добавьте щётки, зарядки, чайник и бельё — или составьте свой список.</p><button onClick={() => setAdding(FIRST_DAY_BASICS.join('\n'))}>Подготовить базовый список</button></div>}
     </> : null}
-    <h3>В коробках <span className="muted small">{packed.length} вещей</span></h3>
+    <h3>В коробках <span className="muted small">{packed.length ? `распаковано ${packed.filter((x) => x.status === 'unpacked').length} из ${packed.length}` : 'пока пусто'}</span></h3>
     {inventory.loading && !inventory.data ? <p role="status">Загружаем вещи…</p> : null}
     {packed.length ? <>
       <ul className="plain preparation-list">{packed.map(x => <li key={x.item.id} className="preparation-row">
-        <span className="preparation-title"><span>{x.item.name}{x.item.lost ? ' · Не могу найти' : ''}{x.item.damaged ? ' · Повреждена' : ''}</span></span>
+        <span className={`preparation-title${x.status === 'unpacked' ? ' done' : ''}`}><span>{x.status === 'unpacked' ? '✓ ' : ''}{x.item.name}{x.status === 'unpacked' ? ' · распакована' : ''}{x.item.lost ? ' · Не могу найти' : ''}{x.item.damaged ? ' · Повреждена' : ''}</span></span>
         <Link to={boxPath(pid, x.box_number)} className="button small">№ {x.box_number} · {x.room}</Link>
       </li>)}</ul>
     </> : inventory.data ? <p className="muted small">Вещей в коробках пока нет. Нажмите «В коробку» у пункта выше или отметьте «Первый день» в карточке коробки.</p> : null}

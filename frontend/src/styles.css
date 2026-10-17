@@ -625,3 +625,10 @@ a.tips-card .sub, .scan-card .sub { display: block; color: var(--muted); font-si
   .public-tool-link { padding-right: 8px; }
   .search-tools > .button, .search-tools > button { flex: 1 1 110px; }
 }
+
+/* этикетка на экране телефона: номер и QR видны с расстояния вытянутой руки */
+.screen-label { display: grid; justify-items: center; gap: 8px; text-align: center; border-top: 6px solid var(--room-color, var(--text)); }
+.screen-label__number { font: 700 clamp(64px, 22vw, 120px)/1 'IBM Plex Mono', monospace; letter-spacing: .02em; }
+.screen-label__room { font-size: clamp(22px, 7vw, 32px); font-weight: 700; text-transform: uppercase; }
+.screen-label__qr { width: min(70vw, 260px); height: auto; }
+
