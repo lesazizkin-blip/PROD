@@ -4,7 +4,8 @@ import { Plus, Trash2 } from 'lucide-react'
 import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
 import StatusPickerModal, { type StatusOption } from '../components/StatusPickerModal'
-import { BOX_STATUSES, ITEM_STATUSES, type BoxStatus, type Item, type ItemStatus } from '../api/types'
+import { boxStatusOptions } from '../components/statusOptions'
+import { ITEM_STATUSES, type Item, type ItemStatus } from '../api/types'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
@@ -12,15 +13,10 @@ import ErrorAlert from '../ui/ErrorAlert'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
-import { BOX_STATUS_HINTS, ITEM_STATUS_HINTS, ITEM_STATUS_LABELS, STATUS_LABELS, labelPath } from '../ui/format'
+import { ITEM_STATUS_HINTS, ITEM_STATUS_LABELS, labelPath } from '../ui/format'
 
 // Варианты статуса коробки: любой, шаги можно пропускать и возвращаться
-const boxOptions: StatusOption<BoxStatus>[] = BOX_STATUSES.map((s) => ({
-  value: s,
-  label: STATUS_LABELS[s],
-  hint: BOX_STATUS_HINTS[s],
-  badge: `st-${s}`,
-}))
+const boxOptions = boxStatusOptions()
 
 const itemOptions: StatusOption<ItemStatus>[] = ITEM_STATUSES.map((s) => ({
   value: s,

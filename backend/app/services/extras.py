@@ -64,12 +64,13 @@ class LostService:
         self.db = db
         self.boxes = BoxService(db)
 
-    def lost_items(self, project_id: uuid.UUID) -> list[LostItemOut]:
+    def _items_with_box(self, project_id: uuid.UUID, condition, order) -> list[LostItemOut]:
+        """Вещи проекта по условию, каждая с коробкой, комнатой и статусом коробки (один запрос)."""
         rows = self.db.execute(
             select(Item, Box)
             .join(Box, Box.id == Item.box_id)
-            .where(Box.project_id == project_id, Item.status == ItemStatus.LOST.value)
-            .order_by(Item.id)
+            .where(Box.project_id == project_id, condition)
+            .order_by(*order)
         ).all()
         return [
             LostItemOut(
@@ -78,19 +79,11 @@ class LostService:
             for i, b in rows
         ]
 
+    def lost_items(self, project_id: uuid.UUID) -> list[LostItemOut]:
+        return self._items_with_box(project_id, Item.status == ItemStatus.LOST.value, [Item.id])
+
     def first_day_items(self, project_id: uuid.UUID) -> list[LostItemOut]:
-        rows = self.db.execute(
-            select(Item, Box)
-            .join(Box, Box.id == Item.box_id)
-            .where(Box.project_id == project_id, Item.first_day.is_(True))
-            .order_by(Box.number, Item.id)
-        ).all()
-        return [
-            LostItemOut(
-                item=_item_out(i, b.number), box_number=b.number, room=b.room, status=b.status
-            )  # type: ignore[arg-type]
-            for i, b in rows
-        ]
+        return self._items_with_box(project_id, Item.first_day.is_(True), [Box.number, Item.id])
 
     def hints(self, project_id: uuid.UUID, item_id: int) -> list[HintOut]:
         """В каких НЕраспакованных коробках искать вещь: где записана, где лежит похожее, в той же комнате."""

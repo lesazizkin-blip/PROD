@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, ChartColumn, ClipboardList, Package, QrCode, ScanLine } from 'lucide-react'
+import { Bell, ScanLine } from 'lucide-react'
 import { api } from '../api/endpoints'
 import { useAuth } from '../state/AuthContext'
 import { useProjects } from '../state/ProjectContext'
@@ -10,13 +10,8 @@ import BrandMark from './BrandMark'
 import Icon from './Icons'
 import Modal from './Modal'
 import NotificationsModal from './NotificationsModal'
+import { NAV_TABS } from './navTabs'
 
-const TABS = [
-  { to: '/', label: 'План', icon: ClipboardList, end: true },
-  { to: '/boxes', label: 'Коробки', icon: Package },
-  { to: '/labels', label: 'Этикетки', icon: QrCode },
-  { to: '/progress', label: 'Прогресс', icon: ChartColumn },
-] as const
 
 /** Название раздела для хлебных крошек по адресу страницы. */
 function sectionTitle(pathname: string): string {
@@ -52,8 +47,8 @@ export default function Shell() {
           <span>MoverMate</span>
         </Link>
         <nav className="tabs" aria-label="Разделы">
-          {TABS.map((t) => (
-            <NavLink key={t.to} to={t.to} end={'end' in t ? t.end : false} className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
+          {NAV_TABS.map((t) => (
+            <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => (isActive ? 'tab active' : 'tab')}>
               <t.icon className="icon" aria-hidden />
               <span>{t.label}</span>
             </NavLink>

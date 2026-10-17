@@ -4,9 +4,11 @@ import { CircleCheck, Circle } from 'lucide-react'
 import { api } from '../api/endpoints'
 import type { BoxStatus, Hint, LostItem, RoomProgress } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
+import { TipList } from './TipsPage'
 import Modal from '../components/Modal'
 import RequireProject from '../components/RequireProject'
 import StatusPickerModal from '../components/StatusPickerModal'
+import { boxStatusOptions } from '../components/statusOptions'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
@@ -108,24 +110,14 @@ function ProgressView({ pid }: { pid: string }) {
           <p className="muted small">Пометить вещь потерянной можно в карточке коробки.</p>
 
           <SectionTitle>Памятка</SectionTitle>
-          <div className="stack">
-            {(tips.data ?? []).map((t) => (
-              <article key={t.id} className="card">
-                <h3>{t.title}</h3>
-                <p>{t.body}</p>
-              </article>
-            ))}
-          </div>
+          <TipList tips={tips.data ?? []} />
         </>
       ) : null}
 
       {roomPicking ? (
         <StatusPickerModal
           title={`${roomPicking.room}: все коробки (${roomPicking.total})`}
-          options={BOX_STATUSES.map((s) => ({
-            value: s,
-            label: STATUS_LABELS[s],
-            badge: `st-${s}`,
+          options={boxStatusOptions((s) => ({
             hint: roomPicking.by_status[s] ? `${BOX_STATUS_HINTS[s]} · сейчас ${roomPicking.by_status[s]} из ${roomPicking.total}` : BOX_STATUS_HINTS[s],
             disabled: roomPicking.by_status[s] === roomPicking.total,
           }))}
