@@ -11,6 +11,8 @@ from app.main import app
 from app.services import planner
 from tests.conftest import make_box
 
+REAL_CLIENT = httpx.Client  # до подмен фикстурами
+
 # настоящий 1x1 JPEG не нужен: сервер проверяет только формат data URL и base64
 IMAGE = "data:image/jpeg;base64," + base64.b64encode(b"\xff\xd8\xff" + b"0" * 64).decode()
 INVENTORY = {
@@ -206,3 +208,43 @@ def test_photos_use_the_vision_model_when_set(client, base, provider):
         },
     )
     assert calls[-1]["model"] == "text-model"
+
+
+def test_vision_model_can_use_its_own_spirit_key(client, base, provider, monkeypatch):
+    """Два аккаунта Spirit: старый ключ - основная модель (план), новый - вторая модель (фото)."""
+    headers = []
+
+    def capture(**kwargs):
+        def handle(request):
+            headers.append((json.loads(request.content)["model"], request.headers["authorization"]))
+            body = INVENTORY if "image_url" in request.content.decode() else {"questions": []}
+            return httpx.Response(
+                200, json={"choices": [{"message": {"content": json.dumps(body)}}]}
+            )
+
+        return REAL_CLIENT(transport=httpx.MockTransport(handle), **kwargs)
+
+    monkeypatch.setattr(planner.httpx, "Client", capture)
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        ai_api_key="old-haiku-key",
+        ai_base_url="https://model.example/v1",
+        ai_model="haiku",
+        ai_vision_model="sonnet",
+        ai_vision_api_key="new-sonnet-key",
+    )
+    box = make_box(client, base)
+    assert (
+        client.post(
+            f"{base}/boxes/{box['number']}/photo-inventory", json={"image": IMAGE, "consent": True}
+        ).status_code
+        == 200
+    )
+    client.post(
+        "/api/projects/plan-questions",
+        json={
+            "description": "Переезжаем с кошкой в другой город",
+            "move_date": "2026-11-01",
+            "consent": True,
+        },
+    )
+    assert headers == [("sonnet", "Bearer new-sonnet-key"), ("haiku", "Bearer old-haiku-key")]

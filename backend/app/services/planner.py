@@ -135,7 +135,11 @@ def ensure_planner_configured(settings: Settings) -> None:
 
 
 def chat_completion(
-    settings: Settings, messages: list[dict], max_tokens: int, model: str | None = None
+    settings: Settings,
+    messages: list[dict],
+    max_tokens: int,
+    model: str | None = None,
+    api_key: str | None = None,
 ) -> str:
     """Один запрос к совместимому с Chat Completions провайдеру, ответ - JSON-текст модели.
     Без повторов и редиректов; тело запроса и ключ не журналируются. Общий для плана и фото-функций."""
@@ -152,14 +156,16 @@ def chat_completion(
         span.set_attribute("gen_ai.request.model", payload["model"])
         span.set_attribute("gen_ai.request.max_tokens", max_tokens)
         try:
-            return _chat_request(settings, payload)
+            return _chat_request(
+                settings, payload, api_key or settings.ai_api_key.get_secret_value()
+            )
         except AppError as exc:
             span.set_status(StatusCode.ERROR, exc.code)
             span.set_attribute("app.error_code", exc.code)
             raise
 
 
-def _chat_request(settings: Settings, payload: dict) -> str:
+def _chat_request(settings: Settings, payload: dict, api_key: str) -> str:
     try:
         with httpx.Client(
             timeout=httpx.Timeout(settings.ai_timeout_seconds, connect=5, write=10, pool=5),
@@ -167,7 +173,7 @@ def _chat_request(settings: Settings, payload: dict) -> str:
         ) as client:
             response = client.post(
                 settings.ai_base_url.rstrip("/") + "/chat/completions",
-                headers={"Authorization": f"Bearer {settings.ai_api_key.get_secret_value()}"},
+                headers={"Authorization": f"Bearer {api_key}"},
                 json=payload,
             )
             response.raise_for_status()
