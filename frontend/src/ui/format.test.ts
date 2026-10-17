@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boxPath, boxUrl, formatDate, formatTimeRange, nextStatus, parseBoxLink, plural, prevStatus } from './format'
+import { boxPath, boxUrl, canTransition, formatDate, formatTimeRange, nextStatus, parseBoxLink, plural, prevStatus } from './format'
 
 const PID = '00000000-0000-4000-8000-000000000001'
 
@@ -34,6 +34,12 @@ describe('статусы', () => {
   it('на краях шагов нет', () => {
     expect(nextStatus('unpacked')).toBeNull()
     expect(prevStatus('packing')).toBeNull()
+  })
+  it('в окне доступны только соседние шаги, как на сервере', () => {
+    expect(canTransition('packed', 'loaded')).toBe(true)
+    expect(canTransition('packed', 'packing')).toBe(true)
+    expect(canTransition('packing', 'unpacked')).toBe(false)
+    expect(canTransition('loaded', 'loaded')).toBe(false)
   })
 })
 

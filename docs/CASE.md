@@ -37,7 +37,7 @@
 | 21 | 5.4 Количество коробок в каждом статусе | `progress.by_status`; цветные счётчики на «Прогрессе» | `backend/tests/test_boxes_api.py` | 🟦 |
 | 22 | 5.4 Прогресс распаковки по комнатам | `progress.rooms[].unpacked_percent` | `backend/tests/test_boxes_api.py` | 🟦 |
 | 23 | 5.4 Чек-лист первого дня (зубные щётки, зарядки, чайник, бельё) | `GET/POST/PATCH/DELETE /projects/{id}/first-day`; блок «Коробка первого дня» в «Плане» | `backend/tests/test_extras_api.py` | 🟦 |
-| 24 | 5.4 Пометить вещь потерянной | `PATCH /items/{id}` (`lost`); кнопка «Потеряна» в карточке; список на «Прогрессе» | `backend/tests/test_boxes_api.py`, `backend/tests/test_extras_api.py` | 🟦 |
+| 24 | 5.4 Пометить вещь потерянной | `PATCH /items/{id}` (`status`: упакована, распакована, найдена, потеряна, повреждена); окно выбора статуса по метке вещи в карточке; список потерянных на «Прогрессе» | `backend/tests/test_boxes_api.py`, `backend/tests/test_extras_api.py` | 🟦 |
 | 25 | 5.4 Подсказки, в каких нераспакованных коробках искать потерянную вещь | `GET /items/{id}/hints`; кнопка «Где искать» | `backend/tests/test_extras_api.py` | 🟦 |
 | 26 | 5.5 Памятки: хрупкое, что везти с собой, что паковать последним; хранятся локально | `GET /tips` (из БД, сидятся при старте); экран «Памятки» | `backend/tests/test_projects_tasks.py` | 🟦 |
 | 27 | 8 Номера коробок уникальны | Ограничение БД + выдача номера в транзакции | `backend/tests/test_boxes_api.py`, `backend/tests/test_config_and_migrations.py` | 🟦 |

@@ -160,7 +160,7 @@ class Item(Base):
     box_id: Mapped[int] = _fk("boxes.id")
     name: Mapped[str] = mapped_column(String(120))
     name_norm: Mapped[str] = mapped_column(String(120), index=True)
-    lost: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(20), default="packed")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 

@@ -182,7 +182,7 @@ def update_item(
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),
 ):
-    return BoxService(db).update_item(project.id, item_id, body.name, body.lost)
+    return BoxService(db).update_item(project.id, item_id, body.name, body.status, body.lost)
 
 
 @router.delete("/items/{item_id}", status_code=204, summary="Удалить вещь (confirm=true)")

@@ -14,6 +14,7 @@ from app.schemas import (
     BoxStatus,
     BoxUpdate,
     ItemOut,
+    ItemStatus,
     LabelOut,
     ProgressOut,
     RoomProgress,
@@ -79,7 +80,8 @@ def _item_out(item: Item, box_number: int) -> ItemOut:
         id=item.id,
         box_number=box_number,
         name=item.name,
-        lost=item.lost,
+        status=item.status,  # type: ignore[arg-type]
+        lost=item.status == ItemStatus.LOST,
         created_at=item.created_at,
     )
 
@@ -271,20 +273,31 @@ class BoxService:
         return row[0], row[1]
 
     def update_item(
-        self, project_id: uuid.UUID, item_id: int, name: str | None, lost: bool | None
+        self,
+        project_id: uuid.UUID,
+        item_id: int,
+        name: str | None,
+        status: ItemStatus | None,
+        lost: bool | None = None,
     ) -> ItemOut:
         item, box = self.get_item(project_id, item_id)
         if name is not None:
             item.name, item.name_norm = name, normalize(name)
-        if lost is not None and lost != item.lost:
-            item.lost = lost
+        if status is None and lost is not None:  # старый формат: флажок «потеряна»
+            status = ItemStatus.LOST if lost else ItemStatus.FOUND
+        if status is not None and status != item.status:
+            old, item.status = item.status, status.value
+            event = {ItemStatus.LOST: "item.lost", ItemStatus.FOUND: "item.found"}.get(
+                status, "item.status_changed"
+            )
             log_event(
                 self.db,
                 project_id,
-                "item.lost" if lost else "item.found",
+                event,
                 "item",
                 item.id,
                 name=item.name,
+                **{"from": old, "to": status.value},
             )
         self.db.commit()
         return _item_out(item, box.number)
@@ -332,7 +345,8 @@ class BoxService:
             SearchHit(
                 item_id=i.id,
                 name=i.name,
-                lost=i.lost,
+                item_status=i.status,
+                lost=i.status == ItemStatus.LOST,
                 box_number=b.number,
                 room=b.room,
                 status=b.status,

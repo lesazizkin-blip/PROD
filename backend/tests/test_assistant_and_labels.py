@@ -1,5 +1,3 @@
-from datetime import date, timedelta
-
 from tests.conftest import make_box
 
 
@@ -29,7 +27,7 @@ def test_suggestion_does_not_change_anything(client, base):
     assert client.get(f"{base}/tasks").json() == before
 
 
-def test_apply_adds_tasks_with_due_dates_and_is_idempotent(client, base):
+def test_apply_adds_tasks_without_due_dates_and_is_idempotent(client, base):
     flags = {"with_children": True, "other_city": True}
     n_before = len(client.get(f"{base}/tasks").json())
     first_before = len(client.get(f"{base}/first-day").json())
@@ -45,9 +43,7 @@ def test_apply_adds_tasks_with_due_dates_and_is_idempotent(client, base):
         for t in tasks
         if t["title"] == "Заказать транспортную компанию для переезда в другой город"
     )
-    assert (
-        moving["due_date"] == (date(2026, 11, 1) - timedelta(days=21)).isoformat()
-    )  # срок от даты переезда
+    assert moving["due_date"] is None  # срок ставит пользователь
 
     again = client.post(f"{base}/assistant/checklist/apply", json=flags).json()
     assert again == {"added_tasks": 0, "added_first_day": 0}  # повторный вызов ничего не дублирует

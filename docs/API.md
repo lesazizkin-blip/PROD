@@ -70,7 +70,9 @@ packing (собирается) → packed (собрана) → loaded (погр�
   "created_at": "…Z", "updated_at": "…Z" }
 
 // Item
-{ "id": 77, "box_number": 12, "name": "Чайник", "lost": false, "created_at": "…Z" }
+{ "id": 77, "box_number": 12, "name": "Чайник", "status": "packed", "lost": false, "created_at": "…Z" }
+// status вещи: packed (упакована) | unpacked (распакована) | found (найдена) | lost (потеряна) | damaged (повреждена);
+// lost = (status == "lost"), оставлено для совместимости
 
 // Event
 { "id": 5, "type": "box.status_changed", "entity": "box", "entity_id": "12",
@@ -135,7 +137,7 @@ packing (собирается) → packed (собрана) → loaded (погр�
 Мои проекты: `200 [ { "id", "name", "move_date", "role": "owner" | "member" } ]`.
 
 ### `POST /api/projects`
-Создаёт проект (вошедший пользователь становится владельцем), сразу применяет шаблоны задач (по `move_date + default_offset_days`) и шаблон чек-листа первого дня.
+Создаёт проект (вошедший пользователь становится владельцем), сразу применяет шаблоны задач (без сроков: `due_date = null`, дату ставит пользователь) и шаблон чек-листа первого дня. Задачи умного чек-листа тоже добавляются без сроков.
 
 Запрос: `{ "name": "…", "move_date": "2026-11-01", "address_from": null, "address_to": null }`. `name` 1–120 символов, `move_date` обязательна, адреса необязательны (≤ 300).
 Ответ `201`: Project.
@@ -213,7 +215,7 @@ packing (собирается) → packed (собрана) → loaded (погр�
 Быстрый ввод: `{ "text": "Чайник\nКружки (4 шт)\nТостер" }`. Каждая непустая строка = вещь, пробелы по краям срезаются, пустые строки игнорируются, максимум 200 строк за запрос. Дубли внутри коробки не схлопываются (две одинаковые вещи допустимы). `201 { "created": [Item] }`. Сбрасывает «ожидание заполнения» (`fill_later` остаётся флагом, но напоминание исчезает, как только в коробке есть вещь).
 
 ### `PATCH /api/projects/{pid}/items/{id}`
-Любые из `name`, `lost`. `lost: true` — пометить потерянной. `200` Item. Событие `item.lost` / `item.found`.
+Любые из `name`, `status`. Статус вещи выбирается свободно, в любом порядке (вещь может найтись или сломаться когда угодно); неизвестный статус — `422`. Старый формат `lost: true|false` принимается как `status: lost|found`. `200` Item. Событие `item.lost`, `item.found` или `item.status_changed` с `from`/`to`.
 
 ### `DELETE /api/projects/{pid}/items/{id}?confirm=true`
 `204`.
@@ -240,7 +242,7 @@ packing (собирается) → packed (собрана) → loaded (погр�
 
 ```json
 { "items": [
-  { "item_id": 77, "name": "Чайник", "lost": false,
+  { "item_id": 77, "name": "Чайник", "item_status": "packed", "lost": false,
     "box_number": 12, "room": "Кухня", "status": "packed" }
   ], "total": 1, "page": 1, "page_size": 50 }
 ```
@@ -307,7 +309,7 @@ packing (собирается) → packed (собрана) → loaded (погр�
 ## Журнал событий (раздел 8 ТЗ)
 
 ### `GET /api/projects/{pid}/events`
-Пагинация, новые сверху (`id` по убыванию). Фильтр `type`. Типы: `project.created`, `project.updated`, `task.created`, `task.completed`, `task.reopened`, `box.created`, `box.deleted`, `box.status_changed`, `item.lost`, `item.found`. Данные событий не содержат персональных данных, кроме названий, которые ввёл пользователь. `200` страница Event.
+Пагинация, новые сверху (`id` по убыванию). Фильтр `type`. Типы: `project.created`, `project.updated`, `task.created`, `task.completed`, `task.reopened`, `box.created`, `box.deleted`, `box.status_changed`, `item.lost`, `item.found`, `item.status_changed`. Данные событий не содержат персональных данных, кроме названий, которые ввёл пользователь. `200` страница Event.
 
 ---
 

@@ -171,6 +171,19 @@ button.small { min-height: 36px; padding: 6px 12px; font-size: .85rem; }
 .st-loaded { color: var(--st-loaded); background: color-mix(in srgb, var(--st-loaded) 15%, transparent); }
 .st-delivered { color: var(--st-delivered); background: color-mix(in srgb, var(--st-delivered) 15%, transparent); }
 .st-unpacked { color: var(--st-unpacked); background: color-mix(in srgb, var(--st-unpacked) 15%, transparent); }
+/* статусы вещи: «упакована» и «распакована» в цветах коробки, остальные свои */
+.it-packed { color: var(--st-packed); background: color-mix(in srgb, var(--st-packed) 15%, transparent); }
+.it-unpacked, .it-found { color: var(--st-unpacked); background: color-mix(in srgb, var(--st-unpacked) 15%, transparent); }
+.it-lost { color: var(--danger); background: color-mix(in srgb, var(--danger) 15%, transparent); }
+.it-damaged { color: var(--st-loaded); background: color-mix(in srgb, var(--st-loaded) 15%, transparent); }
+/* метка-кнопка: открывает выбор статуса вещи */
+button.badge-button { min-height: 32px; border: 1px solid transparent; }
+button.badge-button:hover:not(:disabled) { border-color: currentColor; }
+/* окно выбора статуса */
+.choice-list { display: grid; gap: 8px; }
+.choice { display: grid; justify-items: start; gap: 4px; text-align: left; padding: 10px 12px; width: 100%; }
+.choice.current { border-color: var(--primary); opacity: 1; }
+.choice .sub { color: var(--muted); font-size: .85rem; }
 
 .progress { height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; }
 .progress > span { display: block; height: 100%; background: var(--primary); border-radius: inherit; transition: width .3s; }

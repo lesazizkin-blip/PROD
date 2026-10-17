@@ -13,7 +13,7 @@ from app.config import DEMO_PROJECT_ID, get_settings
 from app.db import SessionLocal
 from app.models import Project, User
 from app.reference_data import ensure_reference_data
-from app.schemas import BoxCreate, BoxStatus, ProjectCreate, TaskUpdate
+from app.schemas import BoxCreate, BoxStatus, ItemStatus, ProjectCreate, TaskUpdate
 from app.security import hash_password
 from app.services.auth import AuthService
 from app.services.boxes import BoxService
@@ -81,7 +81,7 @@ def run(load: bool = False) -> None:
                 project.id, BoxCreate(room="Кабинет", fill_later=True)
             )  # покажет напоминание об описи
             lost = svc.search(project.id, "Зарядки", 0, 1)[0][0]
-            svc.update_item(project.id, lost.item_id, None, True)
+            svc.update_item(project.id, lost.item_id, None, ItemStatus.LOST)
             print(f"Демо-проект: {DEMO_ID}")
         # демо-проект мог появиться раньше аккаунтов: отдаём его демо-аккаунту
         AuthService(db).add_member(DEMO_ID, demo.id, "owner")

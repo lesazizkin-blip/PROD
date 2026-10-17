@@ -133,8 +133,9 @@ def test_items_add_bulk_lost_delete(client, base):
     )
     assert client.post(f"{base}/boxes/{n}/items", json={"name": ""}).status_code == 422
 
+    assert one["status"] == "packed" and one["lost"] is False
     lost = client.patch(f"{base}/items/{one['id']}", json={"lost": True}).json()
-    assert lost["lost"] is True
+    assert lost["lost"] is True and lost["status"] == "lost"  # старый формат по-прежнему работает
     assert client.get(f"{base}/search?q=чайник").json()["items"][0]["lost"] is True
     assert client.delete(f"{base}/items/{one['id']}").status_code == 422
     assert client.delete(f"{base}/items/{one['id']}?confirm=true").status_code == 204
@@ -143,6 +144,26 @@ def test_items_add_bulk_lost_delete(client, base):
     assert page["total"] == 3 and len(page["items"]) == 2
     types = [e["type"] for e in client.get(f"{base}/events").json()["items"]]
     assert "item.lost" in types
+
+
+def test_item_status_is_chosen_freely_and_logged(client, base):
+    n = make_box(client, base, items="Ваза")["number"]
+    item_id = client.get(f"{base}/boxes/{n}").json()["items"][0]["id"]
+    url = f"{base}/items/{item_id}"
+    # любой статус из любого: вещь может найтись, сломаться или оказаться на месте когда угодно
+    for status in ["damaged", "lost", "found", "unpacked", "packed"]:
+        r = client.patch(url, json={"status": status})
+        assert r.status_code == 200 and r.json()["status"] == status
+        assert r.json()["lost"] is (status == "lost")
+    assert client.patch(url, json={"status": "broken"}).status_code == 422
+    hit = client.get(f"{base}/search?q=ваза").json()["items"][0]
+    assert hit["item_status"] == "packed" and hit["status"] == "packing"  # вещь и коробка отдельно
+    events = client.get(f"{base}/events?type=item.status_changed").json()["items"]
+    assert {"from": "found", "to": "unpacked"} in [
+        {k: e["data"][k] for k in ("from", "to")} for e in events
+    ]
+    types = [e["type"] for e in client.get(f"{base}/events").json()["items"]]
+    assert "item.lost" in types and "item.found" in types
 
 
 def test_items_of_other_project_are_not_reachable(client, base):

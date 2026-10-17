@@ -1,6 +1,6 @@
 import { request } from "./client"
 import type {
-  AppEvent, Box, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Health, Hint, Item,
+  AppEvent, Box, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Health, Hint, Item, ItemStatus,
   Credentials, InviteInfo, InviteOut, Member, Label, LostItem, Page, PageParams, Progress, Project, ProjectBrief, ProjectCreate, ProjectUpdate, Reminder, SearchHit, User,
   Stage, Task, TaskCreate, TaskTemplate, TaskUpdate, Tip, TipTopic,
 } from "./types"
@@ -71,7 +71,7 @@ export const api = {
     request<Item>("POST", `${p(pid)}/boxes/${n}/items`, { body: { name } }),
   createItemsBulk: (pid: string, n: number, text: string) =>
     request<{ created: Item[] }>("POST", `${p(pid)}/boxes/${n}/items/bulk`, { body: { text } }),
-  updateItem: (pid: string, id: number, body: { name?: string; lost?: boolean }) =>
+  updateItem: (pid: string, id: number, body: { name?: string; status?: ItemStatus }) =>
     request<Item>("PATCH", `${p(pid)}/items/${id}`, { body }),
   deleteItem: (pid: string, id: number) =>
     request<void>("DELETE", `${p(pid)}/items/${id}`, { query: { confirm: true } }),

@@ -1,5 +1,4 @@
 import uuid
-from datetime import timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -34,7 +33,6 @@ class ProjectService:
                     project_id=project.id,
                     stage=template.stage,
                     title=template.title,
-                    due_date=project.move_date + timedelta(days=template.default_offset_days),
                     template_id=template.id,
                 )
             )
