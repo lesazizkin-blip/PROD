@@ -101,6 +101,9 @@ def test_bulk_transition_moves_all_or_nothing(client, base):
     r = client.post(f"{base}/boxes/bulk-transitions", json={"numbers": [a, c], "to": "delivered"})
     assert r.status_code == 409 and f"№{c}" in r.json()["detail"]  # c пустая
     assert client.get(f"{base}/boxes/{a}").json()["status"] == "loaded"  # ничего не изменилось
+    d = make_box(client, base, room="Кухня")["number"]  # «собирается»: в «доставлена» - перескок
+    r = client.post(f"{base}/boxes/bulk-transitions", json={"numbers": [a, d], "to": "delivered"})
+    assert r.status_code == 409 and client.get(f"{base}/boxes/{a}").json()["status"] == "loaded"
 
     assert (
         client.post(
