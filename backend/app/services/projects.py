@@ -1,10 +1,9 @@
 import uuid
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.errors import ValidationFailed
-from app.models import FirstDayItem, Project, ProjectMember, Task, TaskTemplate
+from app.models import FirstDayItem, Project, ProjectMember
 from app.reference_data import FIRST_DAY
 from app.schemas import ProjectCreate, ProjectUpdate
 from app.services.events import log_event
@@ -27,15 +26,7 @@ class ProjectService:
             project.id = project_id
         self.db.add(project)
         self.db.flush()
-        for template in self.db.scalars(select(TaskTemplate).order_by(TaskTemplate.id)):
-            self.db.add(
-                Task(
-                    project_id=project.id,
-                    stage=template.stage,
-                    title=template.title,
-                    template_id=template.id,
-                )
-            )
+        # план не заполняется сам: шаблоны задач добавляет пользователь кнопкой (POST …/tasks/apply-templates)
         for title in FIRST_DAY:
             self.db.add(FirstDayItem(project_id=project.id, title=title))
         if owner_id is not None:  # владелец добавляется в той же транзакции, что и проект

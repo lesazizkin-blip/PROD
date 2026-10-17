@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { BookOpen, CalendarDays, Clock, Gem, PackageCheck, Pencil, Sparkles, Trash2, UserRound, type LucideIcon } from 'lucide-react'
+import { CalendarDays, Clock, ListPlus, Pencil, Sparkles, Trash2, UserRound } from 'lucide-react'
 import { api } from '../api/endpoints'
 import type { Stage, Task, TaskCreate } from '../api/types'
 import ChecklistModal from '../components/ChecklistModal'
@@ -10,16 +9,11 @@ import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
 import ProgressBar from '../ui/ProgressBar'
-import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import { STAGES, STAGE_LABELS, formatDate, formatTimeRange } from '../ui/format'
 
-// Памятки (раздел 5.5 ТЗ): короткие карточки над планом, подробно на /tips
-const TIP_CARDS: { icon: LucideIcon; title: string; sub: string }[] = [
-  { icon: PackageCheck, title: 'Хрупкие вещи', sub: 'Как упаковать' },
-  { icon: Gem, title: 'Берём с собой', sub: 'Документы, ценности' },
-  { icon: BookOpen, title: 'Пакуем последними', sub: 'Что оставить на потом' },
-]
+// Вкладки плана: три этапа переезда и отдельно коробка первого дня
+type PlanTab = Stage | 'first-day'
 
 // Срок прошёл, а задача не выполнена (сравниваем даты в формате ГГГГ-ММ-ДД)
 const isOverdue = (t: Task) => !t.done && !!t.due_date && t.due_date.slice(0, 10) < new Date().toLocaleDateString('sv-SE')
@@ -34,15 +28,8 @@ function Plan({ pid }: { pid: string }) {
   const firstDay = useAsync(() => api.firstDay(pid), [pid])
   // null - форма закрыта, 'new' - новая задача, Task - правка существующей
   const [form, setForm] = useState<'new' | Task | null>(null)
-  // кнопка AI в шапке ведёт сюда с ?assistant=1: умный чек-лист открыт, пока параметр в адресе
-  const [params, setParams] = useSearchParams()
-  const [smartByButton, setSmartByButton] = useState(false)
-  const smart = smartByButton || params.get('assistant') === '1'
-  const closeSmart = () => {
-    setSmartByButton(false)
-    if (params.has('assistant')) setParams({}, { replace: true })
-  }
-  const [stage, setStage] = useState<Stage | null>(null)
+  const [smart, setSmart] = useState(false)
+  const [tab, setTab] = useState<PlanTab | null>(null)
 
   const reloadAll = () => {
     project.reload()
@@ -55,8 +42,8 @@ function Plan({ pid }: { pid: string }) {
   const done = list.filter((t) => t.done).length
   const first = firstDay.data ?? []
   // по умолчанию открыт первый этап, где остались невыполненные задачи
-  const activeStage = stage ?? STAGES.find((s) => list.some((t) => t.stage === s && !t.done)) ?? 'before'
-  const stageTasks = list.filter((t) => t.stage === activeStage)
+  const activeTab: PlanTab = tab ?? STAGES.find((s) => list.some((t) => t.stage === s && !t.done)) ?? 'before'
+  const stageTasks = list.filter((t) => t.stage === activeTab)
   const toggleTask = (t: Task) => act(() => api.updateTask(pid, t.id, { done: !t.done }))
 
   return (
@@ -69,33 +56,50 @@ function Plan({ pid }: { pid: string }) {
         <ProgressBar value={done} max={list.length} label="Выполнено задач" />
         <div className="row between">
           <span className="small">Выполнено {done} из {list.length}</span>
-          <button className="hero__action" onClick={() => setSmartByButton(true)}><Sparkles className="icon-sm" aria-hidden />Умный чек-лист</button>
+          <button className="hero__action" onClick={() => setSmart(true)}><Sparkles className="icon-sm" aria-hidden />Умный чек-лист</button>
         </div>
       </div>
 
-      <div className="tip-cards">
-        {TIP_CARDS.map((c) => (
-          <Link key={c.title} to="/tips" className="tip-card">
-            <c.icon className="icon" aria-hidden />
-            <span><b>{c.title}</b><span className="muted small">{c.sub}</span></span>
-          </Link>
-        ))}
-      </div>
       <ErrorAlert message={error} />
 
       <div className="segmented stage-tabs" role="tablist" aria-label="Этапы переезда">
         {STAGES.map((s) => {
           const items = list.filter((t) => t.stage === s)
           return (
-            <button key={s} type="button" role="tab" aria-selected={s === activeStage} className={s === activeStage ? 'on' : ''} onClick={() => setStage(s)}>
+            <button key={s} type="button" role="tab" aria-selected={s === activeTab} className={s === activeTab ? 'on' : ''} onClick={() => setTab(s)}>
               {STAGE_LABELS[s]} <span className="count">{items.filter((t) => t.done).length}/{items.length}</span>
             </button>
           )
         })}
+        <button type="button" role="tab" aria-selected={activeTab === 'first-day'} className={activeTab === 'first-day' ? 'on' : ''} onClick={() => setTab('first-day')}>
+          Первый день <span className="count">{first.filter((f) => f.done).length}/{first.length}</span>
+        </button>
       </div>
 
-      <section className="task-list" role="tabpanel" aria-label={STAGE_LABELS[activeStage]}>
-        {stageTasks.length === 0 ? <div className="state"><p>На этом этапе задач нет. Добавьте свою кнопкой «+ Задача».</p></div> : null}
+      {activeTab === 'first-day' ? (
+        <section role="tabpanel" aria-label="Коробка первого дня">
+          <p className="muted small">Что положить в коробку, которую откроете первой на новом месте.</p>
+          <div className="card flush">
+            {first.length === 0 ? <div className="list-row muted">Список пуст</div> : null}
+            {first.map((f) => (
+              <label key={f.id} className={f.done ? 'list-row done' : 'list-row'}>
+                <input type="checkbox" className="check" checked={f.done} disabled={busy} onChange={() => act(() => api.updateFirstDay(pid, f.id, { done: !f.done }))} />
+                <span className="grow title">{f.title}</span>
+                <button type="button" className="link small" disabled={busy} aria-label={`Удалить «${f.title}»`} onClick={(e) => { e.preventDefault(); if (window.confirm(`Удалить «${f.title}»?`)) void act(() => api.deleteFirstDay(pid, f.id)) }}><Trash2 className="icon-sm" aria-hidden /></button>
+              </label>
+            ))}
+          </div>
+        </section>
+      ) : (
+      <section className="task-list" role="tabpanel" aria-label={STAGE_LABELS[activeTab]}>
+        {list.length === 0 ? (
+          <div className="state stack">
+            <p>План пока пуст. Добавьте свои задачи кнопкой «+ Задача» или возьмите типовые задачи переезда.</p>
+            <button type="button" className="tonal" disabled={busy} onClick={() => act(() => api.applyTemplates(pid))}>
+              <ListPlus className="icon-sm" aria-hidden />Добавить типовые задачи
+            </button>
+          </div>
+        ) : stageTasks.length === 0 ? <div className="state"><p>На этом этапе задач нет. Добавьте свою кнопкой «+ Задача».</p></div> : null}
         {stageTasks.map((t) => (
           <label key={t.id} className={`task-card${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
             <input type="checkbox" className="check" checked={t.done} disabled={busy} onChange={() => toggleTask(t)} />
@@ -117,23 +121,10 @@ function Plan({ pid }: { pid: string }) {
           </label>
         ))}
       </section>
-
-      <section>
-        <SectionTitle>Коробка первого дня</SectionTitle>
-        <div className="card flush">
-          {first.length === 0 ? <div className="list-row muted">Список пуст</div> : null}
-          {first.map((f) => (
-            <label key={f.id} className={f.done ? 'list-row done' : 'list-row'}>
-              <input type="checkbox" className="check" checked={f.done} disabled={busy} onChange={() => act(() => api.updateFirstDay(pid, f.id, { done: !f.done }))} />
-              <span className="grow title">{f.title}</span>
-              <button type="button" className="link small" disabled={busy} aria-label={`Удалить «${f.title}»`} onClick={(e) => { e.preventDefault(); if (window.confirm(`Удалить «${f.title}»?`)) void act(() => api.deleteFirstDay(pid, f.id)) }}><Trash2 className="icon-sm" aria-hidden /></button>
-            </label>
-          ))}
-        </div>
-      </section>
+      )}
 
       <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button>
-      {smart ? <ChecklistModal pid={pid} onClose={closeSmart} onApplied={reloadAll} /> : null}
+      {smart ? <ChecklistModal pid={pid} onClose={() => setSmart(false)} onApplied={reloadAll} /> : null}
       {form ? (
         <TaskModal
           initial={form === 'new' ? null : form}

@@ -8,29 +8,22 @@ from app.errors import ConflictError, ValidationFailed
 from app.services.boxes import ORDER, TRANSITIONS, check_transition, normalize, parse_lines
 
 
-@pytest.mark.parametrize(("a", "b"), [(ORDER[i], ORDER[i + 1]) for i in range(4)])
-def test_one_step_forward_allowed(a, b):
-    check_transition(a, b)
-
-
-@pytest.mark.parametrize(("a", "b"), [(ORDER[i + 1], ORDER[i]) for i in range(4)])
-def test_one_step_back_allowed(a, b):
-    check_transition(a, b)
-
-
-def test_every_other_transition_is_rejected():
-    allowed = {(a, b) for a, targets in TRANSITIONS.items() for b in targets}
+def test_any_status_can_be_chosen_from_any_other():
     for a, b in itertools.product(ORDER, ORDER):
-        if (a, b) not in allowed:
-            with pytest.raises(ConflictError):
-                check_transition(a, b)
+        if a != b:
+            check_transition(a, b)  # свободный выбор: шаги можно пропускать и возвращаться
+    assert all(len(TRANSITIONS[s]) == len(ORDER) - 1 for s in ORDER)
 
 
-def test_cannot_unpack_undelivered_box():
-    with pytest.raises(ConflictError, match="packing"):
-        check_transition("packing", "unpacked")
+@pytest.mark.parametrize("s", ORDER)
+def test_same_status_is_rejected(s):
+    with pytest.raises(ConflictError, match="уже"):
+        check_transition(s, s)
+
+
+def test_unknown_status_is_rejected():
     with pytest.raises(ConflictError):
-        check_transition("loaded", "unpacked")
+        check_transition("packing", "lost")
 
 
 def test_parse_lines_trims_and_skips_blank():

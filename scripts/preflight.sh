@@ -49,10 +49,12 @@ scenario() {  # временный проект всегда удаляется,
 }
 scenario_body() {
   local pid="$1" n lbl
-  api "/projects/$pid/tasks" | ok_if "len(d)>=10" || return 1                        # шаблоны задач применились
+  api "/projects/$pid/tasks" | ok_if "len(d)==0" || return 1                         # план не заполняется сам
+  post "/projects/$pid/tasks/apply-templates" | ok_if "d['added']>=10" || return 1    # шаблоны задач по кнопке
   n="$(post "/projects/$pid/boxes" '{"room":"Кухня","items_text":"Чайник\nКружки"}' | json "d['number']")" || return 1
   [ "$n" = 1 ] || return 1                                                            # номер выдаёт сервер
-  [ "$(code POST "/projects/$pid/boxes/$n/transitions" '{"to":"unpacked"}')" = 409 ] || return 1   # нельзя распаковать недоставленную
+  post "/projects/$pid/boxes/$n/transitions" '{"to":"unpacked"}' | ok_if "d['status']=='unpacked'" || return 1   # статус выбирается свободно
+  [ "$(code POST "/projects/$pid/boxes/$n/transitions" '{"to":"unpacked"}')" = 409 ] || return 1   # тот же статус - 409
   post "/projects/$pid/boxes/$n/transitions" '{"to":"packed"}' | ok_if "d['status']=='packed'" || return 1
   lbl="$(api "/projects/$pid/boxes/$n/label" | json "d['qr_path']")" || return 1
   [ "$lbl" = "/projects/$pid/boxes/$n" ] || return 1                                  # QR ведёт на карточку коробки

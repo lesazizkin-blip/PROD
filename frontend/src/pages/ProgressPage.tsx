@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CircleCheck, Circle } from 'lucide-react'
 import { api } from '../api/endpoints'
-import type { BoxStatus, Hint, LostItem } from '../api/types'
+import type { BoxStatus, Hint, LostItem, RoomProgress } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
 import Modal from '../components/Modal'
 import RequireProject from '../components/RequireProject'
+import StatusPickerModal from '../components/StatusPickerModal'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
@@ -13,14 +14,8 @@ import ProgressBar from '../ui/ProgressBar'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
-import { STATUS_LABELS, boxPath } from '../ui/format'
+import { BOX_STATUS_HINTS, STATUS_LABELS, boxPath } from '../ui/format'
 
-// Для комнаты: какие коробки можно сдвинуть дальше одной кнопкой (погрузка, доставка, распаковка)
-const ROOM_STEPS: { from: BoxStatus; to: BoxStatus; label: string }[] = [
-  { from: 'packed', to: 'loaded', label: 'Погрузить' },
-  { from: 'loaded', to: 'delivered', label: 'Доставлено' },
-  { from: 'delivered', to: 'unpacked', label: 'Распаковано' },
-]
 
 const REASONS: Record<string, string> = {
   recorded: 'записана в этой коробке',
@@ -38,18 +33,21 @@ function ProgressView({ pid }: { pid: string }) {
   const lost = useAsync<LostItem[]>(() => api.lostItems(pid), [pid])
   const { busy, error, run } = useAction()
   const [hints, setHints] = useState<{ name: string; list: Hint[] } | null>(null)
+  const [roomPicking, setRoomPicking] = useState<RoomProgress | null>(null)
+  const tips = useAsync(() => api.tips(), [])
 
   const reloadAll = () => {
     progress.reload()
     lost.reload()
   }
 
-  const moveRoom = (room: string, from: BoxStatus, to: BoxStatus) =>
-    run(async () => {
-      const boxes = await api.boxes(pid, { room, status: from, page_size: 200 })
-      await api.bulkTransition(pid, boxes.items.map((b) => b.number), to)
-      reloadAll()
-    })
+  // Все коробки комнаты, которые ещё не в выбранном статусе, переводятся в него одним запросом (всё или ничего)
+  const moveRoom = async (room: string, to: BoxStatus) => {
+    const boxes = await api.boxes(pid, { room, page_size: 200 })
+    const numbers = boxes.items.filter((b) => b.status !== to).map((b) => b.number)
+    if (numbers.length) await api.bulkTransition(pid, numbers, to)
+    reloadAll()
+  }
 
   const showHints = (entry: LostItem) =>
     run(async () => setHints({ name: entry.item.name, list: await api.hints(pid, entry.item.id) }))
@@ -86,11 +84,7 @@ function ProgressView({ pid }: { pid: string }) {
               <div className="small muted">Распаковано {r.unpacked} из {r.total}</div>
               <ProgressBar value={r.unpacked_percent} label={`${r.room}: распаковано`} />
               <div className="row wrap">
-                {ROOM_STEPS.filter((s) => r.by_status[s.from] > 0).map((s) => (
-                  <button key={s.to} className="tonal small" disabled={busy} onClick={() => moveRoom(r.room, s.from, s.to)}>
-                    {s.label} ({r.by_status[s.from]})
-                  </button>
-                ))}
+                <button className="tonal small" disabled={busy} onClick={() => setRoomPicking(r)}>Отметить коробки комнаты</button>
               </div>
             </div>
           ))}
@@ -112,7 +106,32 @@ function ProgressView({ pid }: { pid: string }) {
             ))}
           </div>
           <p className="muted small">Пометить вещь потерянной можно в карточке коробки.</p>
+
+          <SectionTitle>Памятка</SectionTitle>
+          <div className="stack">
+            {(tips.data ?? []).map((t) => (
+              <article key={t.id} className="card">
+                <h3>{t.title}</h3>
+                <p>{t.body}</p>
+              </article>
+            ))}
+          </div>
         </>
+      ) : null}
+
+      {roomPicking ? (
+        <StatusPickerModal
+          title={`${roomPicking.room}: все коробки (${roomPicking.total})`}
+          options={BOX_STATUSES.map((s) => ({
+            value: s,
+            label: STATUS_LABELS[s],
+            badge: `st-${s}`,
+            hint: roomPicking.by_status[s] ? `${BOX_STATUS_HINTS[s]} · сейчас ${roomPicking.by_status[s]} из ${roomPicking.total}` : BOX_STATUS_HINTS[s],
+            disabled: roomPicking.by_status[s] === roomPicking.total,
+          }))}
+          onPick={(to) => moveRoom(roomPicking.room, to)}
+          onClose={() => setRoomPicking(null)}
+        />
       ) : null}
 
       {hints ? (

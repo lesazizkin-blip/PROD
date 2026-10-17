@@ -70,6 +70,7 @@ def run(load: bool = False) -> None:
                 ),
                 DEMO_ID,
             )
+            TaskService(db).apply_templates(project)  # демо показывает план из шаблонов
             tasks = TaskService(db).list_tasks(project.id, None, None)
             for t in tasks[:4]:
                 TaskService(db).update(project.id, t.id, TaskUpdate(done=True))

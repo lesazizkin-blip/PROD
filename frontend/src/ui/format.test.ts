@@ -35,10 +35,10 @@ describe('статусы', () => {
     expect(nextStatus('unpacked')).toBeNull()
     expect(prevStatus('packing')).toBeNull()
   })
-  it('в окне доступны только соседние шаги, как на сервере', () => {
+  it('в окне можно выбрать любой другой статус, как на сервере', () => {
     expect(canTransition('packed', 'loaded')).toBe(true)
-    expect(canTransition('packed', 'packing')).toBe(true)
-    expect(canTransition('packing', 'unpacked')).toBe(false)
+    expect(canTransition('packing', 'unpacked')).toBe(true)
+    expect(canTransition('unpacked', 'packing')).toBe(true)
     expect(canTransition('loaded', 'loaded')).toBe(false)
   })
 })

@@ -86,7 +86,10 @@ def test_reminders_for_fill_later_boxes(client, base):
 
 # ---------- массовая погрузка ----------
 def test_bulk_transition_moves_all_or_nothing(client, base):
-    a, b, c = (make_box(client, base, room="Кухня")["number"] for _ in range(3))
+    a, b = (make_box(client, base, room="Кухня")["number"] for _ in range(2))
+    c = make_box(client, base, room="Кухня", items="")[
+        "number"
+    ]  # пустая: дальше «собирается» нельзя
     for n in (a, b):
         advance(client, base, n, ["packed"])
     r = client.post(f"{base}/boxes/bulk-transitions", json={"numbers": [a, b], "to": "loaded"})
@@ -96,7 +99,7 @@ def test_bulk_transition_moves_all_or_nothing(client, base):
     ]
 
     r = client.post(f"{base}/boxes/bulk-transitions", json={"numbers": [a, c], "to": "delivered"})
-    assert r.status_code == 409 and f"№{c}" in r.json()["detail"]  # c ещё собирается
+    assert r.status_code == 409 and f"№{c}" in r.json()["detail"]  # c пустая
     assert client.get(f"{base}/boxes/{a}").json()["status"] == "loaded"  # ничего не изменилось
 
     assert (
