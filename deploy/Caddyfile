@@ -4,5 +4,15 @@
 #   без имени (по умолчанию :80) работает обычный HTTP, например при локальном запуске.
 {$SITE_ADDRESS::80} {
 	encode gzip
+	# заголовки безопасности: только HTTPS (HSTS), без угадывания типов, сайт нельзя встроить в чужую рамку,
+	# ссылка на другой сайт не уносит полный адрес; камера разрешена только самому сайту (сканер QR)
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+		-Server
+	}
 	reverse_proxy app:8000
 }

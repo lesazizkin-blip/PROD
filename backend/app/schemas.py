@@ -94,6 +94,11 @@ class ProjectCreate(BaseModel):
 
 
 class ProjectUpdate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [{"name": "Переезд на Садовую", "address_to": "ул. Садовая, 5"}]
+        }
+    )
     name: Text120 | None = None
     move_date: date | None = None
     address_from: str | None = Field(default=None, max_length=300)
@@ -127,6 +132,13 @@ class UserOut(ORM):
 
 
 class PasswordChange(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"current_password": "старый-пароль", "new_password": "новый-пароль-подлиннее"}
+            ]
+        }
+    )
     current_password: str = Field(min_length=1, max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
 
@@ -188,6 +200,22 @@ def _check_times(start: time | None, end: time | None) -> None:
 
 
 class TaskCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "stage": "before",
+                    "title": "Заказать грузчиков",
+                    "due_date": "2026-10-25",
+                    "start_time": "09:00",
+                    "end_time": "12:00",
+                    "category": "Грузчики",
+                    "category_color": "#f0a04b",
+                    "assignee": "Аня",
+                }
+            ]
+        }
+    )
     stage: Stage
     title: Text200
     due_date: date | None = None
@@ -206,6 +234,7 @@ class TaskCreate(BaseModel):
 
 
 class TaskUpdate(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"done": True}]})
     stage: Stage | None = None
     title: Text200 | None = None
     due_date: date | None = None
@@ -260,6 +289,13 @@ class AppliedTemplates(BaseModel):
 
 # ---------- коробки и вещи ----------
 class BoxCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"room": "Кухня", "fill_later": False, "items_text": "Чайник\nКружки (4 шт)"}
+            ]
+        }
+    )
     room: Text60 = Field(examples=["Кухня"])
     fill_later: bool = False
     remind_at: datetime | None = None
@@ -267,12 +303,32 @@ class BoxCreate(BaseModel):
 
 
 class BoxUpdate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"room": "Гостиная", "fill_later": True}]}
+    )
     room: Text60 | None = None
     fill_later: bool | None = None
     remind_at: datetime | None = None
 
 
 class BoxOut(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "number": 12,
+                    "project_id": "00000000-0000-4000-8000-000000000001",
+                    "room": "Кухня",
+                    "status": "packed",
+                    "fill_later": False,
+                    "remind_at": None,
+                    "items_count": 3,
+                    "created_at": "2026-10-17T09:00:00Z",
+                    "updated_at": "2026-10-17T09:05:00Z",
+                }
+            ]
+        }
+    )
     number: int
     project_id: uuid.UUID
     room: str
@@ -285,6 +341,21 @@ class BoxOut(BaseModel):
 
 
 class ItemOut(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "id": 77,
+                    "box_number": 12,
+                    "name": "Чайник",
+                    "status": "packed",
+                    "lost": False,
+                    "first_day": True,
+                    "created_at": "2026-10-17T09:00:00Z",
+                }
+            ]
+        }
+    )
     id: int
     box_number: int
     name: str
@@ -299,10 +370,14 @@ class BoxCardOut(BoxOut):
 
 
 class TransitionIn(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"to": "loaded"}]})
     to: BoxStatus
 
 
 class ItemCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"name": "Чайник", "first_day": True, "status": "packed"}]}
+    )
     name: Text120 = Field(examples=["Чайник"])
     first_day: bool = False
     status: ItemStatus = ItemStatus.PACKED
@@ -317,6 +392,7 @@ class ItemsBulkOut(BaseModel):
 
 
 class ItemUpdate(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"status": "found"}]})
     name: Text120 | None = None
     status: ItemStatus | None = Field(default=None, examples=["found"])
     first_day: bool | None = None
@@ -326,6 +402,21 @@ class ItemUpdate(BaseModel):
 
 
 class SearchHit(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "item_id": 77,
+                    "name": "Чайник",
+                    "item_status": "packed",
+                    "lost": False,
+                    "box_number": 12,
+                    "room": "Кухня",
+                    "status": "packed",
+                }
+            ]
+        }
+    )
     item_id: int
     name: str
     item_status: ItemStatus
@@ -380,10 +471,12 @@ class FirstDayOut(ORM):
 
 
 class FirstDayCreate(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"title": "Зарядка для телефона"}]})
     title: Text200
 
 
 class FirstDayUpdate(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"done": True}]})
     title: Text200 | None = None
     done: bool | None = None
 
@@ -401,6 +494,19 @@ LostItemOut = ItemInBoxOut
 
 
 class HintOut(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "box_number": 7,
+                    "room": "Кухня",
+                    "status": "delivered",
+                    "reason": "same_room",
+                    "score": 0.6,
+                }
+            ]
+        }
+    )
     box_number: int
     room: str
     status: BoxStatus
@@ -414,6 +520,9 @@ class ReminderOut(BaseModel):
 
 
 class BulkTransitionIn(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"numbers": [1, 2, 3], "to": "loaded"}]}
+    )
     numbers: list[int] = Field(min_length=1, max_length=200)
     to: BoxStatus
 
@@ -424,6 +533,11 @@ class BulkTransitionOut(BaseModel):
 
 # ---------- умный чек-лист ----------
 class ChecklistIn(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [{"with_children": True, "with_pets": False, "other_city": True}]
+        }
+    )
     with_children: bool = False
     with_pets: bool = False
     other_city: bool = False
