@@ -85,6 +85,9 @@ class Project(Base):
     move_date: Mapped[date] = mapped_column(Date)
     address_from: Mapped[str | None] = mapped_column(String(300), nullable=True)
     address_to: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    qr_mode: Mapped[str] = mapped_column(
+        String(12), default="universal", server_default="universal"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     tasks: Mapped[list["Task"]] = relationship(cascade="all, delete-orphan", passive_deletes=True)
@@ -150,6 +153,18 @@ class Box(Base):
 
     items: Mapped[list["Item"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True, order_by="Item.id"
+    )
+    qr_code: Mapped["BoxQrCode | None"] = relationship(passive_deletes="all")
+
+
+class BoxQrCode(Base):
+    """Permanent code registry. Deleted boxes leave a reserved code with no destination."""
+
+    __tablename__ = "box_qr_codes"
+
+    code: Mapped[str] = mapped_column(String(20), primary_key=True)
+    box_id: Mapped[int | None] = mapped_column(
+        ForeignKey("boxes.id", ondelete="SET NULL"), unique=True, nullable=True
     )
 
 

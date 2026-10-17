@@ -17,6 +17,7 @@ if (digest !== 'ed350f3752f81ee8f38769edc14d92d997dababe23b565c59879372cc46a2468
 const destination = resolve('public/recognition')
 await mkdir(resolve(destination, 'lang'), { recursive: true })
 for (const name of ['tesseract.esm.min.js', 'worker.min.js']) await copyFile(resolve(dirname(packagePath), 'dist', name), resolve(destination, name))
+await copyFile(resolve(dirname(packagePath), 'LICENSE.md'), resolve(destination, 'TESSERACT-LICENSE.md'))
 const core = dirname(require.resolve('tesseract.js-core/package.json'))
 if (JSON.parse(await readFile(resolve(core, 'package.json'), 'utf8')).version !== '6.1.2') throw new Error('Prototype was tested with tesseract.js-core@6.1.2 only')
 await cp(core, resolve(destination, 'core'), { recursive: true })

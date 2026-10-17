@@ -103,8 +103,13 @@ def get_project_(project: Project = Depends(get_project)):
 
 @router.patch("/{pid}", response_model=ProjectOut, summary="Изменить проект")
 def update_project(
-    body: ProjectUpdate, project: Project = Depends(get_project), db: Session = Depends(get_db)
+    body: ProjectUpdate,
+    project: Project = Depends(get_project),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
+    if "qr_mode" in body.model_fields_set and AuthService(db).role(project.id, user.id) != "owner":
+        raise ForbiddenError("Режим QR может изменить только владелец проекта")
     return ProjectService(db).update(project, body)
 
 

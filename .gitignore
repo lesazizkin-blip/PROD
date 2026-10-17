@@ -17,6 +17,7 @@ deploy/.env
 dist/
 htmlcov/
 node_modules/
+frontend/public/recognition/
 
 # собранный сайт для запуска без Node (scripts/run-site.sh), пересобирается из frontend/dist
 готовый-сайт/

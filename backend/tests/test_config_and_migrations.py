@@ -12,6 +12,7 @@ TABLES = {
     "task_templates",
     "tasks",
     "boxes",
+    "box_qr_codes",
     "items",
     "first_day_items",
     "events",

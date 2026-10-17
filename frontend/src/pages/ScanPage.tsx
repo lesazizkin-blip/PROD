@@ -241,7 +241,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
           {preview ? <PhotoCrop src={preview} value={crop} onChange={setCrop} disabled={busy} /> : null}
           {photo && recognizeHandwriting ? <button type="button" disabled={busy} onClick={() => { void recognizePhoto() }}>Распознать фото</button> : null}
           {photo ? <button type="button" onClick={() => { operation.current++; ocrAbort.current?.abort(); setBusy(false); setPhoto(null); setPreview(null); setResult(null); setCandidates([]); setStatus('Снимите номер ещё раз.') }}>Удалить фото / переснять</button> : null}
-          {result ? <><p>Распознано: <output>{result.text || '(пусто)'}</output></p><p>{result.diagnostics.engine}, {Math.round(result.diagnostics.elapsedMs)} мс</p></> : null}
+          {result ? <p>Распознано: <output>{result.text || '(пусто)'}</output></p> : null}
           {candidates.map((c) => <button type="button" key={c.n} disabled={busy} onClick={() => setNumber(String(c.n))}>Выбрать #{String(c.n).padStart(3, '0')} · {c.room}</button>)}
         </div> : null}
         <p role="status" aria-live="polite">{status}</p>

@@ -17,7 +17,7 @@ import { useAuth } from './state/AuthContext'
 // Сканер (библиотека камеры тяжёлая) грузится только при открытии экрана
 const ScanPage = lazy(async () => {
   const { default: Scanner } = await import('./pages/ScanPage')
-  const resolveCode = import.meta.env.VITE_COMPACT_QR_ENABLED === 'true'
+  const resolveCode = import.meta.env.VITE_COMPACT_QR_ENABLED !== 'false'
     ? (await import('./features/recognition/qr')).resolveCompactCode : undefined
   const recognizeHandwriting = import.meta.env.VITE_LOCAL_OCR_PROTOTYPE === 'true'
     ? (await import('./features/recognition/loadLocalOcr')).recognizeWithLocalPrototype : undefined

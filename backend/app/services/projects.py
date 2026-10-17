@@ -23,6 +23,7 @@ class ProjectService:
             move_date=data.move_date,
             address_from=data.address_from,
             address_to=data.address_to,
+            qr_mode=data.qr_mode.value,
         )
         if project_id:
             project.id = project_id
@@ -48,7 +49,7 @@ class ProjectService:
 
     def update(self, project: Project, data: ProjectUpdate) -> Project:
         changes = data.model_dump(exclude_unset=True)
-        for required in ("name", "move_date"):
+        for required in ("name", "move_date", "qr_mode"):
             if required in changes and changes[required] is None:
                 raise ValidationFailed(f"Поле {required} нельзя очистить")
         for field, value in changes.items():

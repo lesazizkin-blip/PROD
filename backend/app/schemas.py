@@ -70,11 +70,17 @@ class HealthOut(BaseModel):
 
 
 # ---------- проекты ----------
+class QrMode(StrEnum):
+    UNIVERSAL = "universal"
+    COMPACT = "compact"
+
+
 class ProjectCreate(BaseModel):
     name: Text120 = Field(examples=["Переезд на Лесную"])
     move_date: date = Field(examples=["2026-11-01"])
     address_from: str | None = Field(default=None, max_length=300)
     address_to: str | None = Field(default=None, max_length=300)
+    qr_mode: QrMode = QrMode.UNIVERSAL
 
     _clean = field_validator("address_from", "address_to")(_opt_text)
 
@@ -84,6 +90,7 @@ class ProjectUpdate(BaseModel):
     move_date: date | None = None
     address_from: str | None = Field(default=None, max_length=300)
     address_to: str | None = Field(default=None, max_length=300)
+    qr_mode: QrMode | None = None
 
     _clean = field_validator("address_from", "address_to")(_opt_text)
 
@@ -146,6 +153,7 @@ class InviteInfo(BaseModel):
 
 
 class ProjectOut(ORM):
+    qr_mode: QrMode
     id: uuid.UUID
     name: str
     move_date: date
@@ -313,11 +321,21 @@ class SearchHit(BaseModel):
 
 
 class LabelOut(BaseModel):
+    qr_payload: str | None = None
     number: int
     room: str
     project_name: str
     qr_path: str
     items_preview: list[str]
+
+
+class ResolveCodeIn(BaseModel):
+    code: Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^MM1:[A-Z2-7]{16}$")]
+
+
+class ResolvedBoxOut(BaseModel):
+    project_id: uuid.UUID
+    box_number: int
 
 
 # ---------- прогресс ----------
