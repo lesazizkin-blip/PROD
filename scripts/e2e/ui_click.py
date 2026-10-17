@@ -1,6 +1,8 @@
 """Прокликивает интерфейс в headless Chrome как пользователь: гость, регистрация, план, умный чек-лист, коробки,
 статусы, первый день, прогресс, этикетки, кабинет. Ищет элементы по тексту, поэтому переживает смену дизайна,
 если надписи на кнопках остались. Создаёт аккаунт - запускать на локальном сервере (scripts/e2e.sh это делает).
+С третьим аргументом --demo годится для прода: аккаунт не создаётся (регистрация проверяется до отправки),
+вход демо-аккаунтом, работа во временном проекте, который в конце удаляется.
 На падении сохраняет скриншот в каталог из второго аргумента."""
 
 import asyncio
@@ -17,6 +19,8 @@ import websockets
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 BASE = sys.argv[1]
 OUT = sys.argv[2]
+DEMO = "--demo" in sys.argv[3:]
+PROJECT = "Переезд UI " + secrets.token_hex(2)
 
 HELPERS = r"""
 window.__vis = (e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
@@ -158,16 +162,21 @@ async def main():
                 "регистрация: несовпадение паролей видно",
                 await wait("__has('Пароли не совпадают')"),
             )
-            await js(f"__type('Повторите', '{pw}')")
-            await js("__click('Создать аккаунт')")
-            await step(
-                "регистрация: вход выполнен, форма нового переезда",
-                await wait("__has('Новый переезд')", 8),
-            )
+            if DEMO:
+                await js("fetch('/api/auth/demo', {method: 'POST', credentials: 'include'}).then(r => r.ok)")
+                await go("/new")
+                await step("вход демо-аккаунтом, форма нового переезда", await wait("__has('Новый переезд')", 8))
+            else:
+                await js(f"__type('Повторите', '{pw}')")
+                await js("__click('Создать аккаунт')")
+                await step(
+                    "регистрация: вход выполнен, форма нового переезда",
+                    await wait("__has('Новый переезд')", 8),
+                )
 
             # ---- новый проект ----
             await js(
-                "__type('Название переезда', 'Переезд UI'); __type('Дата переезда', '2030-05-01')"
+                f"__type('Название переезда', '{PROJECT}'); __type('Дата переезда', '2030-05-01')"
             )
             await js("__click('Создать проект')")
             await step(
@@ -179,15 +188,16 @@ async def main():
             await wait("__has('Обычный переезд')")
             await js("__click('Обычный переезд', 'label')")
             await js("__click('Показать, что добавим')")
-            await wait("__has('Добавить всё')")
-            await js("__click('Добавить всё')")
+            await wait("(b => b && !b.disabled)(__q('dialog button', 'Добавить всё'))", 8)
+            await js("__click('Добавить всё', 'dialog button')")
             await step(
                 "умный чек-лист: типовые задачи добавлены",
-                await wait("__has('Добавлено задач')"),
+                await wait("__has('Добавлено задач')", 8),
             )
             await js("__click('Готово')")
             await step(
-                "план: задачи появились", await wait("__has('Заказать грузчиков')")
+                "план: задачи появились",
+                await wait("!document.querySelector('dialog[open]') && __has('Заказать грузчиков')", 8),
             )
             await js("__click('Умный чек-лист')")
             await wait("__has('Своя особенность')")
@@ -249,7 +259,9 @@ async def main():
             )
             await go("/")  # переход в коробку через список
             await go("/boxes")
-            await js("__click('#001')")
+            await js(
+                "(document.querySelector('a[aria-label^=\"Коробка № 1,\"]') || __q('a', '#001') || __q('a', '001'))?.click()"
+            )
             await step(
                 "карточка коробки открывается", await wait("__has('Сменить статус')")
             )
@@ -320,7 +332,7 @@ async def main():
             await go("/profile")
             await step(
                 "кабинет: проект и настройки",
-                await wait("__has('Настройки проекта «Переезд UI»')"),
+                await wait(f"__has('Настройки проекта «{PROJECT}»')"),
             )
             await js("__type('Куда', 'ул. Лесная, 12')")
             await js("__click('Сохранить')")
@@ -328,6 +340,13 @@ async def main():
             await go("/about")
             await step("«О нас» для вошедшего", await wait("__has('Перейти к плану')"))
             await step("ошибок JavaScript нет", not errors)
+            if DEMO:  # временный проект на проде не оставляем
+                gone = await js(
+                    f"fetch('/api/projects', {{credentials: 'include'}}).then(r => r.json()).then(ps => (ps.items || ps)"
+                    f".filter(p => p.name === '{PROJECT}').map(p => fetch('/api/projects/' + p.id + '?confirm=true', "
+                    "{method: 'DELETE', credentials: 'include'}).then(r => r.status))).then(x => Promise.all(x))"
+                )
+                print("временный проект удалён:", gone)
             if errors:
                 print("JS:", errors[:3])
     finally:

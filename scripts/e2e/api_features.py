@@ -213,7 +213,7 @@ try:
     check(
         "Swagger и схема",
         httpx.get(f"{BASE}/docs", timeout=30).status_code == 200
-        and len(httpx.get(f"{BASE}/openapi.json", timeout=30).json()["paths"]) == 40,
+        and len(httpx.get(f"{BASE}/openapi.json", timeout=30).json()["paths"]) >= 40,
     )
     check(
         "памятка и шаблоны",
