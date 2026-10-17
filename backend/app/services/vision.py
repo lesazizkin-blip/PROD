@@ -70,6 +70,8 @@ def _ask(settings: Settings, prompt: str, text: str, image: str, max_tokens: int
         max_tokens=max_tokens,
         # фото можно отдать отдельной модели (AI_VISION_MODEL); не задана - основная AI_MODEL
         model=settings.ai_vision_model or None,
+        # свой ключ Spirit у второй модели (AI_VISION_API_KEY); не задан - общий AI_API_KEY
+        api_key=settings.ai_vision_api_key.get_secret_value() or None,
     )
 
 

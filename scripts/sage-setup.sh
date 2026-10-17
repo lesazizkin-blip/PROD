@@ -47,7 +47,9 @@ printf '%s\n%s\n' "$URL" "$TOKEN" | vm "set -eu; cd $DIR
   grep -v -e '^SAGE_LOGS_URL=' -e '^SAGE_API_KEY=' .env > .env.new || true
   printf 'SAGE_LOGS_URL=%s\nSAGE_API_KEY=%s\n' \"\$url\" \"\$token\" >> .env.new
   mv .env.new .env; chmod 600 .env
-  docker compose up -d app >/dev/null"
+  # перезапуск на образе, который работает сейчас: в .env может лежать устаревший APP_IMAGE
+  img=\$(docker inspect -f '{{.Config.Image}}' deploy-app-1 2>/dev/null || true)
+  if [ -n \"\$img\" ]; then APP_IMAGE=\"\$img\" docker compose up -d --no-build app >/dev/null; else docker compose up -d --no-build app >/dev/null; fi"
 unset TOKEN
 
 say "Жду старта приложения…"

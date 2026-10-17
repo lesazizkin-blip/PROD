@@ -26,7 +26,9 @@ printf '%s\n' "${TOKEN:-}" | ssh -i "$KEY" -o BatchMode=yes "root@$VM" "set -eu;
   printf 'AI_BASE_URL=%s\nAI_MODEL=%s\n' '$BASE_URL' '$MODEL' >> .env.new
   mv .env.new .env; chmod 600 .env
   grep -q '^AI_API_KEY=.' .env && echo 'Ключ на месте.' || echo 'ВНИМАНИЕ: ключа нет, AI останется выключенным.'
-  docker compose up -d app >/dev/null"
+  # перезапуск на образе, который работает сейчас: в .env может лежать устаревший APP_IMAGE
+  img=\$(docker inspect -f '{{.Config.Image}}' deploy-app-1 2>/dev/null || true)
+  if [ -n \"\$img\" ]; then APP_IMAGE=\"\$img\" docker compose up -d --no-build app >/dev/null; else docker compose up -d --no-build app >/dev/null; fi"
 unset TOKEN
 echo "Готово: AI_BASE_URL=$BASE_URL, AI_MODEL=$MODEL${VISION_MODEL:+, AI_VISION_MODEL=$VISION_MODEL}, app перезапущен."
 echo "Проверка: на сайте «Коробки» → «Комната по фото» или «Добавить вещи» → «Заполнить по фото»."
