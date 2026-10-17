@@ -27,7 +27,7 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
       ...(to.trim() ? { address_to: to.trim() } : {}),
       ...(plan ? { personal_plan: plan } : {}),
     })
-    add({ id: project.id, name: project.name, role: 'owner' })
+    add({ id: project.id, name: project.name, role: 'owner', move_date: project.move_date })
     onDone?.()
   }
 

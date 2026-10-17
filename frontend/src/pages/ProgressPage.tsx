@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { errorMessage } from '../api/client'
 import { api } from '../api/endpoints'
-import type { BoxStatus, Hint, LostItem } from '../api/types'
+import { TipList } from './TipsPage'
+import type { Hint, LostItem } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
 import Modal from '../components/Modal'
 import PageHeading from '../components/PageHeading'
@@ -14,13 +16,6 @@ import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
 import { STATUS_LABELS, boxPath } from '../ui/format'
-
-// Для комнаты: какие коробки можно сдвинуть дальше одной кнопкой (погрузка, доставка, распаковка)
-const ROOM_STEPS: { from: BoxStatus; to: BoxStatus; label: string }[] = [
-  { from: 'packed', to: 'loaded', label: 'Погрузить' },
-  { from: 'loaded', to: 'delivered', label: 'Доставлено' },
-  { from: 'delivered', to: 'unpacked', label: 'Распаковано' },
-]
 
 const REASONS: Record<string, string> = {
   recorded: 'записана в этой коробке',
@@ -38,18 +33,12 @@ function ProgressView({ pid }: { pid: string }) {
   const lost = useAsync<LostItem[]>(() => api.lostItems(pid), [pid], { refreshOnFocus: true })
   const { busy, error, run } = useAction()
   const [hints, setHints] = useState<{ name: string; list: Hint[] } | null>(null)
+  const tips = useAsync(() => api.tips(), [])
 
   const reloadAll = () => {
     progress.reload()
     lost.reload()
   }
-
-  const moveRoom = (room: string, from: BoxStatus, to: BoxStatus) =>
-    run(async () => {
-      const boxes = await api.boxes(pid, { room, status: from, page_size: 200 })
-      await api.bulkTransition(pid, boxes.items.map((b) => b.number), to)
-      reloadAll()
-    })
 
   const showHints = (entry: LostItem) =>
     run(async () => setHints({ name: entry.item.name, list: await api.hints(pid, entry.item.id) }))
@@ -86,17 +75,12 @@ function ProgressView({ pid }: { pid: string }) {
               <ProgressBar value={r.loaded_percent} label={`${r.room}: погружено`} color="var(--st-loaded)" />
               <div className="small muted">Распаковано {r.unpacked} из {r.total}</div>
               <ProgressBar value={r.unpacked_percent} label={`${r.room}: распаковано`} color="var(--st-unpacked)" />
-              <div className="row wrap">
-                {ROOM_STEPS.filter((s) => r.by_status[s.from] > 0).map((s) => (
-                  <button key={s.to} className="tonal small" disabled={busy} onClick={() => moveRoom(r.room, s.from, s.to)}>
-                    {s.label} ({r.by_status[s.from]})
-                  </button>
-                ))}
-              </div>
             </div>
           ))}
 
           </section>
+          <div className="stack">
+          <FirstDayWidget pid={pid} />
           <aside className="first-day stack">
             <span className="eyebrow accent">ДЕНЬ ПЕРЕЕЗДА</span>
             <h2>Перед закрытием<br />двери</h2>
@@ -104,6 +88,7 @@ function ProgressView({ pid }: { pid: string }) {
             <Link to="/scan" className="button dark">Открыть сканер →</Link>
             <p className="muted small">Сканирование открывает карточку. Статус меняется по нажатию.</p>
           </aside>
+          </div>
           </div>
           <SectionTitle>Потерянные вещи</SectionTitle>
           <div className="card flush">
@@ -120,6 +105,9 @@ function ProgressView({ pid }: { pid: string }) {
             ))}
           </div>
           <p className="muted small">Пометить вещь потерянной можно в карточке коробки.</p>
+
+          <SectionTitle>Памятка</SectionTitle>
+          <TipList tips={tips.data ?? []} />
         </>
       ) : null}
 
@@ -141,5 +129,49 @@ function ProgressView({ pid }: { pid: string }) {
       ) : null}
     </StateView>
     </>
+  )
+}
+
+/** Чек-лист по распаковке вещей первого дня (раздел 5.4 ТЗ): вещи с пометкой «Первый день»;
+ *  галочка = вещь распакована (статус вещи «Распакована»), снятая галочка возвращает «Упакована». */
+function FirstDayWidget({ pid }: { pid: string }) {
+  const items = useAsync(() => api.firstDayItems(pid), [pid], { refreshOnFocus: true })
+  const [error, setError] = useState<string | null>(null)
+  const list = items.data ?? []
+  const done = list.filter((x) => x.item.status === 'unpacked').length
+  if (!items.data) return null
+  const toggle = (id: number, unpacked: boolean) => {
+    const status = unpacked ? 'unpacked' : 'packed'
+    setError(null)
+    items.mutate((xs) => xs?.map((x) => (x.item.id === id ? { ...x, item: { ...x.item, status } } : x)) ?? xs)
+    api.updateItem(pid, id, { status }).catch((e) => {
+      setError(errorMessage(e))
+      items.reload()
+    })
+  }
+  return (
+    <section className="first-day stack">
+      <span className="eyebrow accent">ОТКРЫТЬ ПЕРВОЙ</span>
+      <h2>Чек-лист по распаковке вещей первого дня</h2>
+      <span className="muted small">Распаковано {done} из {list.length}</span>
+      {list.length === 0 ? (
+        <p className="muted small">Пока пусто: отметьте «Первый день» у нужных вещей в карточке коробки или добавьте их на вкладке «Первый день» в «Плане».</p>
+      ) : (
+        <>
+          <ProgressBar value={done} max={list.length} label="Распаковано вещей первого дня" />
+          <ul className="plain first-day__list">
+            {list.map((x) => (
+              <li key={x.item.id} className={x.item.status === 'unpacked' ? 'done' : ''}>
+                <label className="row">
+                  <input type="checkbox" className="check" checked={x.item.status === 'unpacked'} onChange={() => toggle(x.item.id, x.item.status !== 'unpacked')} />
+                  {x.item.name} <span className="muted small">· № {x.box_number}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <ErrorAlert message={error} />
+    </section>
   )
 }

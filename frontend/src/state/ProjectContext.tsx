@@ -30,7 +30,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     const list = await api.myProjects()
     setState((prev) => {
-      const projects = list.map((p) => ({ id: p.id, name: p.name, role: p.role }))
+      const projects = list.map((p) => ({ id: p.id, name: p.name, role: p.role, move_date: p.move_date }))
       const currentId = projects.some((p) => p.id === prev.currentId) ? prev.currentId : (projects[0]?.id ?? null)
       const next = { projects, currentId }
       saveProjects(next)
