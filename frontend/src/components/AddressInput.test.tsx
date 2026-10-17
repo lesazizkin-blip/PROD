@@ -19,7 +19,7 @@ let AddressInputLazy: typeof import('./AddressInput').default
 
 describe('поле адреса', () => {
   it('без ключа Google - обычное поле, в Google ничего не уходит', async () => {
-    config.mockResolvedValue({ maps_api_key: null })
+    config.mockResolvedValue({ maps_api_key: null, maps_provider: null })
     AddressInputLazy = (await import('./AddressInput')).default
     render(<Field />)
     await userEvent.type(screen.getByLabelText('Куда'), 'Лесная 12')
@@ -29,12 +29,32 @@ describe('поле адреса', () => {
   })
 
   it('с ключом - кнопка «Найти на карте», скрипт Google грузится только после нажатия', async () => {
-    config.mockResolvedValue({ maps_api_key: 'browser-key' })
+    config.mockResolvedValue({ maps_api_key: 'browser-key', maps_provider: 'google' })
     AddressInputLazy = (await import('./AddressInput')).default
     render(<Field />)
     const button = await screen.findByRole('button', { name: /Найти на карте/ })
     expect(document.querySelector('script[src*="maps.googleapis.com"]')).toBeNull()
     await userEvent.click(button)
     expect(document.querySelector('script[src*="maps.googleapis.com"]')?.getAttribute('src')).toContain('key=browser-key')
+  })
+
+  it('MapTiler: подсказки обычным запросом, выбранный адрес подставляется и показывается карта', async () => {
+    config.mockResolvedValue({ maps_api_key: 'mt-key', maps_provider: 'maptiler' })
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ features: [{ id: 'a1', place_name: 'улица Лесная, 12, Москва', center: [37.6, 55.7] }] }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    AddressInputLazy = (await import('./AddressInput')).default
+    render(<Field />)
+    await userEvent.type(screen.getByLabelText('Куда'), 'Лес')
+    expect(fetchMock).not.toHaveBeenCalled() // до нажатия кнопки адрес никуда не уходит
+    await userEvent.click(await screen.findByRole('button', { name: /Найти на карте/ }))
+    await userEvent.type(screen.getByLabelText('Куда'), 'ная 12')
+    await userEvent.click(await screen.findByRole('option', { name: /улица Лесная, 12/ }, { timeout: 2000 }))
+    expect((screen.getByLabelText('Куда') as HTMLInputElement).value).toBe('улица Лесная, 12, Москва')
+    expect(String(fetchMock.mock.calls[0][0])).toContain('api.maptiler.com/geocoding/')
+    expect(screen.getByRole('img', { name: /Карта/ }).getAttribute('src')).toContain('37.6,55.7')
+    vi.unstubAllGlobals()
   })
 })

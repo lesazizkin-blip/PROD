@@ -4,7 +4,7 @@ import re
 import uuid
 from datetime import date, datetime, time
 from enum import StrEnum
-from typing import Annotated, Generic, TypeVar
+from typing import Annotated, Generic, Literal, TypeVar
 
 from pydantic import (
     AfterValidator,
@@ -75,6 +75,7 @@ class Page(BaseModel, Generic[T]):
 
 class ClientConfigOut(BaseModel):
     maps_api_key: str | None = None
+    maps_provider: Literal["maptiler", "google"] | None = None
 
 
 class HealthOut(BaseModel):

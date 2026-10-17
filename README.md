@@ -42,7 +42,7 @@ cd frontend && npm install && npm run dev                                      #
 ## Проверки
 ```bash
 cd backend && .venv/bin/python -m pytest --cov=app    # сервер: 96 тестов (+2 пропущены: параллельность проверяется на PostgreSQL в CI, проверка аннотаций — только на Python 3.14), покрытие 98%
-cd frontend && npm test && npm run lint && npm run build   # сайт: 73 теста
+cd frontend && npm test && npm run lint && npm run build   # сайт: 74 теста
 scripts/preflight.sh <адрес>                          # полный сценарий ТЗ на запущенном сайте
 ```
 Тесты сервера запускать из папки `backend/` (миграционный тест читает `alembic.ini` по относительному пути).
@@ -75,7 +75,7 @@ docs/          документы (ниже)
 
 ## Статус (17.10.2026)
 Готово: код в GitLab организаторов (`hack-led-20/prod_1`), пайплайн целиком зелёный, включая автодеплой и `preflight.sh` по живому сайту; сайт на ВМ по HTTPS с заголовками безопасности; копии базы каждый час; минимум ТЗ проверен на проде (36 из 38 пунктов в `docs/CASE.md` ✅); сканер QR проверен на телефоне.
-Ждёт ключей: отправка логов в Sage (`scripts/sage-setup.sh`), подсказки адреса Google Maps (`GOOGLE_MAPS_API_KEY`).
+Ждёт ключей: отправка логов в Sage (`scripts/sage-setup.sh`), подсказки адреса MapTiler (`scripts/vm-env.sh MAPTILER_API_KEY`).
 Не готово: `room-plan` и опись по фото (описаны в `docs/API.md`, не реализованы).
 
 ## Правила работы
