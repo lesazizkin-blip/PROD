@@ -1,7 +1,7 @@
 import FirstDayChecklist from '../features/planner/FirstDayChecklist'
 import RoomLoadingChecklist from '../features/boxes/RoomLoadingChecklist'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/endpoints'
 import type { Hint, LostItem } from '../api/types'
 import { BOX_STATUSES } from '../api/types'
@@ -24,7 +24,7 @@ const REASONS: Record<string, string> = {
 }
 
 export default function ProgressPage() {
-  return <RequireProject>{(pid) => <ProgressView pid={pid} />}</RequireProject>
+  return <RequireProject>{(pid) => <ProgressView key={pid} pid={pid} />}</RequireProject>
 }
 
 function ProgressView({ pid }: { pid: string }) {
@@ -69,7 +69,9 @@ function ProgressView({ pid }: { pid: string }) {
           <span className="eyebrow accent">УПАКОВКА → ПОГРУЗКА → РАСПАКОВКА</span>
           <p className="muted small">Всего {p.boxes_total} коробок · распаковано {Math.round(p.unpacked_percent)}%</p>
           {p.boxes_total === 0 ? <p className="muted">Коробок пока нет. Список первого дня можно подготовить уже сейчас.</p> : null}
-          {p.rooms.map(r => <RoomLoadingChecklist key={r.room} pid={pid} room={r} onChanged={reloadAll} />)}
+          {p.rooms.map((r) => (
+            <RoomLoadingChecklist key={r.room} pid={pid} room={r} onChanged={reloadAll} />
+          ))}
 
           </section>
           <div className="stack">
@@ -78,6 +80,7 @@ function ProgressView({ pid }: { pid: string }) {
             <span className="eyebrow accent">ДЕНЬ ПЕРЕЕЗДА</span>
             <h2>Перед закрытием<br />двери</h2>
             <p>Проверьте шкафы и балкон, снимите показания счётчиков, заберите документы и передайте ключи.</p>
+            <Link to="/moving-day" className="button dark">Погрузка и приёмка по номерам →</Link>
           </aside>
           </div>
           </div>

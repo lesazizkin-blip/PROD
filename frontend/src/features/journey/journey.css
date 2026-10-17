@@ -18,6 +18,13 @@
   .budget-add { grid-template-columns: 1fr; }
 }
 
+.day-x { align-items: flex-end; }
+.day-x__scan { display: grid; grid-template-columns: minmax(120px, 180px) auto; gap: 10px; align-items: end; background: var(--bg); padding: 14px; }
+.day-x__scan input { font: 28px 'IBM Plex Mono', monospace; text-align: center; }
+.day-x__feed { gap: 4px; font: 13px 'IBM Plex Mono', monospace; }
+.day-x__feed .ok { color: var(--green); }
+.day-x__feed .bad { color: var(--danger); }
+@media (max-width: 599px) { .day-x__scan { grid-template-columns: 1fr; } }
 
 .journey-summary__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
 .journey-summary__grid > div { display: grid; gap: 4px; padding: 12px; background: var(--bg); }
@@ -49,8 +56,24 @@
   .journey-step:not(:last-child)::before { left: 19px; top: 40px; }
 }
 .journey-link { justify-self: start; font-weight: 600; }
-/* «Путь переезда» в самом верху меню, отдельно от разделов; на телефоне - ссылка вверху «Плана» */
-@media (min-width: 1000px) {
-  .sidebar .tabs.tabs-top { padding-bottom: 12px; border-bottom: 1px solid #d7c7aa; }
-  .journey-link.mobile-only { display: none; }
+
+.budget-amount { min-width: 0; }
+.budget-amount > span { display: none; }
+/* Match the shared control and paper surface tokens. */
+.journey-step__n, .journey-step__detail { border-radius: var(--radius-control); }
+.journey-step__body, .journey-summary__grid > div, .day-x__scan { border-radius: var(--radius); }
+@media (max-width: 599px) {
+  .budget-table .budget-head { display: none; }
+  .budget-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px; gap: 12px; padding: 16px; }
+  .budget-row > .grow { grid-column: 1 / 3; overflow-wrap: anywhere; }
+  .budget-row > button { grid-column: 3; grid-row: 1; align-self: start; }
+  .budget-row > .budget-amount { grid-row: 2; }
+  .budget-row > .budget-amount:nth-child(2) { grid-column: 1; }
+  .budget-row > .budget-amount:nth-child(3) { grid-column: 2 / 4; }
+  .budget-amount > span { display: block; color: var(--muted); font-size: 13px; font-weight: 400; }
+  .budget-row input { width: 100%; min-width: 0; }
+  .day-x .move-ticket, .move-ticket.day-x { flex-wrap: wrap; }
+  .day-x__scan { width: 100%; }
+  .journey .list-row { flex-wrap: wrap; }
+  .journey .list-row > .grow { flex-basis: 120px; }
 }

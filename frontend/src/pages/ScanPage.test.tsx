@@ -1,5 +1,6 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { StrictMode } from 'react'
+import { act, cleanup, fireEvent, render as renderBase, screen, waitFor } from '@testing-library/react'
+import { StrictMode, type ReactNode } from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
 import ScanPage from './ScanPage'
@@ -8,23 +9,28 @@ const h = vi.hoisted(() => ({
   pid: '11111111-1111-4111-8111-111111111111' as string | null,
   navigate: vi.fn(), getBox: vi.fn(), start: vi.fn(), stop: vi.fn(), clear: vi.fn(),
   scans: [] as ((text: string) => void)[],
+  legacyScanFlag: true,
 }))
 vi.mock('../state/ProjectContext', () => ({ useProjects: () => ({ currentId: h.pid, projects: h.pid ? [{ id: h.pid, name: 'Переезд' }] : [] }) }))
-vi.mock('react-router-dom', () => ({ useNavigate: () => h.navigate }))
+vi.mock('react-router-dom', async original => ({ ...await original<typeof import('react-router-dom')>(), useNavigate: () => h.navigate }))
+const render = (ui: ReactNode) => renderBase(ui, { wrapper: MemoryRouter })
 vi.mock('../api/endpoints', () => ({ api: { getBox: h.getBox } }))
 vi.mock('../features/recognition/crop', async (original) => ({
   ...await original<typeof import('../features/recognition/crop')>(),
   cropPhoto: vi.fn(async (photo: Blob) => photo),
 }))
-vi.mock('html5-qrcode', () => ({ Html5Qrcode: class {
+vi.mock('html5-qrcode', () => ({ Html5QrcodeScannerState: { NOT_STARTED: 1, SCANNING: 2, PAUSED: 3 }, Html5Qrcode: class {
   isScanning = false
+  running = false
   async start(_camera: unknown, _config: unknown, onScan: (text: string) => void) {
     h.scans.push(onScan)
     await h.start()
-    this.isScanning = true
+    this.isScanning = h.legacyScanFlag
+    this.running = true
     return null
   }
-  async stop() { await h.stop(); this.isScanning = false }
+  async stop() { await h.stop(); this.isScanning = false; this.running = false }
+  getState() { return this.running ? 2 : 1 }
   clear() { h.clear() }
 } }))
 const pid = '11111111-1111-4111-8111-111111111111'
@@ -38,6 +44,7 @@ function deferred<T>() { let resolve!: (v: T) => void; const promise = new Promi
 beforeEach(() => {
   sessionStorage.clear()
   h.pid = pid; h.scans.length = 0
+  h.legacyScanFlag = true
   h.navigate.mockReset(); h.getBox.mockReset().mockResolvedValue({ room: 'Кухня' })
   h.start.mockReset().mockResolvedValue(null); h.stop.mockReset().mockResolvedValue(undefined); h.clear.mockReset()
   Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true })
@@ -49,10 +56,17 @@ beforeEach(() => {
 afterEach(async () => { cleanup(); await act(async () => { await Promise.resolve() }); vi.unstubAllGlobals() })
 
 describe('сканер: настоящие callbacks, тестовые camera/API adapters', () => {
+  it('останавливает поток по реальному состоянию, даже если старый флаг isScanning отстал', async () => {
+    h.legacyScanFlag = false
+    render(<ScanPage />); await ready()
+    fireEvent.click(screen.getByRole('button', { name: 'Фото номера' }))
+    await screen.findByLabelText('Снять или выбрать фото')
+    expect(h.stop).toHaveBeenCalledTimes(1)
+  })
   it('отделяет выбор QR от управления камерой и освобождает поток на паузе', async () => {
     render(<ScanPage />); await ready()
-    // без локального OCR (обычная сборка) выбора способа нет: только QR и ручной номер
-    expect(screen.queryByRole('button', { name: 'Фото номера' })).toBeNull()
+    // без локального OCR (обычная сборка) камеры номера нет, фото номера и ручной ввод остаются
+    expect(screen.getByRole('button', { name: 'Фото номера' })).toBeTruthy() // фото можно снять и без OCR
     expect(screen.queryByRole('button', { name: 'Камера номера' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Приостановить камеру' }))
     await waitFor(() => expect(h.stop).toHaveBeenCalledTimes(1))

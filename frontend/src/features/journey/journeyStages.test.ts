@@ -17,6 +17,7 @@ describe('путь переезда', () => {
     const s = stagesFor({ project: { ...project, address_from: null }, tasks: [], progress: progress({}, 0), budget: budget([]) })
     expect(s.map((x) => x.state)).toEqual(['active', 'todo', 'todo', 'todo', 'todo', 'todo', 'todo'])
     expect(s[0].detail).toBe('Смета ещё не посчитана')
+    expect(s[1].actions[0].to).toBe('/projects/p1/settings')
   })
 
   it('по данным: смета посчитана, адрес частично, план в работе, всё собрано и наполовину доехало', () => {

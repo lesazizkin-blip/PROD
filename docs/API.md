@@ -94,7 +94,7 @@
 packing (собирается) → packed (собрана) → loaded (погружена) → delivered (доставлена) → unpacked (распакована)
 ```
 
-Обычный переход (`POST …/transitions`): вперёд — только на следующий этап (`packing → packed → loaded → delivered → unpacked`), назад — на любой более ранний этап, без причины. Пропуск вперёд и тот же статус дают `409`. Пустую коробку без «заполнить позже» нельзя собрать. Для исправления ошибки есть отдельный `POST /boxes/{n}/status-corrections` с `{ "to": "packed", "reason": "Ошибочно отметили погрузку" }`: только более ранний этап, причина 5–300 символов и пользователь фиксируются в событии `box.status_corrected`. Исправление не позволяет пропустить этап вперёд.
+Обычный переход (`POST …/transitions`): вперёд — только на следующий этап (`packing → packed → loaded → delivered → unpacked`), назад — на любой более ранний этап, без причины. Пропуск вперёд и тот же статус дают `409`. Пустую коробку без «заполнить позже» нельзя собрать. Старый `POST /boxes/{n}/status-corrections` с `{ "to": "packed", "reason": "…" }` оставлен для совместимости: только более ранний этап, причина необязательна (до 300 символов), пишется событие `box.status_corrected`. Сайт его больше не вызывает.
 
 Этапы задач: `before`, `moving_day`, `after`.
 
@@ -362,7 +362,7 @@ packing (собирается) → packed (собрана) → loaded (погр�
 ## Журнал событий (раздел 8 ТЗ)
 
 ### `GET /api/projects/{pid}/events`
-Пагинация, новые сверху (`id` по убыванию). Фильтр `type`. Типы: `project.created`, `project.updated`, `task.created`, `task.completed`, `task.reopened`, `box.created`, `box.deleted`, `box.status_changed`, `box.status_corrected` (с причиной), `item.lost`, `item.found`, `item.status_changed`, `first_day.bound`, `expense.created`, `expense.deleted`, `assistant.checklist_applied`. Данные событий не содержат персональных данных, кроме названий, которые ввёл пользователь. `200` страница Event.
+Пагинация, новые сверху (`id` по убыванию). Фильтр `type`. Типы: `project.created`, `project.updated`, `task.created`, `task.completed`, `task.reopened`, `box.created`, `box.deleted`, `box.status_changed`, `box.status_corrected` (старая ручка, причина необязательна), `item.lost`, `item.found`, `item.status_changed`, `first_day.bound`, `expense.created`, `expense.deleted`, `assistant.checklist_applied`. Данные событий не содержат персональных данных, кроме названий, которые ввёл пользователь. `200` страница Event.
 
 ---
 

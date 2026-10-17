@@ -23,7 +23,7 @@ export const STAGES: Omit<JourneyStage, 'state' | 'detail'>[] = [
   {
     n: 2, title: 'Новое жильё', question: 'Куда переезжаем и что проверить?',
     does: 'Адрес и дата в проекте, план «Снимаю или сдаю квартиру»: осмотр, фото «до», счётчики, акт, залог.',
-    actions: [{ to: '/profile', label: 'Адреса проекта' }, { to: '/', label: 'Умный чек-лист' }],
+    actions: [{ to: '/projects', label: 'Адреса проекта' }, { to: '/', label: 'Умный чек-лист' }],
   },
   {
     n: 3, title: 'Подготовка', question: 'Что сделать заранее и ничего не забыть?',
@@ -42,8 +42,8 @@ export const STAGES: Omit<JourneyStage, 'state' | 'detail'>[] = [
   },
   {
     n: 6, title: 'День переезда', question: 'Всё ли погрузили и всё ли доехало?',
-    does: 'Статусы коробок «Погружена» и «Доставлена», прогресс по комнатам; повреждения — в карточке коробки.',
-    actions: [{ to: '/boxes', label: 'Статусы коробок' }, { to: '/progress', label: 'Прогресс по комнатам' }],
+    does: 'Погрузка и приёмка по номерам: «погружено 34 из 40», чего не хватает; повреждения — в карточке коробки.',
+    actions: [{ to: '/moving-day', label: 'Погрузка и приёмка' }],
   },
   {
     n: 7, title: 'Обжиться', question: 'Всё распаковано и дела закрыты?',
@@ -106,8 +106,8 @@ export function stagesFor(data: { project: Project; tasks: Task[]; progress: Pro
   const current = facts.findIndex((f) => !f.done)
   return STAGES.map((stage, i) => ({
     ...stage,
+    actions: stage.actions.map(a => a.to === '/projects' ? { ...a, to: `/projects/${project.id}/settings` } : a),
     state: facts[i].done ? 'done' : i === current || facts[i].started ? 'active' : 'todo',
     detail: facts[i].detail,
   }))
 }
-

@@ -1,7 +1,7 @@
 import FirstDayChecklist from '../features/planner/FirstDayChecklist'
 import { useState } from 'react'
+import { CalendarDays, ClipboardList, Clock, Pencil, Plus, Sparkles, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Clock, Pencil, Sparkles, UserRound } from 'lucide-react'
 import { api } from '../api/endpoints'
 import { type Stage, type Task, type TaskCreate } from '../api/types'
 import ChecklistModal from '../components/ChecklistModal'
@@ -24,13 +24,13 @@ type PlanTab = Stage | 'first-day'
 const isOverdue = (t: Task) => !t.done && !!t.due_date && t.due_date.slice(0, 10) < new Date().toLocaleDateString('sv-SE')
 
 export default function PlanPage() {
-  return <RequireProject>{(pid) => <Plan pid={pid} />}</RequireProject>
+  return <RequireProject>{(pid) => <Plan key={pid} pid={pid} />}</RequireProject>
 }
 
 function Plan({ pid }: { pid: string }) {
   const project = useAsync(() => api.getProject(pid), [pid])
   const tasks = useAsync(() => api.tasks(pid), [pid])
-  const firstDayItems = useAsync(() => api.firstDayItems(pid), [pid], { refreshOnFocus: true })
+  const [firstDayVersion, setFirstDayVersion] = useState(0)
   const progress = useAsync(() => api.progress(pid), [pid])
   // null - форма закрыта, 'new' - новая задача, Task - правка существующей
   const [form, setForm] = useState<'new' | Task | null>(null)
@@ -41,8 +41,7 @@ function Plan({ pid }: { pid: string }) {
   const reloadAll = () => {
     project.reload()
     tasks.reload()
-    firstDayItems.reload()
-    plannedFirstDay.reload() // умный чек-лист добавляет и пункты «Первого дня»
+    setFirstDayVersion(v => v + 1)
     progress.reload()
   }
 
@@ -70,23 +69,23 @@ function Plan({ pid }: { pid: string }) {
       tasks.reload,
     )
   }
-  const plannedFirstDay = useAsync(() => api.firstDay(pid), [pid])
-  const thingsForDay = [...(firstDayItems.data ?? []), ...(plannedFirstDay.data ?? [])]
   const boxes = progress.data
   const days = project.data ? daysUntil(project.data.move_date) : null
-  const countdown = days === null ? '…' : days > 0 ? `${days} дн.` : days === 0 ? 'Сегодня' : 'Уже дома'
+  const countdown = days === null ? '…' : days === 0 ? 'Сегодня' : `${Math.abs(days)} дн.`
+  const timingLabel = days !== null && days < 0 ? 'после даты переезда' : days === 0 ? 'день переезда' : 'до даты переезда'
 
   return (
     <StateView loading={tasks.loading && !tasks.data} error={tasks.error} onRetry={reloadAll}>
-      <PageHeading title="План переезда">
+      <div className="page-toolbar"><PageHeading title="План переезда">
         {project.data ? formatDate(project.data.move_date) : '…'} · {days !== null && days > 0 ? `${days} ${plural(days, ['день', 'дня', 'дней'])} до переезда` : 'Ваш переезд'}
-      </PageHeading>
-      <Link to="/journey" className="journey-link mobile-only">Путь переезда: все 7 этапов →</Link>
+      </PageHeading><button className="primary" onClick={() => setForm('new')}><Plus className="icon-sm" aria-hidden />Добавить задачу</button></div>
+      <Link to="/journey" className="journey-link">Путь переезда: все 7 этапов от решения до «обжились» →</Link>
       <div className="move-ticket">
         <div className="stack">
           <span className="eyebrow">Маршрут / {project.data?.name ?? 'ваш переезд'}</span>
-          <h2>Упаковка вещей<br />{boxes ? `${boxes.boxes_total - boxes.by_status.packing} из ${boxes.boxes_total} коробок готовы` : 'Загружаем прогресс…'}</h2>
-          <p className="small">{[project.data?.address_from, project.data?.address_to].filter(Boolean).join(' → ') || 'Впереди — новый дом.'}</p>
+          <h2>{boxes?.boxes_total === 0 ? <>Начните с первой коробки</> : <>Упаковка вещей<br />{boxes ? `${boxes.boxes_total - boxes.by_status.packing} из ${boxes.boxes_total} коробок готовы` : 'Загружаем прогресс…'}</>}</h2>
+          <p className="small">{[project.data?.address_from, project.data?.address_to].filter(Boolean).join(' → ') || 'Соберите вещи по комнатам — их будет проще найти после переезда.'}</p>
+          {boxes?.boxes_total === 0 ? <Link to="/boxes" className="button">Добавить коробку</Link> : null}
         </div>
         <div className="date-stamp">
           <strong>{project.data ? formatDate(project.data.move_date).slice(0, 5).replace('.', ' / ') : '…'}</strong>
@@ -94,9 +93,9 @@ function Plan({ pid }: { pid: string }) {
         </div>
       </div>
       <div className="plan-stats">
-        <div className="stat"><b>{done} / {list.length}</b><span>задач выполнено</span><ProgressBar value={done} max={list.length} label="Выполнено задач" /></div>
-        <div className="stat"><b>{boxes ? `${boxes.boxes_total - boxes.by_status.packing} / ${boxes.boxes_total}` : '…'}</b><span>коробок собрано</span></div>
-        <div className="stat"><b>{countdown}</b><span>до нового дома</span></div>
+        <div className="stat"><b>{list.length ? `${done} / ${list.length}` : 'Нет задач'}</b><span>{list.length ? 'задач выполнено' : 'Добавьте дела в план'}</span>{list.length ? <ProgressBar value={done} max={list.length} label="Выполнено задач" /> : null}</div>
+        <div className="stat"><b>{boxes ? boxes.boxes_total ? `${boxes.boxes_total - boxes.by_status.packing} / ${boxes.boxes_total}` : 'Нет коробок' : '…'}</b><span>{boxes?.boxes_total === 0 ? 'Добавьте первую коробку' : 'коробок собрано'}</span></div>
+        <div className="stat"><b>{countdown}</b><span>{timingLabel}</span></div>
       </div>
 
       <div className="plan-tasks stack">
@@ -116,17 +115,19 @@ function Plan({ pid }: { pid: string }) {
           )
         })}
         <button type="button" role="tab" aria-selected={activeTab === 'first-day'} className={activeTab === 'first-day' ? 'on' : ''} onClick={() => setTab('first-day')}>
-          Первый день <span className="count">{thingsForDay.length}</span>
+          Первый день
         </button>
       </div>
 
       {activeTab === 'first-day' ? (
-        <section role="tabpanel" aria-label="Первый день"><FirstDayChecklist pid={pid} /></section>
+        <section role="tabpanel" aria-label="Первый день" className="stack">
+          <FirstDayChecklist key={`${pid}/${firstDayVersion}`} pid={pid} />
+        </section>
       ) : (
       <section className="task-list" role="tabpanel" aria-label={STAGE_LABELS[activeTab]}>
         {list.length === 0 ? (
-          <div className="state"><p>Пока задач нет. Добавьте свою кнопкой «+ Задача» или выберите готовые в «Умном чек-листе».</p></div>
-        ) : stageTasks.length === 0 ? <div className="state"><p>На этом этапе задач нет.</p></div> : null}
+          <div className="state"><ClipboardList className="icon" aria-hidden /><h3>План пока пуст</h3><p>Добавьте свою задачу сверху или выберите готовые дела для переезда.</p><button className="tonal" onClick={() => setSmart(true)}>Выбрать готовые задачи</button></div>
+        ) : stageTasks.length === 0 ? <div className="state"><p>На этом этапе задач нет. Добавьте задачу кнопкой над планом.</p></div> : null}
         {stageTasks.map((t) => (
           <label key={t.id} className={`task-card${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
             <input type="checkbox" className="check" checked={t.done} onChange={() => toggleTask(t)} />
@@ -151,7 +152,6 @@ function Plan({ pid }: { pid: string }) {
       )}
       </div>
 
-      {activeTab !== 'first-day' ? <button className="primary fab" onClick={() => setForm('new')}>+ Задача</button> : null}
       {smart ? <ChecklistModal pid={pid} onClose={() => setSmart(false)} onApplied={reloadAll} /> : null}
       {form ? (
         <TaskModal
@@ -281,5 +281,3 @@ export function TaskModal({ initial, defaultStage, onClose, onSave, onDelete, ca
     </Modal>
   )
 }
-
-/** «+ Вещь» на вкладке «Первый день»: вещь сразу кладётся в выбранную коробку и помечается вещью первого дня. */

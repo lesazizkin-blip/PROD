@@ -1,6 +1,7 @@
 import Modal from './Modal'
 import { useAction } from '../state/useAction'
 import ErrorAlert from '../ui/ErrorAlert'
+import type { ReactNode } from 'react'
 
 export interface StatusOption<T extends string> {
   value: T
@@ -20,10 +21,11 @@ interface Props<T extends string> {
   /** Сохранить выбор; окно закроется после успеха, ошибка останется в окне */
   onPick: (value: T) => Promise<unknown>
   onClose: () => void
+  footer?: ReactNode
 }
 
 // Всплывающее окно выбора статуса: список вариантов, текущий отмечен, недоступные затемнены с объяснением.
-export default function StatusPickerModal<T extends string>({ title, current, options, onPick, onClose }: Props<T>) {
+export default function StatusPickerModal<T extends string>({ title, current, options, onPick, onClose, footer }: Props<T>) {
   const { busy, error, run } = useAction(onClose)
   return (
     <Modal title={title} onClose={onClose}>
@@ -45,6 +47,7 @@ export default function StatusPickerModal<T extends string>({ title, current, op
         })}
       </div>
       <ErrorAlert message={error} />
+      {footer}
     </Modal>
   )
 }

@@ -136,10 +136,9 @@ async def main():
             await step(
                 "гость: страница «О нас»", await wait("__has('Почему выбирают нас')")
             )
-            await js("__click('Коробки', 'nav button')")
             await step(
-                "гость: раздел просит регистрацию",
-                await wait("__has('доступен после регистрации')"),
+                "гость: разделов нет, в шапке «Войти»",
+                await wait("!document.querySelector('aside.sidebar') && !!__q('header a', 'Войти')"),
             )
             await js("__click('Вопросы')")
             await step(
@@ -169,6 +168,9 @@ async def main():
             else:
                 await js(f"__type('Повторите', '{pw}')")
                 await js("__click('Создать аккаунт')")
+                # без проектов открывается пустой план с кнопкой «Создать проект»
+                await wait("!!__q('button, a', 'Создать проект')", 8)
+                await js("__click('Создать проект')")
                 await step(
                     "регистрация: вход выполнен, форма нового переезда",
                     await wait("__has('Новый переезд')", 8),
@@ -207,7 +209,7 @@ async def main():
             # ---- задача на открытом этапе ----
             await js("__click('День переезда', '[role=tab]')")
             await asyncio.sleep(0.4)
-            await js("__click('+ Задача')")
+            await js("__click('Добавить задачу') || __click('+ Задача')")
             await wait("__has('Название')")
             stage = await js(
                 "[...document.querySelectorAll('dialog select')][0]?.value"
@@ -328,9 +330,13 @@ async def main():
                 await wait("__has('номер') || __has('Сканер') || __has('камер')"),
             )
             await go("/profile")
+            await wait("__has('Безопасность')")
+            await js("__click('Все проекты', 'a')")
+            await wait(f"!!document.querySelector('a[aria-label=\"Настройки проекта «{PROJECT}»\"]')")
+            await js(f"document.querySelector('a[aria-label=\"Настройки проекта «{PROJECT}»\"]').click()")
             await step(
-                "кабинет: проект и настройки",
-                await wait(f"__has('Настройки проекта «{PROJECT}»')"),
+                "кабинет → все проекты → настройки проекта",
+                await wait("location.pathname.endsWith('/settings') && __has('Помощники')"),
             )
             await js("__type('Куда', 'ул. Лесная, 12')")
             await js("__click('Сохранить')")

@@ -54,8 +54,8 @@ export default function JourneyPage() {
               {s.detail ? <p className="journey-step__detail">{s.detail}</p> : null}
               <div className="row wrap">
                 {s.actions.map((a) => (
-                  user
-                    ? <Link key={a.to + a.label} to={a.to} className={s === current ? 'button primary small' : 'button small'}>{a.label} →</Link>
+                  user || a.to === '/calculator'
+                    ? <Link key={a.to + a.label} to={a.to === '/projects' && pid ? `/projects/${pid}/settings` : a.to} className={s === current ? 'button primary small' : 'button small'}>{a.label} →</Link>
                     : null
                 ))}
               </div>
@@ -66,6 +66,7 @@ export default function JourneyPage() {
       {!user ? (
         <div className="row wrap">
           <Link to="/auth?mode=register" className="button primary">Начать свой переезд</Link>
+          <Link to="/calculator" className="button">Сначала рассчитать</Link>
         </div>
       ) : null}
     </div>
