@@ -38,8 +38,8 @@ export default function GuestShell() {
             </button>
           ))}
         </nav>
-        <p className="sidebar-group">Путь переезда</p>
-        <nav className="tabs tabs-journey" aria-label="Путь переезда">
+        <p className="sidebar-group">Бюджет и расчёты</p>
+        <nav className="tabs tabs-journey" aria-label="Бюджет и расчёты">
           {JOURNEY_TABS.filter((t) => t.guest).map((t) => (
             <Link key={t.to} to={t.to} className="tab" aria-label={t.label}>
               <t.icon className="icon" aria-hidden />
