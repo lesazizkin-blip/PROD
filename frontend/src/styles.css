@@ -544,7 +544,10 @@ button.danger-solid:hover:not(:disabled) { filter: brightness(.92); border-color
 .address-input > button { justify-self: start; }
 
 /* кнопка «Вопросы» внизу меню гостя и окно с ответами */
-button.sidebar__faq { background: transparent; border: 0; font: inherit; width: 100%; justify-content: flex-start; cursor: pointer; }
+button.sidebar__faq { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 10px 14px; background: transparent; border: 0; border-radius: 0; font-size: 13px; font-weight: 700; color: var(--text); text-align: left; cursor: pointer; }
+button.sidebar__faq:hover:not(:disabled) { background: var(--bg); }
+.guest-faq { margin-left: auto; }
+@media (min-width: 1000px) { .guest-faq { margin: auto 0 0; padding-top: 16px; border-top: 1px solid var(--border); } }
 .faq { display: grid; gap: 8px; }
 .faq details { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; background: var(--surface); }
 .faq summary { cursor: pointer; font-weight: 600; color: var(--heading); }
@@ -555,5 +558,4 @@ button.sidebar__faq { background: transparent; border: 0; font: inherit; width: 
 .brand-mark { width: 28px; height: 28px; }
 .topbar__brand { display: inline-flex; }
 .topbar__actions { margin-left: auto; }
-.guest-faq button { color: var(--text); }
 @media (max-width: 700px) { .guest-faq { display: none; } }
