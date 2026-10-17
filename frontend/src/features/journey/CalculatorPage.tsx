@@ -42,8 +42,8 @@ export default function CalculatorPage() {
       <form className="card stack" onSubmit={calc.submit(async () => setResult(await api.calculator({ ...form, move_date: form.move_date || null })))}>
         <div className="calc-grid">
           {num('rooms', 'Комнат (студия = 1)', 1, 8)}
-          {num('people', 'Сколько человек переезжает', 1, 12)}
-          {num('distance_km', 'Расстояние, км', 0, 10000)}
+          {num('people', 'Сколько человек переезжает', 1, 10)}
+          {num('distance_km', 'Расстояние, км (до 500)', 0, 500)}
           <label>
             Дата переезда (необязательно)
             <input type="date" value={form.move_date ?? ''} onChange={(e) => set('move_date', e.target.value || null)} />

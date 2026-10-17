@@ -38,7 +38,7 @@ def test_stairs_without_elevator_add_hours():
 
 
 def test_intercity_piano_and_pets_add_lines():
-    r = estimate(CalculatorIn(rooms=2, distance_km=800, piano=True, pets=True))
+    r = estimate(CalculatorIn(rooms=2, distance_km=450, piano=True, pets=True))
     titles = " ".join(c.title for c in r.costs)
     assert "между городами" in titles and "пианино" in titles and "питомца" in titles
     assert r.prep_weeks == 4  # 2 комнаты + 1, и +1 за другой город
@@ -64,7 +64,17 @@ def test_good_date_is_praised():
     assert r.date_advice == ["Хорошая дата: будний день вне пика переездов."]
 
 
-@pytest.mark.parametrize("bad", [{"rooms": 0}, {"rooms": 9}, {"rooms": 2, "distance_km": -1}, {}])
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"rooms": 0},
+        {"rooms": 9},
+        {"rooms": 2, "distance_km": -1},
+        {"rooms": 2, "distance_km": 501},
+        {"rooms": 2, "people": 11},
+        {},
+    ],
+)
 def test_calculator_validation(client, bad):
     assert client.post("/api/calculator", json=bad).status_code == 422
 

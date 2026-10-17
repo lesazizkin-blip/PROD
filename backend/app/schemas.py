@@ -138,8 +138,9 @@ class CalculatorIn(BaseModel):
         }
     )
     rooms: int = Field(ge=1, le=8, description="Жилых комнат (студия = 1)")
-    people: int = Field(default=2, ge=1, le=12)
-    distance_km: int = Field(default=10, ge=0, le=10_000)
+    # пределы - решение владельца 17.10: до 10 человек, до 500 км (сервис для переезда в городе и регионе)
+    people: int = Field(default=2, ge=1, le=10)
+    distance_km: int = Field(default=10, ge=0, le=500)
     floor_from: int = Field(default=1, ge=0, le=100)
     floor_to: int = Field(default=1, ge=0, le=100)
     elevator_from: bool = True
