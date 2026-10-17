@@ -25,19 +25,23 @@ from app.services.qr_codes import assign_code
 
 ORDER = [s.value for s in BoxStatus]
 
-# Из какого статуса куда можно: шаг вперёд или откат на один шаг (исправление ошибки)
-# Статус выбирается свободно: из любого в любой другой (решение владельца продукта 17.10:
-# на переезде коробки часто отмечают с опозданием, пошаговая цепочка мешала).
-TRANSITIONS: dict[str, frozenset[str]] = {s: frozenset(ORDER) - {s} for s in ORDER}
+# Ordinary lifecycle actions advance exactly one stage. Corrections are separate.
+TRANSITIONS: dict[str, frozenset[str]] = {
+    status: frozenset(ORDER[i + 1 : i + 2]) for i, status in enumerate(ORDER)
+}
 
 MAX_BULK_LINES = 200
 MAX_NAME = 120
 
 
 def check_transition(current: str, target: str) -> None:
-    """Чистая функция: бросает ConflictError, если переход недопустим (тот же статус или неизвестный)."""
-    if target not in TRANSITIONS.get(current, frozenset()):
+    """Чистая функция: бросает ConflictError, если это не следующий этап жизненного цикла."""
+    if current == target:
         raise ConflictError(f"Коробка уже в статусе «{current}»")
+    if target not in TRANSITIONS.get(current, frozenset()):
+        raise ConflictError(
+            "Недопустимый переход. Проходите этапы по порядку; ошибочную отметку исправляйте отдельно."
+        )
 
 
 def normalize(text: str) -> str:
@@ -199,6 +203,27 @@ class BoxService:
         self.db.commit()
         return self.box_out(box)
 
+    def correct_status(
+        self, project_id: uuid.UUID, number: int, target: BoxStatus, reason: str, actor_id: int
+    ) -> BoxOut:
+        box = self.get_box(project_id, number, lock=True)
+        if ORDER.index(target.value) >= ORDER.index(box.status):
+            raise ConflictError(
+                "Исправление может только вернуть коробку на предыдущий этап. Для движения вперёд используйте обычную смену статуса."
+            )
+        old = box.status
+        box.status = target.value
+        log_event(
+            self.db,
+            project_id,
+            "box.status_corrected",
+            "box",
+            number,
+            **{"from": old, "to": target.value, "reason": reason, "actor_id": actor_id},
+        )
+        self.db.commit()
+        return self.box_out(box)
+
     def bulk_transition(
         self, project_id: uuid.UUID, numbers: list[int], target: BoxStatus
     ) -> list[BoxOut]:
@@ -324,13 +349,15 @@ class BoxService:
 
     # --- поиск ---
     def search(
-        self, project_id: uuid.UUID, q: str, offset: int, limit: int
+        self, project_id: uuid.UUID, q: str, offset: int, limit: int, room: str | None = None
     ) -> tuple[list[SearchHit], int]:
         needle = normalize(q)
         if not needle:
             raise ValidationFailed("Пустой поисковый запрос")
         match = Item.name_norm.contains(needle, autoescape=True)
         where = [Box.project_id == project_id, match]
+        if room:
+            where.append(Box.room == room.strip())
         rank = case(
             (Item.name_norm == needle, 0),
             (

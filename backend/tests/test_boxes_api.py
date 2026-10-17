@@ -52,14 +52,8 @@ def test_scanning_qr_twice_opens_same_box_and_creates_nothing(client, base):
 def test_transitions_follow_the_rules(client, base):
     n = make_box(client, base)["number"]
     url = f"{base}/boxes/{n}/transitions"
-    assert (
-        client.post(url, json={"to": "unpacked"}).json()["status"] == "unpacked"
-    )  # шаги можно пропустить
-    assert (
-        client.post(url, json={"to": "packing"}).json()["status"] == "packing"
-    )  # и вернуться назад
-    r = client.post(url, json={"to": "packing"})
-    assert r.status_code == 409 and r.json()["code"] == "conflict"  # тот же статус
+    assert client.post(url, json={"to": "unpacked"}).status_code == 409
+    assert client.post(url, json={"to": "packing"}).status_code == 409
     for status in ["packed", "loaded", "delivered", "unpacked"]:
         assert client.post(url, json={"to": status}).json()["status"] == status
     assert client.post(url, json={"to": "weird"}).status_code == 422

@@ -130,19 +130,24 @@ try:
         c.delete(f"{P}/items/{item['id']}", params={"confirm": "true"}).status_code
         == 204,
     )
+    # статусы по порядку (решение Фёдора 17.10): прыжок отклоняется, шаг по порядку проходит
     check(
-        "коробка: пропуск статусов разрешён",
-        c.post(f"{P}/boxes/{b[0]}/transitions", json={"to": "delivered"}).json()[
-            "status"
-        ]
-        == "delivered",
+        "коробка: прыжок через статусы отклонён",
+        c.post(f"{P}/boxes/{b[0]}/transitions", json={"to": "delivered"}).status_code
+        == 409,
     )
     check(
-        "массовая смена статуса",
+        "коробка: следующий статус по порядку",
+        c.post(f"{P}/boxes/{b[0]}/transitions", json={"to": "packed"}).json().get("status")
+        == "packed",
+    )
+    c.post(f"{P}/boxes/{b[1]}/transitions", json={"to": "packed"})  # обе коробки «Собрана»
+    check(
+        "массовая смена статуса (следующий шаг для всех)",
         len(
             c.post(
-                f"{P}/boxes/bulk-transitions", json={"numbers": b, "to": "unpacked"}
-            ).json()["updated"]
+                f"{P}/boxes/bulk-transitions", json={"numbers": b, "to": "loaded"}
+            ).json().get("updated", [])
         )
         == 2,
     )

@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import PageParams, get_project
+from app.deps import PageParams, get_current_user, get_project
 from app.errors import ValidationFailed
-from app.models import Project
+from app.models import Project, User
 from app.routers.common import confirm_param
 from app.schemas import (
     BoxCardOut,
@@ -14,6 +14,7 @@ from app.schemas import (
     BoxUpdate,
     BulkTransitionIn,
     BulkTransitionOut,
+    FirstDayBindIn,
     FirstDayCreate,
     FirstDayOut,
     FirstDayUpdate,
@@ -29,6 +30,7 @@ from app.schemas import (
     ProgressOut,
     ReminderOut,
     SearchHit,
+    StatusCorrectionIn,
     TransitionIn,
 )
 from app.services.boxes import BoxService, parse_lines
@@ -204,11 +206,12 @@ def delete_item(
 )
 def search(
     q: str = Query(min_length=1, max_length=120),
+    room: str | None = None,
     page: PageParams = Depends(),
     project: Project = Depends(get_project),
     db: Session = Depends(get_db),
 ):
-    hits, total = BoxService(db).search(project.id, q, page.offset, page.page_size)
+    hits, total = BoxService(db).search(project.id, q, page.offset, page.page_size, room)
     return Page(items=hits, total=total, page=page.page, page_size=page.page_size)
 
 
@@ -297,3 +300,32 @@ def hints(item_id: int, project: Project = Depends(get_project), db: Session = D
 )
 def reminders_(project: Project = Depends(get_project), db: Session = Depends(get_db)):
     return reminders(db, project.id)
+
+
+@router.post(
+    "/boxes/{n}/status-corrections",
+    response_model=BoxOut,
+    summary="Исправить ошибочную отметку: вернуть на более ранний этап с причиной",
+)
+def correct_status(
+    n: int,
+    body: StatusCorrectionIn,
+    project: Project = Depends(get_project),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return BoxService(db).correct_status(project.id, n, body.to, body.reason, user.id)
+
+
+@router.post(
+    "/first-day/{item_id}/bind",
+    response_model=ItemOut,
+    summary="Переместить пункт первого дня в коробку одной транзакцией",
+)
+def bind_first_day(
+    item_id: int,
+    body: FirstDayBindIn,
+    project: Project = Depends(get_project),
+    db: Session = Depends(get_db),
+):
+    return FirstDayService(db).bind(project.id, item_id, body.box_number, body.name)

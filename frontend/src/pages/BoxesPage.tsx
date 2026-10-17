@@ -1,9 +1,9 @@
 import { useLayoutEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { BookOpen, Camera } from 'lucide-react'
-import { api } from '../api/endpoints'
 import type { RoomPlan } from '../api/types'
 import PhotoPicker from '../components/PhotoPicker'
+import { api } from '../api/endpoints'
 import Modal from '../components/Modal'
 import BoxGrid from '../components/BoxShelf'
 import PageHeading from '../components/PageHeading'
@@ -17,6 +17,7 @@ import StatusBadge from '../ui/StatusBadge'
 import { roomStyle } from '../ui/roomTheme'
 import { STATUS_LABELS, boxPath, plural } from '../ui/format'
 import { BoxLink, useBoxNavigation } from '../features/boxes/BoxNavigation'
+import Pagination from '../ui/Pagination'
 
 export default function BoxesPage() {
   return <RequireProject>{(pid) => <Boxes key={pid} pid={pid} />}</RequireProject>
@@ -36,31 +37,41 @@ function Boxes({ pid }: { pid: string }) {
   const [query, setQuery] = useState(saved?.query ?? '')
   const q = useDebounced(query.trim())
   const [room, setRoom] = useState<string | null>(saved?.room ?? null)
-  const [adding, setAdding] = useState(false)
+  const [page, setPage] = useState(saved?.page ?? 1)
   const [roomPhoto, setRoomPhoto] = useState(false)
+  const [adding, setAdding] = useState(false)
 
-  const boxes = useAsync(() => api.boxes(pid, { page_size: 200 }), [pid], { refreshOnFocus: true, initialData: saved?.boxes })
-  const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 100 }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true, initialData: saved?.hits })
+  const boxes = useAsync(() => api.boxes(pid, { page_size: 36, page, ...(room ? { room } : {}) }), [pid, room, page], { refreshOnFocus: true, initialData: saved?.boxes })
+  const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 50, page, ...(room ? { room } : {}) }) : Promise.resolve(null)), [pid, q, room, page], { refreshOnFocus: true, initialData: saved?.hits })
+  const summary = useAsync(() => api.progress(pid), [pid], { refreshOnFocus: true, initialData: saved?.summary })
   // Поиск коробки по номеру: если запрос - число, показываем коробку с этим номером
   const byNumber = useAsync(() => (/^\d+$/.test(q) ? api.boxes(pid, { number: Number(q) }) : Promise.resolve(null)), [pid, q], { refreshOnFocus: true, initialData: saved?.byNumber })
   const reminders = useAsync(() => api.reminders(pid), [pid], { refreshOnFocus: true })
+  const activeTotal = q ? hits.data?.total : boxes.data?.total
+  const activeLoading = q ? hits.loading : boxes.loading
+  // A deletion in another tab can remove the last page. Adjust before drawing
+  // an invalid pager; the next render refetches the remaining last page.
+  if (!activeLoading && activeTotal !== undefined) {
+    const last = Math.max(1, Math.ceil(activeTotal / (q ? 50 : 36)))
+    if (page > last) setPage(last)
+  }
 
   useLayoutEffect(() => () => {
-    navigation.rememberShelf({ pid, query, room, scrollY: window.scrollY, boxes: boxes.data, hits: hits.data, byNumber: byNumber.data })
-  }, [pid, query, room, boxes.data, hits.data, byNumber.data, navigation])
+    navigation.rememberShelf({ pid, query, room, page, scrollY: window.scrollY, boxes: boxes.data, hits: hits.data, byNumber: byNumber.data, summary: summary.data })
+  }, [pid, query, room, page, boxes.data, hits.data, byNumber.data, summary.data, navigation])
 
   useLayoutEffect(() => { window.scrollTo({ top: saved?.scrollY ?? 0, behavior: 'instant' }) }, [saved])
 
   const all = boxes.data?.items ?? []
-  const rooms = Array.from(new Set(all.map((b) => b.room))).sort()
-  const visible = room ? all.filter((b) => b.room === room) : all
+  const rooms = summary.data?.rooms ?? []
   const waiting = reminders.data ?? []
   const numberMatch = byNumber.data?.items[0]
 
   return (
     <>
-      <PageHeading title="Коробки и вещи" mobileTitle="Коробки">{boxes.data?.total ?? '…'} коробок · {all.filter((b) => b.status === 'packing').length} ещё собираются</PageHeading>
-      <div className="search-tools"><input type="search" placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Поиск" /><Link to="/scan" className="button">Сканировать QR</Link><button onClick={() => setRoomPhoto(true)}><Camera className="icon-sm" aria-hidden />Комната по фото</button><button className="primary" onClick={() => setAdding(true)}>+ Коробка</button></div>
+      <PageHeading title="Коробки и вещи" mobileTitle="Коробки">{summary.data?.boxes_total ?? '…'} коробок · {summary.data?.by_status.packing ?? '…'} ещё собираются</PageHeading>
+      <ErrorAlert message={summary.error} />
+      <div className="search-tools"><input type="search" maxLength={120} placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} aria-label="Поиск" /><Link to="/scan" className="button">Сканировать QR</Link><button onClick={() => setRoomPhoto(true)}><Camera className="icon-sm" aria-hidden />Комната по фото</button><button className="primary" onClick={() => setAdding(true)}>+ Коробка</button></div>
 
       {q ? (
         <>
@@ -88,38 +99,34 @@ function Boxes({ pid }: { pid: string }) {
               </div>
             ) : null}
           </StateView>
+          <Pagination page={page} pageSize={50} total={hits.data?.total ?? 0} busy={hits.loading} onChange={setPage} label="Страницы поиска" />
         </>
       ) : (
-        <StateView loading={boxes.loading && !boxes.data} error={boxes.error} empty={all.length === 0} emptyText="Коробок пока нет. Нажмите «+ Коробка»." emptyIcon="📦" onRetry={boxes.reload}>
+        <>
+          {rooms.length > 1 ? <div className="chips" role="group" aria-label="Фильтр по комнатам">
+            <button className={room === null ? 'chip on' : 'chip'} onClick={() => { setRoom(null); setPage(1) }}>Все комнаты · {summary.data?.boxes_total}</button>
+            {rooms.map(r => <button key={r.room} className={room === r.room ? 'chip room-chip on' : 'chip room-chip'} style={roomStyle(r.room)} onClick={() => { setRoom(room === r.room ? null : r.room); setPage(1) }}>{r.room} · {r.total}</button>)}
+          </div> : null}
+        <StateView loading={boxes.loading && !boxes.data} error={boxes.error} empty={boxes.data?.total === 0} emptyText={room ? 'В этой комнате пока нет коробок.' : 'Коробок пока нет. Нажмите «+ Коробка».'} emptyIcon="📦" onRetry={boxes.reload}>
           {waiting.length > 0 ? (
             <div className="banner">
               <span>Ждут описи содержимого: {waiting.map((r) => `№${r.box.number}`).join(', ')}</span>
               <BoxLink pid={pid} number={waiting[0].box.number} sourceId="reminder">Открыть</BoxLink>
             </div>
           ) : null}
-          {rooms.length > 1 ? (
-            <div className="chips" role="group" aria-label="Фильтр по комнатам">
-              <button className={room === null ? 'chip on' : 'chip'} onClick={() => setRoom(null)}>Все комнаты · {all.length}</button>
-              {rooms.map((r) => (
-                <button key={r} className={room === r ? 'chip room-chip on' : 'chip room-chip'} style={roomStyle(r)} onClick={() => setRoom(room === r ? null : r)}>{r} · {all.filter((b) => b.room === r).length}</button>
-              ))}
-            </div>
-          ) : null}
-          <BoxGrid pid={pid} boxes={visible} />
+          <BoxGrid pid={pid} boxes={all} />
           <p className="muted small">Статусы: {Object.values(STATUS_LABELS).join(' → ')}</p>
-          <Link to="/tips" className="tips-card">
-            <BookOpen className="icon" aria-hidden />
-            <span className="grow">
-              <b>Памятка по упаковке</b>
-              <span className="sub">Хрупкое, что везти с собой, что паковать последним</span>
-            </span>
-            <span aria-hidden>→</span>
-          </Link>
+          <Link to="/tips" className="tips-card"><BookOpen className="icon" aria-hidden /><span className="grow"><b>Памятка по упаковке</b><span className="sub">Хрупкое, что везти с собой, что паковать последним</span></span><span aria-hidden>→</span></Link>
         </StateView>
+        <Pagination page={page} pageSize={36} total={boxes.data?.total ?? 0} busy={boxes.loading} onChange={setPage} label="Страницы коробок" />
+        </>
       )}
+
+
+      {roomPhoto ? <RoomPhotoModal pid={pid} rooms={rooms.map(r => r.room)} onClose={() => setRoomPhoto(false)} onCreated={() => { setRoomPhoto(false); boxes.reload(); summary.reload(); reminders.reload() }} /> : null}
       {adding ? (
         <AddBoxModal
-          rooms={rooms}
+          rooms={rooms.map(r => r.room)}
           onClose={() => setAdding(false)}
           onSave={async (roomName, text, later) => {
             const box = await api.createBox(pid, { room: roomName, items_text: text || null, fill_later: later })
@@ -127,19 +134,36 @@ function Boxes({ pid }: { pid: string }) {
           }}
         />
       ) : null}
-      {roomPhoto ? (
-        <RoomPhotoModal
-          pid={pid}
-          rooms={rooms}
-          onClose={() => setRoomPhoto(false)}
-          onCreated={() => {
-            setRoomPhoto(false)
-            boxes.reload()
-            reminders.reload()
-          }}
-        />
-      ) : null}
     </>
+  )
+}
+
+function AddBoxModal({ rooms, onClose, onSave }: { rooms: string[]; onClose: () => void; onSave: (room: string, text: string, fillLater: boolean) => Promise<void> }) {
+  const [room, setRoom] = useState('')
+  const [text, setText] = useState('')
+  const [later, setLater] = useState(false)
+  const { busy, error, submit } = useAction()
+
+  return (
+    <Modal title="Новая коробка" onClose={onClose} dirty={room.trim() !== '' || text.trim() !== ''}>
+      <form className="stack" onSubmit={submit(() => onSave(room.trim(), text, later))}>
+        <label>
+          Комната назначения
+          <input value={room} onChange={(e) => setRoom(e.target.value)} maxLength={60} list="rooms" placeholder="Кухня" data-autofocus />
+          <datalist id="rooms">{rooms.map((r) => <option key={r} value={r} />)}</datalist>
+        </label>
+        <label>
+          Содержимое (каждая вещь с новой строки)
+          <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={'Чайник\nКружки (4 шт)'} />
+        </label>
+        <label className="row">
+          <input type="checkbox" checked={later} onChange={(e) => setLater(e.target.checked)} />
+          Заполнить позже
+        </label>
+        <ErrorAlert message={error} />
+        <button className="primary" type="submit" disabled={busy || !room.trim()}>Создать</button>
+      </form>
+    </Modal>
   )
 }
 
@@ -203,35 +227,6 @@ function RoomPhotoModal({ pid, rooms, onClose, onCreated }: { pid: string; rooms
           </div>
         )
       ) : null}
-    </Modal>
-  )
-}
-
-function AddBoxModal({ rooms, onClose, onSave }: { rooms: string[]; onClose: () => void; onSave: (room: string, text: string, fillLater: boolean) => Promise<void> }) {
-  const [room, setRoom] = useState('')
-  const [text, setText] = useState('')
-  const [later, setLater] = useState(false)
-  const { busy, error, submit } = useAction()
-
-  return (
-    <Modal title="Новая коробка" onClose={onClose} dirty={room.trim() !== '' || text.trim() !== ''}>
-      <form className="stack" onSubmit={submit(() => onSave(room.trim(), text, later))}>
-        <label>
-          Комната назначения
-          <input value={room} onChange={(e) => setRoom(e.target.value)} maxLength={60} list="rooms" placeholder="Кухня" data-autofocus />
-          <datalist id="rooms">{rooms.map((r) => <option key={r} value={r} />)}</datalist>
-        </label>
-        <label>
-          Содержимое (каждая вещь с новой строки)
-          <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={'Чайник\nКружки (4 шт)'} />
-        </label>
-        <label className="row">
-          <input type="checkbox" checked={later} onChange={(e) => setLater(e.target.checked)} />
-          Заполнить позже
-        </label>
-        <ErrorAlert message={error} />
-        <button className="primary" type="submit" disabled={busy || !room.trim()}>Создать</button>
-      </form>
     </Modal>
   )
 }

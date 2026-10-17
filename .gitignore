@@ -25,3 +25,6 @@ frontend/public/recognition/
 # local notes for Claude, not part of the project
 CLAUDE.md
 e2e-screens/
+
+# Also ignore virtual environments linked from other local worktrees.
+.venv

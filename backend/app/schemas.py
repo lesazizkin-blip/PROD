@@ -269,11 +269,21 @@ class ProjectCreate(BaseModel):
     address_to: str | None = Field(default=None, max_length=300)
     qr_mode: QrMode = QrMode.UNIVERSAL
     personal_plan: PersonalPlan | None = None
+    plan_mode: Literal["standard", "empty"] = "standard"
+    first_day: list[Text200] | None = Field(default=None, max_length=20)
 
     _clean = field_validator("address_from", "address_to")(_opt_text)
 
     @model_validator(mode="after")
     def check_plan_dates(self):
+        if self.plan_mode == "empty" and self.personal_plan:
+            raise ValueError("Для персонального плана выберите стандартный начальный план")
+        if self.plan_mode == "standard":
+            try:
+                self.move_date + timedelta(days=-14)
+                self.move_date + timedelta(days=14)
+            except OverflowError:
+                raise ValueError("Дата не позволяет рассчитать сроки стандартного плана") from None
         if self.personal_plan:
             try:
                 for task in self.personal_plan.tasks:
@@ -559,6 +569,18 @@ class ItemOut(BaseModel):
 
 class BoxCardOut(BoxOut):
     items: list[ItemOut]
+
+
+class StatusCorrectionIn(BaseModel):
+    to: BoxStatus = Field(examples=["packed"])
+    reason: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=5, max_length=300)
+    ] = Field(examples=["Ошибочно нажали погрузку"])
+
+
+class FirstDayBindIn(BaseModel):
+    box_number: int = Field(ge=1, examples=[1])
+    name: Text120 | None = None
 
 
 class TransitionIn(BaseModel):
