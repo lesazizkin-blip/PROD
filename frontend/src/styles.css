@@ -495,3 +495,11 @@ button.danger-solid:hover:not(:disabled) { filter: brightness(.92); border-color
 .address-input__list button:hover:not(:disabled) { background: var(--primary-soft); }
 .address-input__map { height: 180px; border-radius: var(--radius-sm); border: 1px solid var(--border); overflow: hidden; }
 .address-input > button { justify-self: start; }
+
+/* кнопка «Вопросы» внизу меню гостя и окно с ответами */
+button.sidebar__faq { background: transparent; border: 0; font: inherit; width: 100%; justify-content: flex-start; cursor: pointer; }
+.faq { display: grid; gap: 8px; }
+.faq details { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; background: var(--surface); }
+.faq summary { cursor: pointer; font-weight: 600; color: var(--heading); }
+.faq details[open] summary { margin-bottom: 6px; }
+.faq p { margin: 0; }
