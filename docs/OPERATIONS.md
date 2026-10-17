@@ -129,3 +129,15 @@ group="hack-led-20" system="movermate" trace_id="<trace_id>"
 | Действия пользователей | `group="hack-led-20" system="movermate" msg="audit" \| timechart span=15m count by action` |
 | Входы и неудачи | `group="hack-led-20" system="movermate" action:"auth.*" \| stats count by action` |
 | Активные пользователи | `group="hack-led-20" system="movermate" msg="request" \| stats dc(user_id) as users` |
+
+## Закрепление production-интерфейса (18 октября 2026)
+
+После повторной замены интерфейса деплоем Spirit на ВМ отдельно закреплена проверенная сборка frontend из GitHub `9d1918f` (дизайн локальной версии :5186). Серверный код сохранён из актуального образа Spirit `7aeefc06`; текущий составной образ — `movermate:ui9d1918f-api7aeefc06`.
+
+На ВМ `/opt/movermate/deploy/docker-compose.override.yml` подключает `/opt/movermate-ui/9d1918f/site` к `/app/site` только для чтения. Обычный `docker compose` автоматически учитывает этот файл, в том числе при CI-деплое, который обновляет основной `docker-compose.yml`. База остаётся в прежнем томе. Настройки окружения не меняются, кроме `APP_IMAGE`.
+
+**При следующем обновлении визуала недостаточно заменить образ:** сначала подготовьте новую папку с полной сборкой `site`, затем измените путь bind mount в override и пересоздайте только `app`. Проверьте главную страницу и её asset-хеши с публичного адреса. Не отключайте закрепление без согласованной замены: исходники frontend в Spirit ещё могут отличаться от GitHub.
+
+Чтобы снова брать интерфейс из образа, после проверки его сборки уберите только это подключение `site` из override и пересоздайте `app`. Производственные override и `.env` хранятся на ВМ; резервная копия перед восстановлением — `/root/movermate-ui-restore`, памятка — `/opt/movermate-ui/README.txt`.
+
+18 октября: frontend обновлён до `f48d2cc` — исправление статуса без ручного ввода причины, печать этикеток без отдельной кнопки предпросмотра, QR-сканер и ручной ввод без распознавания рукописи. Активный mount в override: `/opt/movermate-ui/f48d2cc/site:/app/site:ro`. Серверный образ продолжает обновляться из Spirit; фактические образ и путь интерфейса проверяйте через `docker inspect deploy-app-1`.
