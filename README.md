@@ -41,8 +41,8 @@ cd frontend && npm install && npm run dev                                      #
 
 ## Проверки
 ```bash
-cd backend && .venv/bin/python -m pytest --cov=app    # сервер: 87 тестов (+2 пропущены: параллельность проверяется на PostgreSQL в CI, проверка аннотаций — только на Python 3.14), покрытие 98%
-cd frontend && npm test && npm run lint && npm run build   # сайт: 69 тестов
+cd backend && .venv/bin/python -m pytest --cov=app    # сервер: 88 тестов (+2 пропущены: параллельность проверяется на PostgreSQL в CI, проверка аннотаций — только на Python 3.14), покрытие 98%
+cd frontend && npm test && npm run lint && npm run build   # сайт: 73 теста
 scripts/preflight.sh <адрес>                          # полный сценарий ТЗ на запущенном сайте
 ```
 Тесты сервера запускать из папки `backend/` (миграционный тест читает `alembic.ini` по относительному пути).

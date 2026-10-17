@@ -99,3 +99,12 @@ export function formatTimeRange(start: string | null, end: string | null): strin
   if (b) return `до ${b}`
   return ''
 }
+
+/** Строки текста -> названия задач: пустые строки и повторы убираются. */
+export function parseTaskLines(text: string): string[] {
+  const seen = new Set<string>()
+  return text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !seen.has(l.toLowerCase()) && seen.add(l.toLowerCase()))
+}

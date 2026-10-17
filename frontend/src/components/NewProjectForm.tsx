@@ -1,16 +1,11 @@
 import { useState } from 'react'
-import { ArrowRight, Calendar, FileText, House, ListChecks, MapPin, QrCode } from 'lucide-react'
+import { ArrowRight, Calendar, House, MapPin } from 'lucide-react'
 import { api } from '../api/endpoints'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
 import ErrorAlert from '../ui/ErrorAlert'
+import AddressInput from './AddressInput'
 import MoveIllustration from './MoveIllustration'
-
-const WHY = [
-  { icon: FileText, text: 'Безбумажный учёт' },
-  { icon: ListChecks, text: 'Чек-лист первого дня' },
-  { icon: QrCode, text: 'QR-маркировка' },
-]
 
 /** Создание проекта (сценарий 1). Показывается, пока проектов нет, и на странице /new. */
 export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
@@ -60,14 +55,8 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
           </label>
           {withAddresses ? (
             <div className="form-grid">
-              <label>
-                Откуда (необязательно)
-                <input value={from} onChange={(e) => setFrom(e.target.value)} maxLength={300} placeholder="ул. Садовая, 5" />
-              </label>
-              <label>
-                Куда (необязательно)
-                <input value={to} onChange={(e) => setTo(e.target.value)} maxLength={300} placeholder="ул. Лесная, 12" />
-              </label>
+              <AddressInput label="Откуда (необязательно)" value={from} onChange={setFrom} placeholder="ул. Садовая, 5" />
+              <AddressInput label="Куда (необязательно)" value={to} onChange={setTo} placeholder="ул. Лесная, 12" />
             </div>
           ) : (
             <button type="button" className="link small new-project__more" onClick={() => setWithAddresses(true)}>
@@ -81,15 +70,6 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
         </div>
       </form>
 
-      <aside className="why" aria-label="Почему MoverMate">
-        <h3>Почему MoverMate?</h3>
-        {WHY.map((w) => (
-          <div key={w.text} className="why__item">
-            <span>{w.text}</span>
-            <w.icon className="icon" aria-hidden />
-          </div>
-        ))}
-      </aside>
     </div>
   )
 }

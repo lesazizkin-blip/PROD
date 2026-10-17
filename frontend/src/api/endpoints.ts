@@ -12,6 +12,7 @@ const p = (pid: string) => `/projects/${pid}`
 export const api = {
   // Служебные
   health: () => request<Health>("GET", "/health"),
+  config: () => request<{ maps_api_key: string | null }>("GET", "/config"),
   taskTemplates: () => request<TaskTemplate[]>("GET", "/task-templates"),
   tips: (topic?: TipTopic) => request<Tip[]>("GET", "/tips", { query: { topic } }),
 

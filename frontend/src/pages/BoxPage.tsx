@@ -7,6 +7,7 @@ import StatusPickerModal, { type StatusOption } from '../components/StatusPicker
 import { boxStatusOptions } from '../components/statusOptions'
 import { ITEM_STATUSES, type Item, type ItemStatus } from '../api/types'
 import { useProjects } from '../state/ProjectContext'
+import { useConfirm } from '../state/confirm'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
@@ -34,6 +35,7 @@ export default function BoxPage() {
   const valid = pid !== '' && Number.isInteger(number) && number >= 1
   const card = useAsync(() => (valid ? api.getBox(pid, number) : Promise.reject(new Error('Некорректная ссылка на коробку'))), [pid, number])
   const { busy, error, run } = useAction(() => card.reload())
+  const confirm = useConfirm()
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
   const [pickingBox, setPickingBox] = useState(false)
@@ -45,8 +47,8 @@ export default function BoxPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pid, projects])
 
-  function deleteBox() {
-    if (!window.confirm(`Удалить коробку № ${number} и всё её содержимое?`)) return
+  async function deleteBox() {
+    if (!(await confirm({ title: `Удалить коробку № ${number}?`, message: 'Вместе с ней удалятся все вещи внутри. Это нельзя отменить.' }))) return
     void run(async () => {
       await api.deleteBox(pid, number)
       navigate('/boxes')
@@ -107,7 +109,7 @@ export default function BoxPage() {
                   >
                     {ITEM_STATUS_LABELS[item.status]} ▾
                   </button>
-                  <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={() => window.confirm(`Удалить вещь «${item.name}»?`) && run(() => api.deleteItem(pid, item.id))}><Trash2 className="icon-sm" aria-hidden /></button>
+                  <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={async () => { if (await confirm({ title: `Удалить «${item.name}»?`, message: 'Вещь пропадёт из коробки и из поиска.' })) void run(() => api.deleteItem(pid, item.id)) }}><Trash2 className="icon-sm" aria-hidden /></button>
                 </div>
               ))}
               <button className="list-row add-row" onClick={() => setAdding(true)}><Plus className="icon-sm" aria-hidden />Добавить вещи</button>

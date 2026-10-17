@@ -205,3 +205,11 @@ def test_task_time_with_timezone_is_rejected_not_500(client, base):
     task = client.post(f"{base}/tasks", json={**body, "start_time": "10:00"}).json()
     r = client.patch(f"{base}/tasks/{task['id']}", json={"end_time": "13:00+03:00"})
     assert r.status_code == 422
+
+
+def test_client_config_hides_empty_maps_key(client, monkeypatch):
+    from app.config import get_settings
+
+    assert client.get("/api/config").json() == {"maps_api_key": None}
+    monkeypatch.setattr(get_settings(), "google_maps_api_key", " browser-key ")
+    assert client.get("/api/config").json() == {"maps_api_key": "browser-key"}
