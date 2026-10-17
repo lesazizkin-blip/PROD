@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { normalizeCandidates, normalizeNumber } from './number'
 import { isCompactCode, parseUniversalCode, resolveCompactCode } from './qr'
 import { createLocalOcrPrototype, type CreateOcrWorker } from './localOcr'
+import { prepareNumber } from './prepareNumber'
+
+vi.mock('./prepareNumber', () => ({ prepareNumber: vi.fn(async () => new Blob(['cleaned'])) }))
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -33,6 +36,28 @@ describe('QR-контракт', () => {
   })
 })
 describe('локальный OCR adapter (технические тесты, не качество почерка)', () => {
+  it('retries invalid OCR with cleaned pixels without substituting letters for digits', async () => {
+    const worker = {
+      recognize: vi.fn().mockResolvedValueOnce({ data: { text: '0.014' } }).mockResolvedValueOnce({ data: { text: '001' } }),
+      setParameters: vi.fn().mockResolvedValue(null), terminate: vi.fn().mockResolvedValue(null),
+    }
+    const photo = new Blob(['photo'])
+    const result = await createLocalOcrPrototype(vi.fn().mockResolvedValue(worker))(photo, new AbortController().signal)
+    expect(prepareNumber).toHaveBeenCalled()
+    expect(result.text).toBe('001')
+    expect(normalizeCandidates(result.candidates)).toEqual([1])
+    expect(worker.setParameters).toHaveBeenLastCalledWith({ tessedit_pageseg_mode: '7' })
+    expect(worker.terminate).toHaveBeenCalledTimes(1)
+  })
+  it('does not reinterpret an unrecognized prefix as a box number', async () => {
+    const worker = {
+      recognize: vi.fn().mockResolvedValueOnce({ data: { text: 'F001' } }).mockResolvedValueOnce({ data: { text: 'H001' } }),
+      setParameters: vi.fn().mockResolvedValue(null), terminate: vi.fn().mockResolvedValue(null),
+    }
+    const result = await createLocalOcrPrototype(vi.fn().mockResolvedValue(worker))(new Blob(), new AbortController().signal)
+    expect(result.text).toBe('F001')
+    expect(normalizeCandidates(result.candidates)).toEqual([])
+  })
   it('ошибка инициализации модели показывается без глобального throw', async () => {
     let options!: Parameters<CreateOcrWorker>[2]
     const create: CreateOcrWorker = (_lang, _engine, value) => { options = value; return new Promise(() => {}) }

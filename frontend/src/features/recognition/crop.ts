@@ -1,6 +1,12 @@
 export interface Crop { x: number; y: number; width: number; height: number }
 export const FULL_CROP: Crop = { x: 0, y: 0, width: 100, height: 100 }
 
+export function cropFromPoints(start: { x: number; y: number }, end: { x: number; y: number }): Crop {
+  const clamp = (value: number) => Math.max(0, Math.min(100, value))
+  const x = Math.min(99, clamp(start.x), clamp(end.x)), y = Math.min(99, clamp(start.y), clamp(end.y))
+  return { x, y, width: Math.max(1, Math.abs(clamp(start.x) - clamp(end.x))), height: Math.max(1, Math.abs(clamp(start.y) - clamp(end.y))) }
+}
+
 /** Crop and downscale locally before passing pixels to the OCR worker. */
 export async function cropPhoto(photo: Blob, crop: Crop): Promise<Blob> {
   const bitmap = await createImageBitmap(photo)

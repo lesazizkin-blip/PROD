@@ -210,7 +210,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
       if (id !== operation.current) return
       const existing = found.filter((v): v is { n: number; room: string } => v !== null)
       setCandidates(existing)
-      setStatus(existing.length ? 'Выберите номер и подтвердите открытие.' : 'Подходящих коробок не найдено. Переснимите или введите номер.')
+      setStatus(existing.length ? 'Выберите номер и подтвердите открытие.' : 'Номер не найден. Выделите только цифры без #, переснимите или введите номер.')
     } catch (e) { if (id === operation.current && !controller.signal.aborted) { setError(lookupMessage(e)); setStatus('Ошибка распознавания') } }
     finally { if (id === operation.current) setBusy(false) }
   }
@@ -238,7 +238,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
           <p>Экспериментальное распознавание. Качество на реальном почерке пока не проверено. Фото не отправляется на сервер.</p>
           <p>Поместите только надпись в кадр, без адресов и других чисел.</p>
           <label>Снять или выбрать фото<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={busy} onChange={(e) => { void selectPhoto(e.target.files?.[0]); e.target.value = '' }} /></label>
-          {preview ? <PhotoCrop src={preview} value={crop} onChange={setCrop} disabled={busy} /> : null}
+          {preview ? <PhotoCrop src={preview} value={crop} onChange={value => { setCrop(value); setResult(null); setCandidates([]); setError(null); setStatus('Область изменена. Распознайте фото заново.') }} disabled={busy} /> : null}
           {photo && recognizeHandwriting ? <button type="button" disabled={busy} onClick={() => { void recognizePhoto() }}>Распознать фото</button> : null}
           {photo ? <button type="button" onClick={() => { operation.current++; ocrAbort.current?.abort(); setBusy(false); setPhoto(null); setPreview(null); setResult(null); setCandidates([]); setStatus('Снимите номер ещё раз.') }}>Удалить фото / переснять</button> : null}
           {result ? <p>Распознано: <output>{result.text || '(пусто)'}</output></p> : null}

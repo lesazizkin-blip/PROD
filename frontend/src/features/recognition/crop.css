@@ -1,0 +1,2 @@
+.recognition-crop-preview { touch-action: none; cursor: crosshair; user-select: none; }
+.recognition-crop-preview .recognition-photo { pointer-events: none; }

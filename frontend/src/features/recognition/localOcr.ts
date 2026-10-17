@@ -1,4 +1,5 @@
-import type { LocalHandwriting } from './number'
+import { normalizeCandidates, type LocalHandwriting } from './number'
+import { prepareNumber } from './prepareNumber'
 
 interface OcrWorker {
   setParameters: (parameters: Record<string, string>) => Promise<unknown>
@@ -52,7 +53,21 @@ export function createLocalOcrPrototype(createWorker: CreateOcrWorker): LocalHan
       if (aborted) { terminate(); throw new DOMException('Cancelled', 'AbortError') }
       await worker.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' })
       if (aborted) throw new DOMException('Cancelled', 'AbortError')
-      const { data } = await worker.recognize(photo)
+      let { data } = await worker.recognize(photo)
+      if (aborted) throw new DOMException('Cancelled', 'AbortError')
+      if (!normalizeCandidates(data.text.split(/\r?\n/)).length) {
+        try {
+          const prepared = await prepareNumber(photo, signal)
+          if (aborted) throw new DOMException('Cancelled', 'AbortError')
+          await worker.setParameters({ tessedit_pageseg_mode: '7' })
+          const retry = await worker.recognize(prepared)
+          // Preserve invalid raw text if filtering did not produce a valid whole number.
+          if (normalizeCandidates(retry.data.text.split(/\r?\n/)).length) data = retry.data
+        } catch (error) {
+          if (signal.aborted || aborted) throw error
+          // Older browsers may lack OffscreenCanvas; original OCR is still available.
+        }
+      }
       return {
         text: data.text,
         candidates: data.text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
