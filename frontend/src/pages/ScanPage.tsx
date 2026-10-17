@@ -1,6 +1,7 @@
 import { Html5Qrcode } from 'html5-qrcode'
 import { useEffect, useEffectEvent, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Camera, Pause, Play, QrCode, RotateCcw, ScanLine } from 'lucide-react'
 import { api } from '../api/endpoints'
 import { ApiError } from '../api/client'
 import { useProjects } from '../state/ProjectContext'
@@ -38,6 +39,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
   const [attempt, setAttempt] = useState(0)
   const [visible, setVisible] = useState(!document.hidden)
   const [status, setStatus] = useState('Ожидание камеры')
+  const [cameraState, setCameraState] = useState<'starting' | 'ready' | 'paused' | 'error'>('starting')
   const [busy, setBusy] = useState(false)
   const [photo, setPhoto] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -56,6 +58,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
       locked.current = false
       setBusy(false)
       setActive(false)
+      setCameraState('paused')
       void camera.current?.stop().catch(() => setError('Не удалось освободить камеру. Перезагрузите страницу.'))
       setStatus('Камера остановлена. Запустите снова после возвращения.')
     }
@@ -84,6 +87,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
     setStatus('Распознано')
     setError(null)
     setActive(false)
+    setCameraState('paused')
     setBusy(true)
     const id = ++operation.current
     void (async () => {
@@ -124,6 +128,7 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
     let live = true
     const cameraOperation = operation.current
     const session = acquireCamera(() => {
+      setCameraState('starting')
       setStatus('Запрашиваем доступ к камере…')
       const scanner = new Html5Qrcode('qr-reader')
       return {
@@ -134,8 +139,8 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
         stop: () => scanner.stop(), clear: () => scanner.clear(),
         get isScanning() { return scanner.isScanning },
       }
-    }, () => { if (live) setStatus('Готово. Наведите камеру на QR.') }, (e) => {
-      if (live) { setError(cameraMessage(e)); setStatus('Ошибка камеры') }
+    }, () => { if (live) { setCameraState('ready'); setStatus('Готово. Наведите камеру на QR.') } }, (e) => {
+      if (live) { setCameraState('error'); setError(cameraMessage(e)); setStatus('Ошибка камеры') }
     })
     camera.current = session
     return () => { live = false; void session.stop().catch(() => {}) }
@@ -149,8 +154,19 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
     setError(null)
     setPhoto(null); setPreview(null); setCandidates([]); setResult(null)
     setMode('qr')
+    setCameraState('starting')
+    setStatus('Запрашиваем доступ к камере…')
     setActive(true)
     setAttempt((v) => v + 1)
+  }
+
+  async function pauseQr() {
+    operation.current++
+    setActive(false)
+    setCameraState('paused')
+    setStatus('Камера приостановлена.')
+    try { await camera.current?.stop() }
+    catch (e) { setCameraState('error'); setError(cameraMessage(e)) }
   }
 
   async function openNumber(e?: FormEvent, supplied?: number) {
@@ -217,11 +233,11 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
   }
 
   return <div className="recognition-page">
-    <PageHeading title={mode === 'live' ? 'Распознать номер' : 'Сканирование QR'}>{mode === 'live' ? 'Наведите камеру на рукописный номер коробки.' : 'Наведите камеру на этикетку или найдите коробку по номеру.'}</PageHeading>
+    <PageHeading title={mode === 'live' ? 'Распознать номер' : mode === 'photo' ? 'Номер с фотографии' : 'Сканирование QR'}>{mode === 'live' ? 'Наведите камеру на рукописный номер коробки.' : mode === 'photo' ? 'Снимите номер коробки крупным планом или введите его вручную.' : 'Наведите камеру на этикетку или найдите коробку по номеру.'}</PageHeading>
     <p>Проект для номера и фото: <strong>{projectName ?? 'не выбран'}</strong></p>
-    <div className="recognition-modes">
-      <button type="button" onClick={restart} disabled={busy}>Запустить QR снова</button>
-      <button type="button" disabled={!pid || busy || !recognizeHandwriting} onClick={async () => {
+    <div className="recognition-modes" role="group" aria-label="Способ сканирования">
+      <button type="button" aria-pressed={mode === 'qr'} onClick={restart} disabled={busy || mode === 'qr'}><QrCode aria-hidden="true" className="icon-sm" />QR-код</button>
+      <button type="button" aria-pressed={mode === 'live'} disabled={!pid || busy || !recognizeHandwriting || mode === 'live'} onClick={async () => {
         setActive(false)
         const id = ++operation.current
         ocrAbort.current?.abort()
@@ -230,8 +246,8 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
           if (id !== operation.current) return
           setMode('live'); setError(null); setStatus('Наведите на номер в рамке.')
         } catch (e) { if (id === operation.current) setError(cameraMessage(e)) }
-      }}>Камера номера</button>
-      <button type="button" disabled={!pid || busy} onClick={async () => {
+      }}><ScanLine aria-hidden="true" className="icon-sm" />Камера номера</button>
+      <button type="button" aria-pressed={mode === 'photo'} disabled={!pid || busy || mode === 'photo'} onClick={async () => {
         setActive(false)
         setStatus('Останавливаем QR-камеру…')
         const id = ++operation.current
@@ -240,11 +256,15 @@ function Scanner({ pid, projectName, resolveCode, recognizeHandwriting }: Servic
           if (id !== operation.current) return
           setMode('photo'); setStatus('Снимите крупно только номер на коробке.'); setError(null)
         } catch (e) { if (id === operation.current) setError(cameraMessage(e)) }
-      }}>Фото номера</button>
+      }}><Camera aria-hidden="true" className="icon-sm" />Фото номера</button>
     </div>
     <div className="scan-layout">
       <div className="scan-stage stack">
         <div id="qr-reader" className="scanner" hidden={mode !== 'qr'} />
+        {mode === 'qr' ? <button type="button" className="qr-camera-control" disabled={busy || !visible || (active && cameraState === 'starting')} onClick={() => { if (active && cameraState === 'ready') void pauseQr(); else restart() }}>
+          {cameraState === 'error' ? <RotateCcw className="icon-sm" aria-hidden="true" /> : active && cameraState === 'ready' ? <Pause className="icon-sm" aria-hidden="true" /> : <Play className="icon-sm" aria-hidden="true" />}
+          {cameraState === 'error' ? 'Повторить запуск камеры' : active && cameraState === 'starting' ? 'Запускаем камеру…' : active && cameraState === 'ready' ? 'Приостановить камеру' : 'Продолжить сканирование'}
+        </button> : null}
         {mode === 'live' && pid && recognizeHandwriting ? <LiveNumberCamera pid={pid} recognize={recognizeHandwriting} onConfirm={n => openNumber(undefined, n)} /> : null}
         {mode === 'photo' ? <div className="stack">
           <p>Экспериментальное распознавание. Качество на реальном почерке пока не проверено. Фото не отправляется на сервер.</p>

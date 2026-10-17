@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
 import { CircleHelp } from 'lucide-react'
 import FaqModal from './FaqModal'
+import BrandMark from './BrandMark'
+import SidebarToggle from './SidebarToggle'
 import { NAV_TABS, tabNumber } from './navTabs'
 
 /** Каркас для гостя: те же разделы слева, но вместо перехода - уведомление, что сначала нужна регистрация. */
@@ -9,6 +11,7 @@ export default function GuestShell() {
   const [notice, setNotice] = useState<string | null>(null)
   const timer = useRef<number | undefined>(undefined)
   const [faq, setFaq] = useState(false)
+  const [sidebarCompact, setSidebarCompact] = useState(false)
 
   const needAccount = (section: string) => {
     setNotice(`Раздел «${section}» доступен после регистрации. Зарегистрируйтесь или войдите, чтобы пользоваться MoverMate.`)
@@ -17,16 +20,17 @@ export default function GuestShell() {
   }
 
   return (
-    <div className="shell">
-      <aside className="sidebar">
+    <div className={`shell${sidebarCompact ? ' is-sidebar-compact' : ''}`}>
+      <aside className="sidebar" aria-label="Главное меню">
+        <SidebarToggle compact={sidebarCompact} onToggle={() => setSidebarCompact((value) => !value)} />
         <Link to="/about" className="brand" aria-label="MoverMate: о нас">
-          <img src="/assets/box-mark.svg" width="36" height="36" alt="" />
+          <BrandMark />
           <span>MoverMate</span>
         </Link>
         <p className="brand-caption">УЧЁТ ВЕЩЕЙ<br />И ПЛАН ПЕРЕЕЗДА</p>
-        <nav className="tabs" aria-label="Разделы">
+        <nav id="sidebar-navigation" className="tabs" aria-label="Разделы">
           {NAV_TABS.map((t, i) => (
-            <button key={t.label} type="button" className="tab" aria-label={t.label} onClick={() => needAccount(t.label)}>
+            <button key={t.label} type="button" className="tab" aria-label={t.label} title={sidebarCompact ? t.label : undefined} onClick={() => needAccount(t.label)}>
               <span className="tab-number" aria-hidden>{tabNumber(i)}</span>
               <t.icon className="icon" aria-hidden />
               <span className="tab-label">{t.label}</span>
@@ -35,7 +39,7 @@ export default function GuestShell() {
           ))}
         </nav>
         <div className="guest-faq">
-          <button type="button" className="sidebar__me sidebar__faq" onClick={() => setFaq(true)}>
+          <button type="button" className="sidebar__me sidebar__faq" aria-label="Вопросы" title={sidebarCompact ? 'Вопросы' : undefined} onClick={() => setFaq(true)}>
             <CircleHelp className="icon" aria-hidden />
             <span className="sidebar__name">Вопросы</span>
           </button>

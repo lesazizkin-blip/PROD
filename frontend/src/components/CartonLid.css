@@ -1,0 +1,16 @@
+.carton-lid-art { overflow: visible; pointer-events: none; }
+.carton-lid-art .shelf-carton__top { fill: #ead4b2; stroke: #b69a73; stroke-width: .7px; }
+.carton-lid-art .shelf-carton__mouth { fill: #735639; }
+.carton-lid-art .shelf-carton__flap { fill: #dfc49d; stroke: #ac8c62; stroke-width: .7px; }
+.carton-lid-art .shelf-carton__flap--right { fill: #e9d1ad; }
+.carton-lid-art .shelf-carton__seam { fill: none; stroke: #ad8d65; stroke-width: 1; }
+.carton-lid-art .shelf-carton__tape { opacity: .9; }
+.carton-lid-art.is-closing .carton-flap-left { animation: carton-fold-left 550ms var(--ease-out) both; }
+.carton-lid-art.is-closing .carton-flap-right { animation: carton-fold-right 550ms var(--ease-out) 250ms both; }
+.carton-lid-art.is-closing .shelf-carton__mouth { animation: carton-mouth-close 500ms ease 300ms both; }
+.carton-lid-art.is-closing .carton-lid-seal { transform-box: fill-box; transform-origin: center top; animation: carton-lid-tape 650ms var(--ease-out) 850ms both; }
+@keyframes carton-fold-left { to { d: path('M0 64 14 44 157 44 143 64Z'); } }
+@keyframes carton-fold-right { to { d: path('M157 44 300 44 286 64 143 64Z'); } }
+@keyframes carton-mouth-close { to { opacity: 0; } }
+@keyframes carton-lid-tape { from { opacity: 0; transform: scaleY(0); } to { opacity: 1; transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .carton-lid-art * { animation: none !important; } }

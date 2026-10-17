@@ -56,21 +56,21 @@
 @media screen {
   .mm-print-workspace { display: grid; grid-template-columns: minmax(250px, .65fr) minmax(0, 1.65fr); gap: 24px 36px; align-items: start; }
   .mm-print-workspace > .page-heading { grid-column: 1 / -1; margin-bottom: 8px; }
-  .mm-print-controls { grid-column: 1; background: var(--surface); padding: 24px; margin: 0; gap: 20px; }
+  .mm-print-controls { grid-column: 1; background: var(--surface); padding: 24px; margin: 0; gap: 20px; border-radius: var(--radius); }
   .mm-print-controls h2 { font-size: 22px; margin: 0; }
-  .mm-print-controls > p { font-size: 12px; color: var(--muted); }
-  .mm-print-controls > p[role=status] { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text); border-top: 1px solid var(--border); padding-top: 16px; }
+  .mm-print-controls > p { font-size: var(--text-sm); color: var(--muted); }
+  .mm-print-controls > p[role=status] { font-size: var(--text-sm); color: var(--text); border-top: 1px solid var(--border); padding-top: 16px; }
   .mm-print-settings { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  .mm-print-settings label { font-size: 12px; }
-  .mm-print-settings select { background: var(--bg); border-radius: 0; font-size: 12px; }
+  .mm-print-settings label { font-size: var(--text-sm); }
+  .mm-print-settings select { background: var(--bg); border-radius: var(--radius-control); font-size: var(--text-base); }
   .mm-print-selection { border: 0; border-top: 1px solid var(--border); padding: 16px 0 0; }
-  .mm-print-selection summary { font-size: 12px; font-weight: 700; }
+  .mm-print-selection summary { font-size: var(--text-sm); font-weight: 700; }
   .mm-print-selection .row { flex-wrap: wrap; }
-  .mm-print-selection button { font-size: 11px; min-height: 36px; padding: 6px 10px; }
-  .mm-print-boxes { grid-template-columns: minmax(0, 1fr); font-size: 12px; gap: 10px; }
+  .mm-print-selection button { font-size: var(--control-font); min-height: var(--control-height); padding: 8px 10px; }
+  .mm-print-boxes { grid-template-columns: minmax(0, 1fr); font-size: var(--text-sm); gap: 10px; }
   .mm-print-controls > .row { flex-wrap: wrap; }
-  .mm-print-controls > .row > * { font-size: 12px; }
-  .mm-print-preview { grid-column: 2; background: var(--primary-soft); padding: 28px; max-width: 100%; }
+  .mm-print-controls > .row > * { font-size: var(--control-font); }
+  .mm-print-preview { grid-column: 2; background: var(--primary-soft); padding: 28px; max-width: 100%; border-radius: var(--radius); }
   .mm-print-preview::before { content: 'ПРЕДПРОСМОТР / ЛИСТ A4'; display: block; color: var(--muted); font: 10px 'IBM Plex Mono', monospace; margin-bottom: 20px; }
   .mm-a4 { zoom: .75; margin: 0 auto 24px; box-shadow: none; background: transparent; }
   .mm-label { background: var(--surface); color: var(--text); border-color: #8e887b; }
