@@ -73,7 +73,8 @@ function Boxes({ pid }: { pid: string }) {
   return (
     <>
       <PageHeading title="Коробки и вещи" mobileTitle="Коробки">{summary.data ? <>{summary.data.boxes_total} {plural(summary.data.boxes_total, ['коробка', 'коробки', 'коробок'])} · {summary.data.by_status.packing} ещё {plural(summary.data.by_status.packing, ['собирается', 'собираются', 'собираются'])}</> : '…'}</PageHeading>
-      <ErrorAlert message={summary.error} />
+      {/* без сети падают все запросы: одну и ту же ошибку показываем один раз - в списке ниже */}
+      <ErrorAlert message={boxes.error || hits.error ? null : summary.error} />
       <div className="search-tools"><input type="search" maxLength={120} placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} aria-label="Поиск" /><Link to="/scan" className="button">Сканировать QR</Link><button onClick={() => setRoomPhoto(true)}><Camera className="icon-sm" aria-hidden />Комната по фото</button><button className="primary" onClick={() => setAdding(true)}>+ Коробка</button></div>
 
       {q ? (
