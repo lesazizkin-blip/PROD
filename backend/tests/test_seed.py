@@ -28,3 +28,19 @@ def test_demo_lost_item_comes_back_on_restart(monkeypatch, db_session):
     db_session.commit()
     seed.run()  # следующая выкатка
     assert db_session.query(Item).filter_by(status="lost").count() == 1
+
+
+def test_reset_demo_recreates_vandalized_demo_project(db_session):
+    from app.config import DEMO_PROJECT_ID
+    from app.models import Box
+    from app.seed import run
+
+    run()
+    boxes = db_session.query(Box).filter_by(project_id=DEMO_PROJECT_ID).count()
+    db_session.query(Box).filter_by(
+        project_id=DEMO_PROJECT_ID
+    ).delete()  # кто-то удалил все коробки
+    db_session.commit()
+    run(reset_demo=True)
+    db_session.expire_all()
+    assert db_session.query(Box).filter_by(project_id=DEMO_PROJECT_ID).count() == boxes

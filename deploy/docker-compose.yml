@@ -2,12 +2,22 @@
 #   cd deploy && cp .env.example .env   # впишите SITE_ADDRESS (имя сервера) для HTTPS
 #   docker compose up -d --build
 # Образ берётся готовый (APP_IMAGE, из реестра CI) или собирается из исходников.
+# Логи контейнеров ограничены по размеру: поток запросов при атаке не забьёт диск ВМ
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   app:
     image: ${APP_IMAGE:-movermate:latest}
     build:
       context: ..
     restart: unless-stopped
+    logging: *logging
+    # при утечке или наплыве память ограничена: падает и перезапускается только app, ВМ и Caddy живы
+    mem_limit: 1500m
     expose:
       - "8000"
     environment:
@@ -36,6 +46,8 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    logging: *logging
+    mem_limit: 512m
     depends_on:
       - app
     ports:

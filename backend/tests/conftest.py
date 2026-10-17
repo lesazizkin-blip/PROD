@@ -3,6 +3,9 @@ import os
 # TEST_DATABASE_URL=postgresql+psycopg://... прогоняет все тесты на PostgreSQL (так делает CI)
 TEST_DB_URL = os.environ.get("TEST_DATABASE_URL") or "sqlite://"
 os.environ["DATABASE_URL"] = TEST_DB_URL
+# защита от флуда мешала бы сотням запросов тестов с одного адреса; её проверяет test_throttle.py
+os.environ["API_REQUESTS_PER_MINUTE"] = "0"
+os.environ["REGISTRATIONS_PER_HOUR"] = "0"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
