@@ -19,7 +19,7 @@ def test_calculator_requires_login_and_saves_nothing(make_client, client):
     assert d["total"]["low"] < d["total"]["high"]
     assert d["total"]["low"] == sum(c["cost"]["low"] for c in d["costs"])
     assert {c["category"] for c in d["costs"]} >= {"movers", "transport", "materials", "cleaning"}
-    assert "Ориентировочная оценка" in d["assumptions"]
+    assert "Профи.ру" in d["assumptions"] and "проверено" in d["assumptions"]
 
 
 def test_more_rooms_cost_more_and_need_bigger_truck():
@@ -38,7 +38,7 @@ def test_stairs_without_elevator_add_hours():
 
 
 def test_intercity_piano_and_pets_add_lines():
-    r = estimate(CalculatorIn(rooms=2, distance_km=800, piano=True, pets=True))
+    r = estimate(CalculatorIn(rooms=2, distance_km=500, piano=True, pets=True))
     titles = " ".join(c.title for c in r.costs)
     assert "между городами" in titles and "пианино" in titles and "питомца" in titles
     assert r.prep_weeks == 4  # 2 комнаты + 1, и +1 за другой город
@@ -142,3 +142,33 @@ def test_budget_is_private_to_project_members(client, base, make_client):
 )
 def test_expense_validation(client, base, body):
     assert client.post(f"{base}/expenses", json=body).status_code == 422
+
+
+def test_city_prices_and_calculator_bounds(client):
+    cities = client.get("/api/cities").json()
+    assert len(cities) >= 10
+    chosen = cities[0]
+    result = client.post("/api/calculator", json={**BASE_CALC, "city": chosen["slug"]})
+    assert result.status_code == 200
+    assert result.json()["city"] == chosen["name"]
+    assert chosen["name"] in result.json()["assumptions"]
+    assert client.post("/api/calculator", json={**BASE_CALC, "city": "unknown"}).status_code == 422
+    for extra in ({"people": 11}, {"distance_km": 501}, {"floor_from": 16, "elevator_from": False}):
+        assert client.post("/api/calculator", json={**BASE_CALC, **extra}).status_code == 422
+    assert (
+        client.post(
+            "/api/calculator", json={**BASE_CALC, "floor_from": 100, "elevator_from": True}
+        ).status_code
+        == 200
+    )
+
+
+def test_throttle_returns_retry_and_keeps_health_available(anon_client, monkeypatch):
+    from app.main import api_limiter
+
+    monkeypatch.setattr(api_limiter, "limit", 1)
+    assert anon_client.get("/api/cities").status_code == 200
+    blocked = anon_client.get("/api/cities")
+    assert blocked.status_code == 429
+    assert int(blocked.headers["Retry-After"]) > 0
+    assert anon_client.get("/api/health").status_code == 200

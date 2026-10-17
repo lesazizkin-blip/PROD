@@ -33,6 +33,7 @@ vi.mock('../../api/endpoints', () => ({
   api: {
     me: () => me(),
     myProjects: () => Promise.resolve([{ id: 'p1', name: 'Переезд', move_date: '2026-11-01', role: 'owner' }]),
+    cities: () => Promise.resolve([{ slug: 'kzn', name: 'Казань' }]),
     calculator: (body: unknown) => calculator(body),
     addExpense: (...a: unknown[]) => addExpense(...a),
     updateExpense: (...a: unknown[]) => updateExpense(...a),
@@ -63,6 +64,20 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('калькулятор', () => {
+  it('передаёт город и соблюдает ограничения действующего сервера', async () => {
+    setup(<CalculatorPage />)
+    await screen.findByRole('option', { name: 'Казань' })
+    await userEvent.selectOptions(screen.getByLabelText('Город'), 'kzn')
+    expect(screen.getByLabelText('Сколько человек переезжает').getAttribute('max')).toBe('10')
+    expect(screen.getByLabelText('Расстояние, км').getAttribute('max')).toBe('500')
+    fireEvent.change(screen.getByLabelText('Этаж сейчас'), { target: { value: '90' } })
+    await userEvent.click(screen.getByLabelText('Лифт сейчас'))
+    expect((screen.getByLabelText('Этаж сейчас') as HTMLInputElement).value).toBe('15')
+    await userEvent.click(screen.getByRole('button', { name: 'Рассчитать' }))
+    await waitFor(() => expect(calculator).toHaveBeenCalled())
+    expect(calculator.mock.calls[0][0]).toMatchObject({ city: 'kzn', floor_from: 15, elevator_from: false })
+  })
+
   it('гость получает оценку и приглашение начать переезд', async () => {
     me.mockRejectedValue(new Error('401'))
     setup(<CalculatorPage />)

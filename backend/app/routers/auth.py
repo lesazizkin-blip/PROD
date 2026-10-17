@@ -9,6 +9,7 @@ from app.logging_setup import audit
 from app.models import User
 from app.schemas import Credentials, InviteInfo, PasswordChange, ProjectOut, UserOut
 from app.services.auth import AuthService
+from app.throttle import client_ip as _client_ip
 
 router = APIRouter(tags=["auth"])
 
@@ -24,12 +25,6 @@ def _set_session(response: Response, token: str) -> None:
         secure=s.app_env == "production",  # на проде только по HTTPS
         path="/",
     )
-
-
-def _client_ip(request: Request) -> str:
-    # за Caddy адрес клиента приходит в X-Forwarded-For (первый в списке)
-    forwarded = request.headers.get("x-forwarded-for", "")
-    return forwarded.split(",")[0].strip() or (request.client.host if request.client else "-")
 
 
 @router.post(

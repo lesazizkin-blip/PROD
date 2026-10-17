@@ -1,10 +1,13 @@
 """Калькулятор переезда (этап «решение»): объём, коробки, машина, грузчики, время, бюджет «от–до», сроки.
 
-Правила локальные, без внешних сервисов. Коэффициенты - ориентир для крупного города, их легко поправить здесь же;
-пользователю результат показывается как оценка, а не как цена подрядчика."""
+Правила локальные, без внешних сервисов. Ставки грузчиков и машины берутся из цен города (таблица city_prices,
+данные Профи.ру, см. reference_data.CITY_PRICES); остальное - средние по России ниже. Результат - оценка,
+а не цена подрядчика."""
 
+from dataclasses import dataclass
 from datetime import date
 
+from app.reference_data import CITY_PRICES, PRICES_CHECKED_ON, PRICES_SOURCE
 from app.schemas import CalculatorIn, CalculatorOut, CostLine, Range
 
 # коробки: на комнату и на человека (одежда, личные вещи)
@@ -12,9 +15,7 @@ BOXES_PER_ROOM = (15, 22)
 BOXES_PER_PERSON = (5, 8)
 # объём груза с мебелью, м³ на комнату
 VOLUME_PER_ROOM = (6, 9)
-# цены, ₽: грузчик в час, машина в час (по городу), километр (межгород), коробка, плёнка и скотч, уборка на комнату
-MOVER_HOUR = (700, 900)
-TRUCK_HOUR = (1200, 1800)
+# цены по России, ₽: километр (межгород), коробка, плёнка и скотч, уборка на комнату
 TRUCK_KM = (45, 70)
 BOX_PRICE = (90, 150)
 WRAP = (1500, 3000)
@@ -22,13 +23,67 @@ CLEANING_ROOM = (2500, 4000)
 PIANO = (8000, 15000)
 PET_TRANSFER = (1500, 5000)
 MIN_HOURS = 4  # минимальный заказ грузчиков и машины
+WORKDAY_HOURS = 10  # дольше за один день грузчики не работают: работу делят на дни
 INTERCITY_KM = 100  # дальше - перевозка между городами, считается по километрам
 
-ASSUMPTIONS = (
-    "Ориентировочная оценка по средним ценам крупного города: грузчики "
-    f"{MOVER_HOUR[0]}–{MOVER_HOUR[1]} ₽/ч, машина {TRUCK_HOUR[0]}–{TRUCK_HOUR[1]} ₽/ч, "
-    f"коробка {BOX_PRICE[0]}–{BOX_PRICE[1]} ₽. Точную цену назовёт подрядчик."
-)
+# машина больше Газели дороже: по тарифной сетке перевозчика (Газель 8–10 м³ - 1200 ₽/ч, 16–18 м³ - 1300,
+# 25–35 м³ - 2500; pereezdekb.com, 17.10.2026); две машины - вдвое к грузовику 18–20 м³
+VEHICLE_FACTOR = {"gazel": 1.0, "truck20": 1.1, "truck35": 2.1, "two": 2.2}
+
+
+@dataclass(frozen=True)
+class Rates:
+    """Ставки за час для расчёта: нижняя граница - минимум исполнителей, верхняя - середина их вилки
+    (максимум на площадке - крупные машины и премиум, для обычного переезда он завышает оценку)."""
+
+    city: str | None
+    mover: tuple[int, int]
+    truck: tuple[int, int]
+    offers: int
+    checked_on: date
+    cities: int = 1  # по скольким городам усреднено (город не выбран)
+
+
+def _typical(low: int, high: int) -> tuple[int, int]:
+    return low, round((low + high) / 2)
+
+
+Prices = tuple[int, int, int]  # мин ₽/ч, макс ₽/ч, исполнителей
+
+
+def city_rates(name: str, movers: Prices, trucks: Prices, checked_on: date) -> Rates:
+    return Rates(
+        name, _typical(*movers[:2]), _typical(*trucks[:2]), movers[2] + trucks[2], checked_on
+    )
+
+
+def average_rates(rows: list[tuple[Prices, Prices, date]] | None = None) -> Rates:
+    """Город не выбран: средние ставки по всем городам (из базы; без неё - по снимку в коде)."""
+    if not rows:
+        rows = [(m, t, PRICES_CHECKED_ON) for _, _, m, t in CITY_PRICES]
+    n = len(rows)
+
+    def avg(i: int, j: int) -> int:
+        return round(sum(r[i][j] for r in rows) / n)
+
+    return Rates(
+        None,
+        _typical(avg(0, 0), avg(0, 1)),
+        _typical(avg(1, 0), avg(1, 1)),
+        sum(r[0][2] + r[1][2] for r in rows),
+        min(r[2] for r in rows),
+        n,
+    )
+
+
+def _assumptions(r: Rates) -> str:
+    where = f"в г. {r.city}" if r.city else f"в среднем по {r.cities} крупным городам"
+    return (
+        f"Цены {where}: грузчик {r.mover[0]}–{r.mover[1]} ₽/ч, Газель {r.truck[0]}–{r.truck[1]} ₽/ч "
+        f"({PRICES_SOURCE}, {r.offers} исполнителей, проверено {r.checked_on:%d.%m.%Y}). "
+        f"Коробки {BOX_PRICE[0]}–{BOX_PRICE[1]} ₽, упаковка, уборка и межгород — средние по России. "
+        "Точную цену назовёт подрядчик."
+    )
 
 
 def _r(value: float, step: int = 500) -> int:
@@ -38,13 +93,25 @@ def _r(value: float, step: int = 500) -> int:
 def _vehicle(volume: int, distance_km: int) -> str:
     if distance_km > INTERCITY_KM:
         return "Перевозка между городами: грузовик или сборный груз транспортной компании"
+    return _VEHICLE_NAMES[_vehicle_kind(volume)]
+
+
+def _vehicle_kind(volume: int) -> str:
     if volume <= 10:
-        return "Газель (до 10 м³)"
+        return "gazel"
     if volume <= 20:
-        return "Грузовик 18–20 м³"
+        return "truck20"
     if volume <= 35:
-        return "Грузовик 35 м³"
-    return "Две машины или фура"
+        return "truck35"
+    return "two"
+
+
+_VEHICLE_NAMES = {
+    "gazel": "Газель (до 10 м³)",
+    "truck20": "Грузовик 18–20 м³",
+    "truck35": "Грузовик 35 м³",
+    "two": "Две машины или фура",
+}
 
 
 def _floors_without_elevator(body: CalculatorIn) -> int:
@@ -88,8 +155,12 @@ def _date_advice(move_date: date | None, prep_weeks: int, today: date) -> list[s
     return advice
 
 
-def estimate(body: CalculatorIn, today: date | None = None) -> CalculatorOut:
+def estimate(
+    body: CalculatorIn, rates: Rates | None = None, today: date | None = None
+) -> CalculatorOut:
     today = today or date.today()
+    rates = rates or average_rates()
+    mover_hour, truck_hour = rates.mover, rates.truck
     fragile = 1.1 if body.many_fragile else 1.0
     boxes = Range(
         low=round((body.rooms * BOXES_PER_ROOM[0] + body.people * BOXES_PER_PERSON[0]) * fragile),
@@ -110,8 +181,8 @@ def estimate(body: CalculatorIn, today: date | None = None) -> CalculatorOut:
             category="movers",
             title=f"Грузчики: {movers} чел. × {hours.low}–{hours.high} ч",
             cost=Range(
-                low=_r(MOVER_HOUR[0] * movers * hours.low),
-                high=_r(MOVER_HOUR[1] * movers * hours.high),
+                low=_r(mover_hour[0] * movers * hours.low),
+                high=_r(mover_hour[1] * movers * hours.high),
             ),
         )
     ]
@@ -121,17 +192,21 @@ def estimate(body: CalculatorIn, today: date | None = None) -> CalculatorOut:
                 category="transport",
                 title=f"Перевозка между городами, {body.distance_km} км",
                 cost=Range(
-                    low=_r(TRUCK_KM[0] * body.distance_km + TRUCK_HOUR[0] * MIN_HOURS),
-                    high=_r(TRUCK_KM[1] * body.distance_km + TRUCK_HOUR[1] * MIN_HOURS),
+                    low=_r(TRUCK_KM[0] * body.distance_km + truck_hour[0] * MIN_HOURS),
+                    high=_r(TRUCK_KM[1] * body.distance_km + truck_hour[1] * MIN_HOURS),
                 ),
             )
         )
     else:
+        factor = VEHICLE_FACTOR[_vehicle_kind(volume.high)]
         costs.append(
             CostLine(
                 category="transport",
                 title=f"{_vehicle(volume.high, body.distance_km)}, {hours.low}–{hours.high} ч",
-                cost=Range(low=_r(TRUCK_HOUR[0] * hours.low), high=_r(TRUCK_HOUR[1] * hours.high)),
+                cost=Range(
+                    low=_r(truck_hour[0] * factor * hours.low),
+                    high=_r(truck_hour[1] * factor * hours.high),
+                ),
             )
         )
     costs.append(
@@ -171,6 +246,14 @@ def estimate(body: CalculatorIn, today: date | None = None) -> CalculatorOut:
         )
 
     prep_weeks = min(8, (2 if body.rooms <= 1 else body.rooms + 1) + (1 if intercity else 0))
+    advice = _date_advice(body.move_date, prep_weeks, today)
+    if hours.high > WORKDAY_HOURS:
+        days = -(-hours.high // WORKDAY_HOURS)
+        advice.insert(
+            0,
+            f"Работы на {hours.low}–{hours.high} ч: за один день не успеть. Планируйте переезд на "
+            f"{days} дн. или заказывайте больше грузчиков; без лифта крупную мебель лучше поднимать такелажникам.",
+        )
     return CalculatorOut(
         boxes=boxes,
         volume_m3=volume,
@@ -180,6 +263,7 @@ def estimate(body: CalculatorIn, today: date | None = None) -> CalculatorOut:
         prep_weeks=prep_weeks,
         costs=costs,
         total=Range(low=sum(c.cost.low for c in costs), high=sum(c.cost.high for c in costs)),
-        date_advice=_date_advice(body.move_date, prep_weeks, today),
-        assumptions=ASSUMPTIONS,
+        date_advice=advice,
+        assumptions=_assumptions(rates),
+        city=rates.city,
     )

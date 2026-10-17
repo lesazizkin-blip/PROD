@@ -7,6 +7,7 @@ import PageHeading from '../../components/PageHeading'
 import { useAuth } from '../../state/AuthContext'
 import { useProjects } from '../../state/ProjectContext'
 import { useAction } from '../../state/useAction'
+import { useAsync } from '../../state/useAsync'
 import ErrorAlert from '../../ui/ErrorAlert'
 import { CATEGORY_LABELS, mid, rub, rubRange } from './money'
 import './journey.css'
@@ -16,17 +17,21 @@ const START: CalculatorIn = {
   elevator_from: true, elevator_to: true, pets: false, piano: false, many_fragile: false, move_date: null,
 }
 
-/** Этап «решение»: сколько стоит переезд, сколько коробок и времени. Работает и без входа, ничего не сохраняет. */
+/** Этап «решение»: сколько стоит переезд, сколько коробок и времени. Доступно после входа, ничего не сохраняет. */
 export default function CalculatorPage() {
   const { user } = useAuth()
   const { currentId } = useProjects()
   const navigate = useNavigate()
   const [form, setForm] = useState<CalculatorIn>(START)
   const [result, setResult] = useState<CalculatorOut | null>(null)
+  const cities = useAsync(() => api.cities(), [])
   const calc = useAction()
   const toBudget = useAction()
   const set = <K extends keyof CalculatorIn>(key: K, value: CalculatorIn[K]) => {
-    setForm({ ...form, [key]: value })
+    const next = { ...form, [key]: value }
+    if (!next.elevator_from) next.floor_from = Math.min(next.floor_from, 15)
+    if (!next.elevator_to) next.floor_to = Math.min(next.floor_to, 15)
+    setForm(next)
     setResult(null)
   }
   const num = (key: 'rooms' | 'people' | 'distance_km' | 'floor_from' | 'floor_to', label: string, min: number, max: number) => (
@@ -41,15 +46,16 @@ export default function CalculatorPage() {
       <PageHeading title="Калькулятор переезда">Прикиньте бюджет, коробки и сроки ещё до того, как начать.</PageHeading>
       <form className="card stack" onSubmit={calc.submit(async () => setResult(await api.calculator({ ...form, move_date: form.move_date || null })))}>
         <div className="calc-grid">
+          <label>Город<select value={form.city ?? ''} onChange={e => set('city', e.target.value || null)}><option value="">Средние цены по крупным городам</option>{cities.data?.map(c => <option key={c.slug} value={c.slug}>{c.name}</option>)}</select></label>
           {num('rooms', 'Комнат (студия = 1)', 1, 8)}
-          {num('people', 'Сколько человек переезжает', 1, 12)}
-          {num('distance_km', 'Расстояние, км', 0, 10000)}
+          {num('people', 'Сколько человек переезжает', 1, 10)}
+          {num('distance_km', 'Расстояние, км', 0, 500)}
           <label>
             Дата переезда (необязательно)
             <input type="date" value={form.move_date ?? ''} onChange={(e) => set('move_date', e.target.value || null)} />
           </label>
-          {num('floor_from', 'Этаж сейчас', 0, 100)}
-          {num('floor_to', 'Этаж на новом месте', 0, 100)}
+          {num('floor_from', 'Этаж сейчас', 0, form.elevator_from ? 100 : 15)}
+          {num('floor_to', 'Этаж на новом месте', 0, form.elevator_to ? 100 : 15)}
         </div>
         <div className="row wrap calc-flags">
           <label className="row"><input type="checkbox" checked={form.elevator_from} onChange={(e) => set('elevator_from', e.target.checked)} />Лифт сейчас</label>

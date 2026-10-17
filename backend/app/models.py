@@ -235,3 +235,22 @@ class Tip(Base):
     topic: Mapped[str] = mapped_column(String(20))
     title: Mapped[str] = mapped_column(String(200))
     body: Mapped[str] = mapped_column(Text)
+
+
+class CityPrice(Base):
+    """Цены на переезд в городе по открытым данным (справочник; заполняется из reference_data.CITY_PRICES)."""
+
+    __tablename__ = "city_prices"
+
+    slug: Mapped[str] = mapped_column(String(20), primary_key=True)
+    name: Mapped[str] = mapped_column(String(60))
+    mover_low: Mapped[int] = mapped_column(
+        Integer
+    )  # грузчик, ₽/ч: минимум и максимум ставок исполнителей
+    mover_high: Mapped[int] = mapped_column(Integer)
+    movers_offers: Mapped[int] = mapped_column(Integer)  # сколько исполнителей дали эту вилку
+    truck_low: Mapped[int] = mapped_column(Integer)  # Газель с водителем, ₽/ч
+    truck_high: Mapped[int] = mapped_column(Integer)
+    trucks_offers: Mapped[int] = mapped_column(Integer)
+    source: Mapped[str] = mapped_column(String(200))
+    checked_on: Mapped[date] = mapped_column(Date)

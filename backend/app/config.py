@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     # защита входа от перебора: не больше N неудачных попыток на пару (IP, логин) за окно
     login_attempts: int = 10
     login_window_seconds: int = 300
+    # защита от флуда (backend/app/throttle.py): запросов к /api с одного IP в минуту и регистраций с одного
+    # IP в час; 0 выключает. Щедро: жюри и команда на площадке могут выходить в сеть с одного адреса
+    api_requests_per_minute: int = Field(default=1200, ge=0)
+    registrations_per_hour: int = Field(default=30, ge=0)
     # папка с собранным сайтом (frontend/dist): тогда бэкенд сам отдаёт сайт на том же порту
     static_dir: str | None = None
     log_level: str = "INFO"

@@ -3,6 +3,7 @@
 Демо-аккаунт (логин и пароль из настроек DEMO_USERNAME / DEMO_PASSWORD) - владелец демо-проекта.
 Демо-проект с фиксированным id: задачи из шаблонов (часть выполнена), коробки во всех статусах,
 вещи, потерянная вещь. Нагрузочный проект на 300 коробок и 3000 вещей: python -m app.seed --load.
+Если демо-проект испортили: python -m app.seed --reset-demo (удаляет его со всем содержимым и создаёт заново).
 """
 
 import sys
@@ -86,8 +87,12 @@ def _keep_demo_first_day(db) -> None:
             svc.update_item(DEMO_ID, hits[0].item_id, None, status, first_day=True)
 
 
-def run(load: bool = False) -> None:
+def run(load: bool = False, reset_demo: bool = False) -> None:
     with SessionLocal() as db:
+        if reset_demo and (old := db.get(Project, DEMO_ID)) is not None:
+            # демо общее для жюри: любой вошедший может изменить данные, поэтому сброс одной командой
+            ProjectService(db).delete(old)
+            print("Демо-проект удалён, создаю заново")
         ensure_reference_data(db)
         projects = ProjectService(db)
         s = get_settings()
@@ -148,4 +153,4 @@ def run(load: bool = False) -> None:
 
 
 if __name__ == "__main__":
-    run(load="--load" in sys.argv)
+    run(load="--load" in sys.argv, reset_demo="--reset-demo" in sys.argv)

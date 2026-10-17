@@ -318,6 +318,7 @@ export interface RoomPlan {
 export type ExpenseCategory = 'movers' | 'transport' | 'materials' | 'cleaning' | 'services' | 'rent' | 'other'
 
 export interface CalculatorIn {
+  city?: string | null
   rooms: number
   people: number
   distance_km: number

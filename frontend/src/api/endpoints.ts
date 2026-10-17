@@ -80,6 +80,7 @@ export const api = {
   createItem: (pid: string, n: number, body: { name: string; first_day?: boolean; status?: ItemStatus }) =>
     request<Item>("POST", `${p(pid)}/boxes/${n}/items`, { body }),
   // полный путь переезда: калькулятор (без входа) и бюджет проекта
+  cities: () => request<{ slug: string; name: string }[]>("GET", "/api/cities"),
   calculator: (body: CalculatorIn) => request<CalculatorOut>("POST", "/calculator", { body }),
   budget: (pid: string) => request<Budget>("GET", `${p(pid)}/expenses`),
   addExpense: (pid: string, body: { category: ExpenseCategory; title: string; planned: number; actual?: number | null }) =>

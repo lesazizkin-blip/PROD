@@ -9,8 +9,16 @@ from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 from app.db import Base, engine, get_db  # noqa: E402
-from app.main import app  # noqa: E402
+from app.main import api_limiter, app, register_limiter  # noqa: E402
 from app.reference_data import ensure_reference_data  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def reset_request_windows():
+    # Each test starts with an independent client rate window.
+    for limiter in (api_limiter, register_limiter):
+        limiter._counts.clear()
+        limiter._current = -1
 
 
 @pytest.fixture()
