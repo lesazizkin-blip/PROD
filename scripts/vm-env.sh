@@ -20,7 +20,9 @@ printf '%s\n' "${VALUE:-}" | ssh -i "$KEY" -o BatchMode=yes "root@$VM" "set -eu;
   grep -v '^$NAME=' .env > .env.new || true
   [ -n \"\$value\" ] && printf '%s=%s\n' '$NAME' \"\$value\" >> .env.new
   mv .env.new .env; chmod 600 .env
-  docker compose up -d app >/dev/null"
+  # перезапуск на образе, который работает сейчас: в .env может лежать устаревший APP_IMAGE
+  img=\$(docker inspect -f '{{.Config.Image}}' deploy-app-1 2>/dev/null || true)
+  if [ -n \"\$img\" ]; then APP_IMAGE=\"\$img\" docker compose up -d --no-build app >/dev/null; else docker compose up -d --no-build app >/dev/null; fi"
 unset VALUE
 echo "Готово: $NAME обновлён, app перезапущен."
 if [ "$NAME" = MAPTILER_API_KEY ] || [ "$NAME" = GOOGLE_MAPS_API_KEY ]; then
