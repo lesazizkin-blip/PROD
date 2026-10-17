@@ -503,3 +503,27 @@ button.sidebar__faq { background: transparent; border: 0; font: inherit; width: 
 .faq summary { cursor: pointer; font-weight: 600; color: var(--heading); }
 .faq details[open] summary { margin-bottom: 6px; }
 .faq p { margin: 0; }
+
+/* ---- низкое окно: телефон боком, маленький ноутбук ----
+   Ничего не должно пропадать: меню слева прокручивается, вкладки этапов листаются,
+   плавающая кнопка становится обычной в конце страницы и не закрывает содержимое. */
+.stage-tabs { overflow-x: auto; scrollbar-width: none; } /* если вкладки не влезут - листаются, а не обрезаются */
+.stage-tabs::-webkit-scrollbar { display: none; }
+@media (min-width: 900px) {
+  .sidebar { overflow-y: auto; }
+}
+@media (min-width: 900px) and (max-height: 560px) {
+  .sidebar { gap: 10px; padding: 12px 10px; }
+  .tab { min-height: 36px; padding: 6px 12px; }
+  .sidebar__footer { padding-top: 8px; }
+}
+@media (max-height: 520px) {
+  .topbar { position: static; }
+  .fab { position: static; justify-self: end; margin-top: 4px; }
+  .container { padding-bottom: 24px; }
+}
+@media (max-width: 899px) and (max-height: 520px) {
+  .tab { min-height: 46px; padding: 4px; }
+  .workspace { padding-bottom: 52px; }
+  .toast { bottom: 60px; }
+}
