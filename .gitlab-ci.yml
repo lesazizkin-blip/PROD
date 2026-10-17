@@ -188,8 +188,9 @@ setup:vm:
 # меняем образ app на собранный (APP_IMAGE) и перезапускаем только app. В deploy/.env на ВМ меняется только APP_IMAGE
 # (чтобы ручной `docker compose up` не поднял старый образ без новых миграций);
 # том с базой и том с сертификатами сохраняются. Перед перезапуском - копия базы в /root/backups
-# (deploy/backup.sh, онлайн-копия SQLite с проверкой), cron делает такие копии раз в час. Caddyfile примонтирован файлом: после копирования контейнер видит
-# старую версию, поэтому при изменении Caddy пересоздаётся (сертификаты в томе caddy-data сохраняются).
+# (deploy/backup.sh, онлайн-копия SQLite с проверкой), cron делает такие копии раз в час. Caddyfile примонтирован файлом:
+# контейнер сразу видит новый текст, но Caddy держит прежнюю настройку в памяти, поэтому каждая выкатка делает
+# `caddy reload` (без простоя; ошибочный Caddyfile не применяется, работает прежний).
 deploy:vm:
   stage: deploy
   extends:
@@ -222,8 +223,8 @@ deploy:vm:
         sudo APP_IMAGE=$IMAGE_NAME docker compose pull app;
         sudo APP_IMAGE=$IMAGE_NAME docker compose up -d --no-build;
         cur=\$(docker inspect -f '{{.Config.Image}}' deploy-app-1); [ \"\$cur\" = '$IMAGE_NAME' ] || echo \"ВНИМАНИЕ: app работает на \$cur (закреплён в docker-compose.override.yml), $IMAGE_NAME не запущен\";
-        (sudo docker compose exec -T caddy cat /etc/caddy/Caddyfile | cmp -s - Caddyfile ||
-          sudo docker compose up -d --no-deps --force-recreate caddy);
+        (sudo docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile ||
+          echo 'ВНИМАНИЕ: Caddy не принял новый Caddyfile, работает прежняя настройка');
         docker image prune -f >/dev/null;
         (docker images --format '{{.Repository}}:{{.Tag}}' | grep '/prod_1:' | grep -v ':${IMAGE_NAME##*:}\$' |
           tail -n +2 | xargs -r docker rmi >/dev/null 2>&1 || true)"
