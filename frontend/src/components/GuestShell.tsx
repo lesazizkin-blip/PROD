@@ -1,14 +1,8 @@
 import { useRef, useState } from 'react'
 import { Link, Outlet } from 'react-router-dom'
-import { ChartColumn, ClipboardList, Package, QrCode, UserPlus } from 'lucide-react'
+import { UserPlus } from 'lucide-react'
 import BrandMark from './BrandMark'
-
-const TABS = [
-  { label: 'План', icon: ClipboardList },
-  { label: 'Коробки', icon: Package },
-  { label: 'Этикетки', icon: QrCode },
-  { label: 'Прогресс', icon: ChartColumn },
-] as const
+import { NAV_TABS } from './navTabs'
 
 /** Каркас для гостя: те же разделы слева, но вместо перехода - уведомление, что сначала нужна регистрация. */
 export default function GuestShell() {
@@ -29,7 +23,7 @@ export default function GuestShell() {
           <span>MoverMate</span>
         </Link>
         <nav className="tabs" aria-label="Разделы">
-          {TABS.map((t) => (
+          {NAV_TABS.map((t) => (
             <button key={t.label} type="button" className="tab" onClick={() => needAccount(t.label)}>
               <t.icon className="icon" aria-hidden />
               <span>{t.label}</span>
