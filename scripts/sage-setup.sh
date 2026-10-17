@@ -13,8 +13,11 @@ DIR=/opt/movermate/deploy
 say() { printf '\033[1m%s\033[0m\n' "$*"; }
 vm() { ssh -i "$KEY" -o BatchMode=yes "root@$VM" "$@"; }
 
-printf 'Хост Logs Collector (например logs-collector.example.com, без https:// и пути): '
-read -r HOST
+# хост подтвердили организаторы 17.10: https://<host>/api/<группа Sage>/multiline/
+DEFAULT_HOST=sage.spirit.t-education.com
+printf 'Хост Logs Collector [%s]: ' "$DEFAULT_HOST"
+read -r HOST || true
+HOST="${HOST:-$DEFAULT_HOST}"
 HOST="${HOST#https://}"; HOST="${HOST#http://}"; HOST="${HOST%%/*}"
 [ -n "$HOST" ] || { echo "Пусто: узнайте хост коллектора в Spirit или у организаторов."; exit 1; }
 URL="https://$HOST/api/$GROUP/multiline/"
