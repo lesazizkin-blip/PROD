@@ -52,26 +52,26 @@ def test_scanning_qr_twice_opens_same_box_and_creates_nothing(client, base):
 def test_transitions_follow_the_rules(client, base):
     n = make_box(client, base)["number"]
     url = f"{base}/boxes/{n}/transitions"
-    r = client.post(url, json={"to": "unpacked"})
     assert (
-        r.status_code == 409 and r.json()["code"] == "conflict"
-    )  # нельзя распаковать недоставленную
-    assert client.get(f"{base}/boxes/{n}").json()["status"] == "packing"  # статус не изменился
+        client.post(url, json={"to": "unpacked"}).json()["status"] == "unpacked"
+    )  # шаги можно пропустить
+    assert (
+        client.post(url, json={"to": "packing"}).json()["status"] == "packing"
+    )  # и вернуться назад
+    r = client.post(url, json={"to": "packing"})
+    assert r.status_code == 409 and r.json()["code"] == "conflict"  # тот же статус
     for status in ["packed", "loaded", "delivered", "unpacked"]:
         assert client.post(url, json={"to": status}).json()["status"] == status
-    assert (
-        client.post(url, json={"to": "delivered"}).json()["status"] == "delivered"
-    )  # откат на шаг
-    assert client.post(url, json={"to": "packing"}).status_code == 409
     assert client.post(url, json={"to": "weird"}).status_code == 422
     assert client.post(f"{base}/boxes/99/transitions", json={"to": "packed"}).status_code == 404
 
 
 def test_empty_box_cannot_be_packed_unless_fill_later(client, base):
     empty = make_box(client, base, items="")["number"]
-    assert (
-        client.post(f"{base}/boxes/{empty}/transitions", json={"to": "packed"}).status_code == 409
-    )
+    for status in ["packed", "loaded", "unpacked"]:
+        assert (
+            client.post(f"{base}/boxes/{empty}/transitions", json={"to": status}).status_code == 409
+        )
     later = make_box(client, base, items="", fill_later=True)["number"]
     assert (
         client.post(f"{base}/boxes/{later}/transitions", json={"to": "packed"}).status_code == 200

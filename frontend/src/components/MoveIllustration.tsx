@@ -1,8 +1,8 @@
-/** Иллюстрация для экрана нового переезда: грузовичок с коробками и растение. Рисуется в браузере, без картинок с внешних сайтов. */
+/** Иллюстрация для экрана нового переезда: коробки, грузовичок и растение (не перекрывают друг друга). Рисуется в браузере, без картинок с внешних сайтов. */
 export default function MoveIllustration() {
   return (
     <svg viewBox="0 0 330 130" className="move-art" role="img" aria-label="Грузовик с коробками">
-      <ellipse cx="170" cy="118" rx="140" ry="7" fill="#0A2E26" opacity=".07" />
+      <ellipse cx="166" cy="118" rx="154" ry="7" fill="#0A2E26" opacity=".07" />
       {/* грузовик */}
       <rect x="70" y="38" width="120" height="66" rx="8" fill="#E8F3EE" stroke="#0F382F" strokeWidth="2.5" />
       <path d="M118 58l12-8 12 8v14h-24z" fill="#B8E3D2" stroke="#0F382F" strokeWidth="2" strokeLinejoin="round" />
@@ -13,9 +13,9 @@ export default function MoveIllustration() {
       <circle cx="208" cy="108" r="12" fill="#2A3B37" /><circle cx="208" cy="108" r="5" fill="#E8F3EE" />
       {/* коробки */}
       <g stroke="#7A4E1E" strokeWidth="2" strokeLinejoin="round">
-        <rect x="236" y="74" width="34" height="30" rx="3" fill="#E9B872" />
-        <rect x="246" y="48" width="28" height="26" rx="3" fill="#F2C98B" />
-        <path d="M253 74v-8M246 58h28M236 84h34" fill="none" />
+        <rect x="18" y="84" width="34" height="30" rx="3" fill="#E9B872" />
+        <rect x="24" y="58" width="28" height="26" rx="3" fill="#F2C98B" />
+        <path d="M35 84v10M38 58v8" fill="none" />
       </g>
       {/* растение */}
       <path d="M292 104h18l-3 -18h-12z" fill="#D9825B" stroke="#7A3E22" strokeWidth="2" strokeLinejoin="round" />

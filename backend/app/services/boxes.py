@@ -25,25 +25,18 @@ from app.services.events import log_event
 ORDER = [s.value for s in BoxStatus]
 
 # Из какого статуса куда можно: шаг вперёд или откат на один шаг (исправление ошибки)
-TRANSITIONS: dict[str, frozenset[str]] = {
-    "packing": frozenset({"packed"}),
-    "packed": frozenset({"loaded", "packing"}),
-    "loaded": frozenset({"delivered", "packed"}),
-    "delivered": frozenset({"unpacked", "loaded"}),
-    "unpacked": frozenset({"delivered"}),
-}
+# Статус выбирается свободно: из любого в любой другой (решение владельца продукта 17.10:
+# на переезде коробки часто отмечают с опозданием, пошаговая цепочка мешала).
+TRANSITIONS: dict[str, frozenset[str]] = {s: frozenset(ORDER) - {s} for s in ORDER}
 
 MAX_BULK_LINES = 200
 MAX_NAME = 120
 
 
 def check_transition(current: str, target: str) -> None:
-    """Чистая функция: бросает ConflictError, если переход недопустим."""
+    """Чистая функция: бросает ConflictError, если переход недопустим (тот же статус или неизвестный)."""
     if target not in TRANSITIONS.get(current, frozenset()):
-        allowed = ", ".join(sorted(TRANSITIONS.get(current, frozenset()), key=ORDER.index)) or "нет"
-        raise ConflictError(
-            f"Нельзя перевести коробку из «{current}» в «{target}». Допустимо: {allowed}"
-        )
+        raise ConflictError(f"Коробка уже в статусе «{current}»")
 
 
 def normalize(text: str) -> str:
@@ -246,12 +239,12 @@ class BoxService:
         check_transition(box.status, target.value)
         if (
             box.status == "packing"
-            and target == BoxStatus.PACKED
+            and target != BoxStatus.PACKING
             and not box.fill_later
             and not self._count(box.id)
         ):
             raise ConflictError(
-                "Пустую коробку нельзя пометить собранной: добавьте вещи или «заполнить позже»"
+                "Пустую коробку нельзя отправить дальше «собирается»: добавьте вещи или «заполнить позже»"
             )
 
     # --- вещи ---

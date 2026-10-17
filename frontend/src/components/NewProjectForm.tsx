@@ -6,16 +6,9 @@ import { useAction } from '../state/useAction'
 import ErrorAlert from '../ui/ErrorAlert'
 import MoveIllustration from './MoveIllustration'
 
-// Быстрые шаблоны: заполняют название, дальше пользователь правит как хочет
-const PRESETS = [
-  { emoji: '📦', label: 'Квартира', name: 'Переезд квартиры' },
-  { emoji: '🏢', label: 'Офис', name: 'Переезд офиса' },
-  { emoji: '🛋️', label: 'Комната', name: 'Переезд комнаты' },
-]
-
 const WHY = [
   { icon: FileText, text: 'Безбумажный учёт' },
-  { icon: ListChecks, text: 'Готовые чек-листы' },
+  { icon: ListChecks, text: 'Чек-лист первого дня' },
   { icon: QrCode, text: 'QR-маркировка' },
 ]
 
@@ -49,7 +42,7 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
         <div className="stack new-project__body">
           <div>
             <h2>Новый переезд ✨</h2>
-            <p className="muted">Создайте проект, чтобы получить пошаговый план задач, маркировать коробки и не потерять ни одной вещи!</p>
+            <p className="muted">Создайте проект, чтобы составить план задач, маркировать коробки и не потерять ни одной вещи!</p>
           </div>
           <label>
             Название переезда
@@ -85,14 +78,6 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
           <button className="primary cta" type="submit" disabled={busy || invalid}>
             Создать проект<ArrowRight className="icon-sm" aria-hidden />
           </button>
-          <div className="presets" role="group" aria-label="Шаблон названия">
-            <span className="muted small">Выбрать шаблон:</span>
-            {PRESETS.map((p) => (
-              <button key={p.label} type="button" className={name === p.name ? 'preset on' : 'preset'} onClick={() => setName(p.name)}>
-                <span aria-hidden>{p.emoji}</span> {p.label}
-              </button>
-            ))}
-          </div>
         </div>
       </form>
 

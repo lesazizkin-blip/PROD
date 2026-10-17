@@ -7,13 +7,14 @@ import { ProjectProvider } from '../state/ProjectContext'
 import ProfilePage from './ProfilePage'
 
 const me = vi.fn()
+const myProjects = vi.fn()
 const updateProject = vi.fn()
 const PROJECT = { id: 'p1', name: 'Переезд', move_date: '2026-11-01', address_from: null, address_to: null, created_at: '2026-10-01T00:00:00Z' }
 vi.mock('../api/endpoints', () => ({
   api: {
     me: () => me(),
-    myProjects: () => Promise.resolve([{ id: 'p1', name: 'Переезд', move_date: '2026-11-01', role: 'owner' }]),
-    getProject: () => Promise.resolve(PROJECT),
+    myProjects: () => myProjects(),
+    getProject: (id: string) => Promise.resolve(id === 'p2' ? { ...PROJECT, id: 'p2', name: 'Дача' } : PROJECT),
     members: () => Promise.resolve([{ user_id: 1, username: 'anna', role: 'owner' }]),
     updateProject: (...a: unknown[]) => updateProject(...a),
   },
@@ -26,10 +27,24 @@ beforeEach(() => {
   localStorage.clear()
   me.mockResolvedValue({ id: 1, username: 'anna' })
   updateProject.mockReset().mockResolvedValue(PROJECT)
+  myProjects.mockResolvedValue([{ id: 'p1', name: 'Переезд', move_date: '2026-11-01', role: 'owner' }])
 })
 afterEach(cleanup)
 
 describe('личный кабинет', () => {
+  it('клик по проекту открывает его настройки, а не сам проект', async () => {
+    myProjects.mockResolvedValue([
+      { id: 'p1', name: 'Переезд', move_date: '2026-11-01', role: 'owner' },
+      { id: 'p2', name: 'Дача', move_date: '2026-12-01', role: 'owner' },
+    ])
+    setup()
+    await userEvent.click(await screen.findByRole('button', { name: 'Настройки проекта «Дача»' }))
+    expect(await screen.findByText('Настройки проекта «Дача»')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Настройки проекта «Дача»' }).getAttribute('aria-pressed')).toBe('true')
+    // открытым остался прежний проект: переход к проекту только кнопкой в шапке
+    expect(JSON.parse(localStorage.getItem('movermate.projects.v1') ?? '{}').currentId).toBe('p1')
+  })
+
   it('показывает логин, проекты и кнопку смены пароля', async () => {
     setup()
     expect(await screen.findByRole('heading', { name: 'anna' })).toBeTruthy()

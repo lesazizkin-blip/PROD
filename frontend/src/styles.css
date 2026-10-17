@@ -101,20 +101,12 @@ mark { background: #bbf7d0; color: inherit; border-radius: 4px; padding: 0 2px; 
 }
 .icon-link:hover:not(:disabled) { background: var(--surface-2); }
 .dot { position: absolute; top: 9px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 2px var(--surface); }
-.health { display: none; }
-.ai-btn {
-  display: inline-flex; align-items: center; gap: 4px; height: 40px; min-height: 40px; padding: 0 10px; margin-left: 4px;
-  background: var(--sidebar); color: #fff; border: 0; border-radius: 12px; font-weight: 700; letter-spacing: .02em;
-}
-.ai-btn .icon-sm { color: var(--mint); }
-.ai-btn:hover:not(:disabled) { background: #134a3e; }
 .topbar__me { display: grid; place-items: center; margin-left: 4px; text-decoration: none; }
 .hide-mobile { display: none; }
 /* узкий телефон: знак слева убираем (внизу и так меню MoverMate), чтобы название проекта помещалось */
 @media (max-width: 420px) {
   .topbar { gap: 6px; padding: 8px 10px; }
   .topbar__brand { display: none; }
-  .ai-btn { padding: 0 8px; }
   .topbar__actions { gap: 0; }
 }
 .avatar {
@@ -140,8 +132,6 @@ mark { background: #bbf7d0; color: inherit; border-radius: 4px; padding: 0 2px; 
   .sidebar__me { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; color: #fff; text-decoration: none; padding: 6px; border-radius: 12px; }
   .sidebar__me:hover { background: rgba(255, 255, 255, .06); }
   .sidebar__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
-  .square-btn { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 10px; color: var(--sidebar-text); }
-  .square-btn:hover { color: #fff; border-color: rgba(255, 255, 255, .35); }
 
   .workspace { padding-bottom: 0; }
   .topbar { min-height: 64px; padding: 10px 28px; gap: 14px; }
@@ -153,15 +143,6 @@ mark { background: #bbf7d0; color: inherit; border-radius: 4px; padding: 0 2px; 
   .project-switch { flex: 0 1 auto; max-width: 320px; }
   .topbar__actions { margin-left: auto; gap: 4px; }
   .hide-mobile { display: grid; }
-  .health {
-    display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; margin: 0 4px; border-radius: 999px;
-    background: #dcfce7; color: #15803d; font-size: .85rem; font-weight: 600;
-  }
-  .health__dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: pulse 2s ease-in-out infinite; }
-  .health--checking { background: var(--surface-2); color: var(--muted); }
-  .health--checking .health__dot { background: var(--muted); animation: none; }
-  .health--down { background: #fee2e2; color: #b91c1c; }
-  .health--down .health__dot { background: #ef4444; animation: none; }
   .container { max-width: 960px; width: 100%; padding: 28px 28px 104px; }
 }
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, .5); } 50% { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0); } }
@@ -310,17 +291,7 @@ input[type='checkbox'].check:focus-visible { outline: 2px solid var(--accent); o
 .chip.on { background: var(--sidebar); border-color: var(--sidebar); color: #fff; }
 
 /* ---------- план ---------- */
-.tip-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.tip-card {
-  display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--surface); border: 1px solid var(--border);
-  border-radius: 14px; text-decoration: none; color: var(--heading); box-shadow: var(--shadow-sm); transition: all .2s ease;
-}
-.tip-card > span { display: grid; gap: 1px; min-width: 0; }
-.tip-card b { font-size: .9rem; }
-.tip-card .icon { color: var(--accent); padding: 8px; width: 38px; height: 38px; background: var(--primary-soft); border-radius: 10px; }
-.tip-card:hover { border-color: var(--accent); transform: translateY(-1px); }
 @media (max-width: 640px) {
-  .tip-cards { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 72%; overflow-x: auto; scrollbar-width: none; }
 }
 .segmented { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; background: #e8eeec; border-radius: 12px; }
 .segmented button { border: 0; background: none; min-height: 40px; font-weight: 600; color: var(--muted); border-radius: 9px; padding: 6px 8px; }
@@ -405,9 +376,6 @@ input[type='checkbox'].check:focus-visible { outline: 2px solid var(--accent); o
 .input-icon--end > input::-webkit-calendar-picker-indicator { opacity: 0; position: absolute; right: 8px; width: 28px; height: 28px; cursor: pointer; }
 .new-project__more { justify-self: start; }
 button.cta { min-height: 50px; font-size: 1rem; }
-.presets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 14px; border-top: 1px solid var(--border); }
-.preset { min-height: 34px; padding: 4px 10px; font-size: .85rem; border-color: var(--border); border-radius: 8px; font-weight: 500; }
-.preset.on, .preset:hover:not(:disabled) { border-color: var(--accent); background: var(--primary-soft); }
 .why { display: grid; gap: 14px; align-content: center; }
 .why h3 { font-size: .95rem; }
 .why__item { display: flex; align-items: center; justify-content: space-between; gap: 16px; font-size: .92rem; color: var(--heading); }

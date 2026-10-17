@@ -18,16 +18,19 @@ import { formatDate, plural } from '../ui/format'
 // логин демо-входа для жюри: пароль у него сменить нельзя (сервер запрещает)
 const DEMO_LOGIN = 'demo'
 
-/** Личный кабинет: кто вошёл, мои проекты, настройки и участники текущего проекта, пароль и выход. */
+/** Личный кабинет: кто вошёл, мои проекты, настройки и участники выбранного проекта, пароль и выход.
+ * Клик по проекту открывает его настройки здесь же; сам проект открывается только кнопкой с названием в шапке. */
 export default function ProfilePage() {
   const { user, logout } = useAuth()
-  const { projects, currentId, select, reload, ready } = useProjects()
+  const { projects, currentId, reload, ready } = useProjects()
   const navigate = useNavigate()
   const [changingPassword, setChangingPassword] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const briefs = useAsync(() => api.myProjects(), [projects.length])
   if (!user) return null
 
-  const current = projects.find((p) => p.id === currentId)
+  // настройки показываем для выбранного здесь проекта, по умолчанию - для открытого сейчас
+  const selected = projects.find((p) => p.id === selectedId) ?? projects.find((p) => p.id === currentId)
   const owned = projects.filter((p) => p.role === 'owner').length
   const isDemo = user.username === DEMO_LOGIN
   const dates = new Map((briefs.data ?? []).map((b) => [b.id, b.move_date]))
@@ -53,11 +56,10 @@ export default function ProfilePage() {
           {projects.map((p) => (
             <button
               key={p.id}
-              className={p.id === currentId ? 'project-card current' : 'project-card'}
-              onClick={() => {
-                select(p.id)
-                navigate('/')
-              }}
+              className={p.id === selected?.id ? 'project-card current' : 'project-card'}
+              aria-pressed={p.id === selected?.id}
+              aria-label={`Настройки проекта «${p.name}»`}
+              onClick={() => setSelectedId(p.id)}
             >
               <span className="project-card__name">{p.name}</span>
               <span className="muted small row">
@@ -77,15 +79,21 @@ export default function ProfilePage() {
         </div>
       </StateView>
 
-      {current ? (
+      <p className="muted small">Нажмите на проект, чтобы открыть его настройки. Перейти к проекту можно кнопкой с его названием вверху.</p>
+
+      {selected ? (
         <>
-          <SectionTitle>{`Настройки проекта «${current.name}»`}</SectionTitle>
-          <ProjectSettings key={current.id} pid={current.id} onSaved={() => void reload()} />
+          <SectionTitle>{`Настройки проекта «${selected.name}»`}</SectionTitle>
+          <ProjectSettings key={selected.id} pid={selected.id} onSaved={() => void reload()} />
           <div className="card">
             <MembersPanel
-              project={current}
+              key={selected.id}
+              project={selected}
               me={user}
-              onLeft={() => void reload().then(() => navigate('/'))}
+              onLeft={() => {
+                setSelectedId(null)
+                void reload()
+              }}
             />
           </div>
         </>

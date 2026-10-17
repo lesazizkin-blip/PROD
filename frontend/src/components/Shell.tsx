@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, BookOpen, ChartColumn, ClipboardList, Package, QrCode, ScanLine, Settings, Sparkles } from 'lucide-react'
+import { Bell, ChartColumn, ClipboardList, Package, QrCode, ScanLine } from 'lucide-react'
 import { api } from '../api/endpoints'
 import { useAuth } from '../state/AuthContext'
 import { useProjects } from '../state/ProjectContext'
 import { useAsync } from '../state/useAsync'
 import Avatar from './Avatar'
 import BrandMark from './BrandMark'
-import HealthBadge from './HealthBadge'
 import Icon from './Icons'
 import Modal from './Modal'
 import NotificationsModal from './NotificationsModal'
@@ -32,7 +31,7 @@ function sectionTitle(pathname: string): string {
   return map[pathname] ?? (pathname.startsWith('/invite/') ? 'Приглашение' : 'MoverMate')
 }
 
-/** Каркас: тёмная панель слева (на телефоне - вкладки снизу), шапка с проектом, уведомлениями и ассистентом. */
+/** Каркас: тёмная панель слева (на телефоне - вкладки снизу), шапка с проектом и уведомлениями. Проект открывается только кнопкой с его названием. */
 export default function Shell() {
   const { projects, currentId, select } = useProjects()
   const { user } = useAuth()
@@ -65,7 +64,6 @@ export default function Shell() {
             <Avatar name={user?.username ?? ''} />
             <span className="sidebar__name">{user?.username}</span>
           </Link>
-          <Link to="/profile" className="square-btn" aria-label="Настройки"><Settings className="icon" aria-hidden /></Link>
         </div>
       </aside>
 
@@ -83,20 +81,9 @@ export default function Shell() {
           </button>
           <div className="topbar__actions">
             <Link to="/scan" className="icon-link" aria-label="Сканировать QR"><ScanLine className="icon" aria-hidden /></Link>
-            <Link to="/tips" className="icon-link hide-mobile" aria-label="Памятки"><BookOpen className="icon" aria-hidden /></Link>
             <button className="icon-link" onClick={() => setNotifying(true)} aria-label={pending ? `Уведомления: ${pending}` : 'Уведомления и журнал'}>
               <Bell className="icon" aria-hidden />
               {pending ? <span className="dot" aria-hidden /> : null}
-            </button>
-            <HealthBadge />
-            <button
-              className="ai-btn"
-              disabled={!currentId}
-              onClick={() => navigate('/?assistant=1')}
-              aria-label="Умный ассистент: чек-лист под ваш переезд"
-              title="Умный ассистент"
-            >
-              <Sparkles className="icon-sm" aria-hidden />AI
             </button>
             <Link to="/profile" className="topbar__me" aria-label="Личный кабинет"><Avatar name={user?.username ?? ''} /></Link>
           </div>

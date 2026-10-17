@@ -12,23 +12,15 @@ import ErrorAlert from '../ui/ErrorAlert'
 import SectionTitle from '../ui/SectionTitle'
 import StateView from '../ui/StateView'
 import StatusBadge from '../ui/StatusBadge'
-import { ITEM_STATUS_HINTS, ITEM_STATUS_LABELS, STATUS_LABELS, canTransition, labelPath, nextStatus, prevStatus } from '../ui/format'
+import { BOX_STATUS_HINTS, ITEM_STATUS_HINTS, ITEM_STATUS_LABELS, STATUS_LABELS, labelPath } from '../ui/format'
 
-// Варианты статуса коробки: доступны только соседние шаги (правило ТЗ и сервера), остальные объясняем
-function boxOptions(current: BoxStatus): StatusOption<BoxStatus>[] {
-  const order = BOX_STATUSES.indexOf(current)
-  return BOX_STATUSES.map((s) => {
-    const allowed = canTransition(current, s)
-    const via = BOX_STATUSES.indexOf(s) > order ? nextStatus(current) : prevStatus(current)
-    return {
-      value: s,
-      label: STATUS_LABELS[s],
-      badge: `st-${s}`,
-      disabled: !allowed,
-      hint: allowed ? (s === prevStatus(current) ? 'Вернуть на шаг назад' : 'Следующий шаг') : via ? `Сначала «${STATUS_LABELS[via]}»` : undefined,
-    }
-  })
-}
+// Варианты статуса коробки: любой, шаги можно пропускать и возвращаться
+const boxOptions: StatusOption<BoxStatus>[] = BOX_STATUSES.map((s) => ({
+  value: s,
+  label: STATUS_LABELS[s],
+  hint: BOX_STATUS_HINTS[s],
+  badge: `st-${s}`,
+}))
 
 const itemOptions: StatusOption<ItemStatus>[] = ITEM_STATUSES.map((s) => ({
   value: s,
@@ -123,7 +115,7 @@ export default function BoxPage() {
             <StatusPickerModal
               title={`Статус коробки № ${box.number}`}
               current={box.status}
-              options={boxOptions(box.status)}
+              options={boxOptions}
               onPick={async (to) => { await api.transition(pid, number, to); card.reload() }}
               onClose={() => setPickingBox(false)}
             />

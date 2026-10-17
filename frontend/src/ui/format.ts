@@ -9,6 +9,14 @@ export const STATUS_LABELS: Record<BoxStatus, string> = {
   unpacked: 'Распакована',
 }
 
+export const BOX_STATUS_HINTS: Record<BoxStatus, string> = {
+  packing: 'Ещё складываем вещи',
+  packed: 'Заклеена, ждёт погрузки',
+  loaded: 'В машине',
+  delivered: 'На новом месте',
+  unpacked: 'Вещи разложены',
+}
+
 export const ITEM_STATUS_LABELS: Record<ItemStatus, string> = {
   packed: 'Упакована',
   unpacked: 'Распакована',
@@ -37,8 +45,8 @@ export const STAGES: Stage[] = ['before', 'moving_day', 'after']
 export const nextStatus = (s: BoxStatus): BoxStatus | null => BOX_STATUSES[BOX_STATUSES.indexOf(s) + 1] ?? null
 export const prevStatus = (s: BoxStatus): BoxStatus | null => BOX_STATUSES[BOX_STATUSES.indexOf(s) - 1] ?? null
 
-/** Можно ли сменить статус коробки (как на сервере: только на соседний шаг, вперёд или назад). */
-export const canTransition = (from: BoxStatus, to: BoxStatus): boolean => to === nextStatus(from) || to === prevStatus(from)
+/** Можно ли сменить статус коробки (как на сервере: на любой другой, шаги можно пропускать). */
+export const canTransition = (from: BoxStatus, to: BoxStatus): boolean => from !== to
 
 export function formatDate(iso: string): string {
   const [y, m, d] = iso.slice(0, 10).split('-')
