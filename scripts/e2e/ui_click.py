@@ -342,6 +342,8 @@ async def main():
             await step("калькулятор: оценка переезда", await wait("__has('Оценка переезда') && __has('коробок')", 8))
             await js("__click('Перенести смету в бюджет', 'button')")
             await step("смета переносится в бюджет", await wait("location.pathname === '/budget' && __has('Грузчики')", 10))
+            await go("/journey")
+            await step("путь переезда: 7 этапов со статусами", await wait("__has('Обжиться') && document.querySelectorAll('.journey-step').length === 7", 8))
             await step("ошибок JavaScript нет", not errors)
             if DEMO:  # временный проект на проде не оставляем
                 gone = await js(
