@@ -25,6 +25,8 @@ function describeEvent(e: AppEvent): string {
     case 'box.status_changed': return `Коробка № ${e.entity_id}: ${status(d.from)} → ${status(d.to)}`
     case 'item.lost': return `Вещь потеряна${d.name ? `: «${text(d.name)}»` : ''}`
     case 'item.found': return `Вещь нашлась${d.name ? `: «${text(d.name)}»` : ''}`
+    case 'item.moved': return `Вещь${d.name ? ` «${text(d.name)}»` : ''}: коробка № ${d.from_box} → № ${d.to_box}`
+    case 'item.damage_changed': return `${d.damaged ? 'Отмечено повреждение' : 'Снята отметка о повреждении'}${d.name ? `: «${text(d.name)}»` : ''}`
     case 'item.status_changed': return `Изменён статус вещи${d.name ? ` «${text(d.name)}»` : ''}`
     case 'assistant.checklist_applied': return 'Умный чек-лист добавлен в план'
     default: return e.type

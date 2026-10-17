@@ -108,6 +108,7 @@ export interface BoxCard extends Box {
 }
 
 export interface Item {
+  damaged?: boolean
   id: number
   box_number: number
   name: string

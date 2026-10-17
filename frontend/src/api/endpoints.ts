@@ -69,6 +69,7 @@ export const api = {
     request<void>("DELETE", `${p(pid)}/boxes/${n}`, { query: { confirm: true } }),
   transition: (pid: string, n: number, to: BoxStatus) =>
     request<Box>("POST", `${p(pid)}/boxes/${n}/transitions`, { body: { to } }),
+  moveItem: (pid: string, id: number, from_box_number: number, to_box_number: number) => request<Item>("POST", `${p(pid)}/items/${id}/move`, { body: { from_box_number, to_box_number } }),
   correctBoxStatus: (pid: string, n: number, to: BoxStatus) => request<Box>("POST", `${p(pid)}/boxes/${n}/status-corrections`, { body: { to, reason: "Исправление ошибочной отметки" } }),
   bindFirstDay: (pid: string, id: number, box_number: number, name: string) => request<Item>("POST", `${p(pid)}/first-day/${id}/bind`, { body: { box_number, name } }),
   bulkTransition: (pid: string, numbers: number[], to: BoxStatus) =>
@@ -77,7 +78,7 @@ export const api = {
   // Вещи
   items: (pid: string, n: number, params: PageParams = {}) =>
     request<Page<Item>>("GET", `${p(pid)}/boxes/${n}/items`, { query: { ...params } }),
-  createItem: (pid: string, n: number, body: { name: string; first_day?: boolean; status?: ItemStatus }) =>
+  createItem: (pid: string, n: number, body: { name: string; first_day?: boolean; status?: ItemStatus; damaged?: boolean }) =>
     request<Item>("POST", `${p(pid)}/boxes/${n}/items`, { body }),
   // полный путь переезда: калькулятор (без входа) и бюджет проекта
   cities: () => request<{ slug: string; name: string }[]>("GET", "/cities"),
@@ -96,7 +97,7 @@ export const api = {
     request<RoomPlan>("POST", `${p(pid)}/room-plan`, { body: { image, room, consent: true } }),
   createItemsBulk: (pid: string, n: number, text: string) =>
     request<{ created: Item[] }>("POST", `${p(pid)}/boxes/${n}/items/bulk`, { body: { text } }),
-  updateItem: (pid: string, id: number, body: { name?: string; status?: ItemStatus; first_day?: boolean }) =>
+  updateItem: (pid: string, id: number, body: { name?: string; status?: ItemStatus; damaged?: boolean; first_day?: boolean }) =>
     request<Item>("PATCH", `${p(pid)}/items/${id}`, { body }),
   deleteItem: (pid: string, id: number) =>
     request<void>("DELETE", `${p(pid)}/items/${id}`, { query: { confirm: true } }),
