@@ -38,7 +38,7 @@ def test_stairs_without_elevator_add_hours():
 
 
 def test_intercity_piano_and_pets_add_lines():
-    r = estimate(CalculatorIn(rooms=2, distance_km=800, piano=True, pets=True))
+    r = estimate(CalculatorIn(rooms=2, distance_km=450, piano=True, pets=True))
     titles = " ".join(c.title for c in r.costs)
     assert "между городами" in titles and "пианино" in titles and "питомца" in titles
     assert r.prep_weeks == 4  # 2 комнаты + 1, и +1 за другой город
@@ -64,7 +64,19 @@ def test_good_date_is_praised():
     assert r.date_advice == ["Хорошая дата: будний день вне пика переездов."]
 
 
-@pytest.mark.parametrize("bad", [{"rooms": 0}, {"rooms": 9}, {"rooms": 2, "distance_km": -1}, {}])
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"rooms": 0},
+        {"rooms": 9},
+        {"rooms": 2, "distance_km": -1},
+        {"rooms": 2, "distance_km": 501},
+        {"rooms": 2, "people": 11},
+        {"rooms": 2, "floor_from": 16, "elevator_from": False},
+        {"rooms": 2, "floor_to": 101},
+        {},
+    ],
+)
 def test_calculator_validation(client, bad):
     assert client.post("/api/calculator", json=bad).status_code == 422
 
@@ -142,3 +154,27 @@ def test_budget_is_private_to_project_members(client, base, make_client):
 )
 def test_expense_validation(client, base, body):
     assert client.post(f"{base}/expenses", json=body).status_code == 422
+
+
+def test_calculator_warns_when_work_does_not_fit_into_one_day():
+    small = estimate(CalculatorIn(rooms=1, people=1))
+    assert not any("за один день" in a for a in small.date_advice)
+    huge = estimate(
+        CalculatorIn(rooms=8, floor_from=15, floor_to=15, elevator_from=False, elevator_to=False)
+    )
+    assert huge.hours.high > 10
+    assert "за один день не успеть" in huge.date_advice[0]
+
+
+def test_floor_limits_depend_on_elevator(client):
+    ok = {
+        "rooms": 2,
+        "floor_from": 15,
+        "elevator_from": False,
+        "floor_to": 100,
+        "elevator_to": True,
+    }
+    assert client.post("/api/calculator", json=ok).status_code == 200
+    r = client.post("/api/calculator", json={**ok, "floor_from": 16})
+    assert r.status_code == 422
+    assert "без лифта" in str(r.json())

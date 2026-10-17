@@ -115,8 +115,11 @@ ExpenseCategory = Literal[
 ]
 
 
+MAX_FLOOR_WITHOUT_ELEVATOR = 15
+
+
 class CalculatorIn(BaseModel):
-    """Параметры переезда для оценки. Ничего не сохраняется: калькулятор доступен и до регистрации."""
+    """Параметры переезда для оценки. Доступно после входа, ничего не сохраняется."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -138,8 +141,9 @@ class CalculatorIn(BaseModel):
         }
     )
     rooms: int = Field(ge=1, le=8, description="Жилых комнат (студия = 1)")
-    people: int = Field(default=2, ge=1, le=12)
-    distance_km: int = Field(default=10, ge=0, le=10_000)
+    # пределы - решение владельца 17.10: до 10 человек, до 500 км (сервис для переезда в городе и регионе)
+    people: int = Field(default=2, ge=1, le=10)
+    distance_km: int = Field(default=10, ge=0, le=500)
     floor_from: int = Field(default=1, ge=0, le=100)
     floor_to: int = Field(default=1, ge=0, le=100)
     elevator_from: bool = True
@@ -148,6 +152,20 @@ class CalculatorIn(BaseModel):
     piano: bool = False
     many_fragile: bool = False
     move_date: date | None = None
+
+    @model_validator(mode="after")
+    def floors_without_elevator(self):
+        # решение владельца 17.10: с лифтом до 100 этажа, без лифта - до 15 (выше без лифта не бывает в жизни,
+        # а такие данные давали десятки часов работы)
+        for floor, elevator, where in (
+            (self.floor_from, self.elevator_from, "сейчас"),
+            (self.floor_to, self.elevator_to, "на новом месте"),
+        ):
+            if not elevator and floor > MAX_FLOOR_WITHOUT_ELEVATOR:
+                raise ValueError(
+                    f"Этаж {where} без лифта - не выше {MAX_FLOOR_WITHOUT_ELEVATOR}-го; отметьте лифт"
+                )
+        return self
 
 
 class Range(BaseModel):
