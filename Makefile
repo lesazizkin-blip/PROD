@@ -1,4 +1,4 @@
-.PHONY: site dev tunnel preflight migration test-pg setup backend-setup frontend-setup db seed api web test lint fmt build up down logs
+.PHONY: site dev preflight migration test-pg setup backend-setup frontend-setup db seed api web test lint fmt build
 
 backend-setup:
 	cd backend && python3 -m venv .venv && .venv/bin/pip install -U pip && .venv/bin/pip install -r requirements-dev.txt -c constraints.txt
@@ -36,20 +36,8 @@ migration:  ## новая миграция: make migration m="add field"
 build:
 	cd frontend && npm run build
 
-up:  ## всё в Docker (Postgres + backend + nginx) на :8080
-	docker compose up -d --build
-
-down:
-	docker compose down
-
-logs:  ## общие логи всех сервисов
-	docker compose logs -f --tail=100
-
 preflight:  ## проверка стенда: make preflight URL=http://1.2.3.4
 	scripts/preflight.sh $(or $(URL),http://localhost:8000)
-
-tunnel:  ## аварийная публичная ссылка на локальный стек (:8080) через Docker (Mac и Linux); Ctrl+C - остановить
-	docker run --rm -it --add-host=host.docker.internal:host-gateway cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://host.docker.internal:8080
 
 test-pg:  ## тесты бэкенда на настоящем PostgreSQL (временный контейнер на :55432), включая гонку переходов
 	-docker rm -f pgtest >/dev/null 2>&1

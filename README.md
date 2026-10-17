@@ -45,7 +45,7 @@ cd frontend && npm install && npm run dev                                      #
 
 На странице «QR-этикетки» владелец выбирает общий формат проекта: универсальный (ссылка, обычная камера телефона) или компактный (20 символов, встроенный сканер MoverMate). Переключение не ломает старые распечатки. Есть четыре шаблона, в том числе без QR, выбор коробок/экземпляров и A4 на 4/8/12 этикеток. Без принтера можно написать номер маркером; инструкция находится в карточке коробки.
 
-Backend требует миграцию `0004`: `cd backend && .venv/bin/alembic upgrade head`. Она сохраняет коробки и номера, добавляет постоянные коды. Удалённые коды остаются зарезервированными. Не применять миграции к общей production-базе без принятого командного порядка выкладки.
+Постоянные коды хранит миграция `0004_compact_qr`: коробки и номера сохраняются, удалённые коды остаются зарезервированными. Миграции применяются сами при старте контейнера (`alembic upgrade head` в `Dockerfile`), перед выкаткой пайплайн делает копию базы.
 
 ### Локальный OCR-прототип для оценки
 
@@ -74,7 +74,6 @@ VITE_LOCAL_OCR_PROTOTYPE=true npm run dev
 ```bash
 cd backend && .venv/bin/python -m pytest --cov=app    # сервер: 219 тестов (+2 пропущены: параллельность проверяется на PostgreSQL в CI, проверка аннотаций — только на Python 3.14), покрытие 98%
 cd frontend && npm test && npm run lint && npm run build   # сайт: 202 теста
-scripts/e2e.sh                                          # сквозная проверка: ТЗ и доп. функции на проде, права, прокликивание интерфейса
 scripts/preflight.sh <адрес>                          # полный сценарий ТЗ на запущенном сайте
 scripts/e2e.sh                                        # весь функционал: прод по API + локально вход, приглашения и проклик интерфейса в Chrome
 ```
@@ -89,7 +88,7 @@ backend/       сервер: app/ (код), alembic/ (миграции), tests/
 frontend/      сайт: src/ (код)
 deploy/        docker-compose.yml, Caddyfile (HTTPS и заголовки безопасности), backup.sh (копии базы), .env.example
 Dockerfile     образ: сайт + сервер
-scripts/       run-site.sh, preflight.sh, sage-setup.sh, push-to-gitlab.sh, gitlab-login.sh
+scripts/       run-site.sh, preflight.sh, e2e.sh (+ e2e/), vm-env.sh, ai-setup.sh, sage-setup.sh, gitlab-login.sh, push-to-gitlab.sh
 docs/          документы (ниже)
 ```
 

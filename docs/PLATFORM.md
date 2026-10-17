@@ -18,7 +18,7 @@
 - **AI:** каталог моделей LLM-прокси `https://llm-proxy.spirit.t-education.com/` (52 модели: Claude, GPT, Gemini, GigaChat, YandexGPT и др.) и аккаунты с API-ключами (личный `greg` или сервисный).
 
 ## GitLab
-- `hack-led-20/prod_1`: наш код (MR №1–3 слиты), `policy.yml` организаторов сохранён; пайплайн с автодеплоем работает (`docs/GITLAB.md`).
+- `hack-led-20/prod_1`: наш код (все изменения через MR), `policy.yml` организаторов сохранён; пайплайн с автодеплоем работает (`docs/GITLAB.md`).
 - Шаблон автодеплоя: `templates/l2sh-template` — `build:image` (Kaniko, шаблон `.dp_build` из `pipelines/pipelines`) → `test` → `setup:vm` (ставит Spirit CLI `dp` на ВМ) → `deploy:vm` (ssh + `docker compose pull/up`). В шаблоне указан `registry.spirit.culab.ru`, рабочий адрес — `registry.spirit.t-education.com/<тенант>/<репозиторий>:<sha>`.
 - Нужные CI-переменные репозитория (Spirit → Код → Репозитории → prod_1 → CI-переменные): `SSH_PRIVATE_KEY` (Файл, с переводом строки в конце, «Защищённая»), `DEPLOY_VM` (адрес ВМ), `DEPLOY_SSH_USER` (у нас `root`), `APP_PORT`. `SPIRIT_DOCKER_SA_KEY` уже есть в тенанте. Создавать переменные может роль Project lead или Repository CI variables.
 

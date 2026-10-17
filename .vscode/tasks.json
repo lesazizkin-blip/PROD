@@ -157,59 +157,9 @@
       }
     },
     {
-      "label": "Docker: поднять всё",
-      "type": "shell",
-      "command": "docker compose up -d --build",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "problemMatcher": [],
-      "detail": "http://localhost:8080",
-      "presentation": {
-        "panel": "dedicated",
-        "clear": false
-      }
-    },
-    {
-      "label": "Docker: логи",
-      "type": "shell",
-      "command": "docker compose logs -f --tail=100",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "isBackground": true,
-      "problemMatcher": {
-        "pattern": {
-          "regexp": "^$"
-        },
-        "background": {
-          "activeOnStart": true,
-          "beginsPattern": ".",
-          "endsPattern": "(Application startup complete|Local:)"
-        }
-      },
-      "presentation": {
-        "panel": "dedicated",
-        "clear": false
-      }
-    },
-    {
-      "label": "Docker: остановить",
-      "type": "shell",
-      "command": "docker compose down",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "problemMatcher": [],
-      "presentation": {
-        "panel": "dedicated",
-        "clear": false
-      }
-    },
-    {
       "label": "Проверка стенда (preflight)",
       "type": "shell",
-      "command": "scripts/preflight.sh http://localhost:8080",
+      "command": "scripts/preflight.sh http://localhost:8000",
       "options": {
         "cwd": "${workspaceFolder}"
       },
