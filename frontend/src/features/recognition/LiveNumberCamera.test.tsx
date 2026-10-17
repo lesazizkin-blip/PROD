@@ -22,17 +22,20 @@ afterEach(async () => { cleanup(); await act(async () => { await Promise.resolve
 
 describe('automatic number camera', () => {
   it('waits for consecutive agreement, checks the real box adapter and requires explicit opening', async () => {
-    const recognize = vi.fn().mockResolvedValue({ text: '001', candidates: ['001'], diagnostics: { engine: 'test', elapsedMs: 0 } })
+    const recognize = Object.assign(vi.fn().mockResolvedValue({ text: '001', candidates: ['001'], diagnostics: { engine: 'test', elapsedMs: 0 } }), { release: vi.fn() })
     const onConfirm = vi.fn().mockResolvedValue(undefined)
-    render(<LiveNumberCamera pid="p" recognize={recognize} onConfirm={onConfirm} />)
+    const { unmount } = render(<LiveNumberCamera pid="p" recognize={recognize} onConfirm={onConfirm} />)
     await waitFor(() => expect(recognize).toHaveBeenCalledTimes(1))
     expect(h.getBox).not.toHaveBeenCalled()
     const open = await screen.findByRole('button', { name: 'Открыть коробку #001' }, { timeout: 3000 })
     expect(h.getBox).toHaveBeenCalledWith('p', 1)
     expect(onConfirm).not.toHaveBeenCalled()
     await waitFor(() => expect(h.trackStop).toHaveBeenCalledTimes(1))
+    expect(recognize.release).not.toHaveBeenCalled()
     fireEvent.click(open)
     await waitFor(() => expect(onConfirm).toHaveBeenCalledWith(1))
+    unmount()
+    expect(recognize.release).toHaveBeenCalledTimes(1)
   })
 
   it('releases a camera whose permission resolves after leaving the page', async () => {

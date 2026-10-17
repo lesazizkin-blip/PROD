@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { findNumberRegions } from './findNumberRegions'
 import { observeNumber } from './stableNumber'
 
-function line(prefix: 'hash' | 'letter' | 'zero') {
+function line(prefix: 'hash' | 'tall-hash' | 'letter' | 'zero' | 'edge') {
   const width = 240, height = 100
   const data = new Uint8ClampedArray(width * height * 4).fill(255)
   const rect = (left: number, top: number, w: number, h: number) => {
@@ -12,6 +12,10 @@ function line(prefix: 'hash' | 'letter' | 'zero') {
   }
   if (prefix === 'hash') {
     rect(28, 25, 4, 40); rect(50, 25, 4, 40); rect(15, 35, 50, 4); rect(15, 55, 50, 4)
+  } else if (prefix === 'tall-hash') {
+    rect(28, 15, 4, 60); rect(50, 15, 4, 60); rect(15, 30, 50, 4); rect(15, 55, 50, 4)
+  } else if (prefix === 'edge') {
+    rect(0, 25, 15, 40)
   } else if (prefix === 'letter') {
     rect(15, 25, 4, 40); rect(15, 25, 50, 4); rect(15, 43, 50, 4); rect(15, 61, 50, 4)
   } else {
@@ -28,6 +32,13 @@ describe('automatic number localization', () => {
     expect(regions).toHaveLength(1)
     expect(regions[0].x).toBe(85)
     expect(regions[0].width).toBe(79)
+  })
+  it('also separates a taller hash without requiring a wide glyph', () => {
+    expect(line('tall-hash')[0].x).toBe(85)
+  })
+  it('does not process a partial glyph touching the guide edge', () => {
+    const regions = line('edge')
+    expect(regions.every(region => region.x > 0)).toBe(true)
   })
   it.each(['letter', 'zero'] as const)('does not silently remove a wide %s', prefix => {
     expect(line(prefix)[0].x).toBe(15)

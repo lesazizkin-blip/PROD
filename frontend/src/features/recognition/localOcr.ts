@@ -16,13 +16,25 @@ export type CreateOcrWorker = (language: string, engine: number, options: {
  * Integrator injects createWorker and hosts ALL assets locally; no CDN defaults.
  * Do not whitelist digits: removing letters can turn an address into a box number.
  */
-export function createLocalOcrPrototype(createWorker: CreateOcrWorker): LocalHandwriting {
+export function createLocalOcrPrototype(createWorker: CreateOcrWorker, { keepWarm = false } = {}): LocalHandwriting {
   let initializationFailed = false
-  return async (photo, signal) => {
+  type FailureOwner = { current?: () => void }
+  let cached: { worker: OcrWorker; failures: FailureOwner } | undefined
+  let idleTimer: ReturnType<typeof setTimeout> | undefined
+  const release = () => {
+    clearTimeout(idleTimer)
+    const previous = cached; cached = undefined
+    if (previous) { previous.failures.current = undefined; void previous.worker.terminate().catch(() => {}) }
+  }
+  const recognize: LocalHandwriting = async (photo, signal) => {
     if (initializationFailed) throw new Error('Локальная модель недоступна. Перезагрузите страницу после проверки её файлов.')
     if (signal.aborted) throw new DOMException('Cancelled', 'AbortError')
     const started = performance.now()
-    let worker: OcrWorker | undefined
+    clearTimeout(idleTimer)
+    let worker: OcrWorker | undefined = cached?.worker
+    const failures: FailureOwner = cached?.failures ?? {}
+    cached = undefined
+    let completed = false
     let aborted = false
     let rejectAbort!: (error: Error) => void
     const cancelled = new Promise<never>((_, reject) => { rejectAbort = reject })
@@ -36,19 +48,20 @@ export function createLocalOcrPrototype(createWorker: CreateOcrWorker): LocalHan
       if (!worker) initializationFailed = true
       rejectAbort(new Error('Локальный OCR не ответил за 45 секунд. Переснимите или введите номер.'))
     }, 45_000)
-    const terminate = () => { if (worker) { const current = worker; worker = undefined; void current.terminate().catch(() => {}) } }
+    const terminate = () => { if (worker) { const current = worker; worker = undefined; failures.current = undefined; void current.terminate().catch(() => {}) } }
+    failures.current = () => {
+      aborted = true
+      if (!worker) initializationFailed = true
+      rejectAbort(new Error('Ошибка локального OCR. Проверьте локальные файлы модели и перезагрузите страницу.'))
+    }
     const work = (async () => {
-      worker = await createWorker('eng', 1, {
+      worker ??= await createWorker('eng', 1, {
         workerPath: `${window.location.origin}/recognition/worker.min.js`,
         corePath: `${window.location.origin}/recognition/core`,
         langPath: `${window.location.origin}/recognition/lang`,
         workerBlobURL: false,
         cacheMethod: 'none',
-        errorHandler: () => {
-          aborted = true
-          if (!worker) initializationFailed = true
-          rejectAbort(new Error('Ошибка локального OCR. Проверьте локальные файлы модели и перезагрузите страницу.'))
-        },
+        errorHandler: () => failures.current?.(),
       })
       if (aborted) { terminate(); throw new DOMException('Cancelled', 'AbortError') }
       await worker.setParameters({ tessedit_pageseg_mode: '6', preserve_interword_spaces: '1' })
@@ -68,6 +81,7 @@ export function createLocalOcrPrototype(createWorker: CreateOcrWorker): LocalHan
           // Older browsers may lack OffscreenCanvas; original OCR is still available.
         }
       }
+      completed = true
       return {
         text: data.text,
         candidates: data.text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
@@ -78,7 +92,14 @@ export function createLocalOcrPrototype(createWorker: CreateOcrWorker): LocalHan
     finally {
       clearTimeout(timer)
       signal.removeEventListener('abort', abort)
-      terminate()
+      if (keepWarm && completed && !aborted && worker) {
+        release()
+        failures.current = undefined
+        cached = { worker, failures }; worker = undefined
+        idleTimer = setTimeout(release, 15_000)
+      } else terminate()
     }
   }
+  recognize.release = release
+  return recognize
 }

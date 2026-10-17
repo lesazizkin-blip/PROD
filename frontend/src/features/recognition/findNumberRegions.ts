@@ -23,7 +23,7 @@ export function findNumberRegions(pixels: Uint8ClampedArray, width: number, heig
   }
   const runs = (values: boolean[]) => values.reduce((sum, on, i) => sum + (on && !values[i - 1] ? 1 : 0), 0)
   const looksLikeHash = (p: NumberRegion) => {
-    if (p.width < p.height * 1.05) return false
+    if (p.width < p.height * .45) return false
     const rows = [], cols = []
     for (let y = Math.ceil(p.height * .1); y < p.height * .9; y++) {
       let count = 0
@@ -52,6 +52,8 @@ export function findNumberRegions(pixels: Uint8ClampedArray, width: number, heig
     const glyphs = group.length > 1 && looksLikeHash(group[0]) ? group.slice(1) : group
     const x = Math.min(...glyphs.map(p => p.x)), y = Math.min(...glyphs.map(p => p.y))
     return { x, y, width: Math.max(...glyphs.map(p => p.x + p.width)) - x, height: Math.max(...glyphs.map(p => p.y + p.height)) - y }
-  }).sort((a, b) => Math.hypot((a.x + a.width / 2) / width - .5, (a.y + a.height / 2) / height - .5)
+  }).filter(region => region.x > width * .01 && region.y > height * .01
+    && region.x + region.width < width * .99 && region.y + region.height < height * .99)
+    .sort((a, b) => Math.hypot((a.x + a.width / 2) / width - .5, (a.y + a.height / 2) / height - .5)
     - Math.hypot((b.x + b.width / 2) / width - .5, (b.y + b.height / 2) / height - .5)).slice(0, 3)
 }

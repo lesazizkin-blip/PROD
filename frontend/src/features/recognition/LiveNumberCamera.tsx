@@ -26,12 +26,12 @@ export default function LiveNumberCamera({ pid, recognize, onConfirm }: {
 
   useEffect(() => {
     mounted.current = true
-    const visibility = () => setVisible(!document.hidden)
-    const hide = () => { setEnabled(false); setStatus('Камера остановлена. Нажмите «Продолжить».') }
+    const visibility = () => { setVisible(!document.hidden); if (document.hidden) recognize.release?.() }
+    const hide = () => { recognize.release?.(); setEnabled(false); setStatus('Камера остановлена. Нажмите «Продолжить».') }
     document.addEventListener('visibilitychange', visibility)
     window.addEventListener('pagehide', hide)
-    return () => { mounted.current = false; document.removeEventListener('visibilitychange', visibility); window.removeEventListener('pagehide', hide) }
-  }, [])
+    return () => { mounted.current = false; recognize.release?.(); document.removeEventListener('visibilitychange', visibility); window.removeEventListener('pagehide', hide) }
+  }, [recognize])
 
   useEffect(() => {
     if (!enabled || !visible || found || !window.isSecureContext) return
@@ -74,7 +74,7 @@ export default function LiveNumberCamera({ pid, recognize, onConfirm }: {
         if (!controller.signal.aborted) { setError(lookupMessage(e)); setStatus('Распознавание остановлено'); setEnabled(false) }
       } finally {
         // One frame at a time; no overlapping OCR jobs or API calls.
-        if (!controller.signal.aborted) timer = setTimeout(() => { void tick() }, Math.max(200, 1200 - (performance.now() - started)))
+        if (!controller.signal.aborted) timer = setTimeout(() => { void tick() }, Math.max(80, 500 - (performance.now() - started)))
       }
     }
     const camera = acquireCamera(() => ({
@@ -107,7 +107,7 @@ export default function LiveNumberCamera({ pid, recognize, onConfirm }: {
         finally { if (mounted.current) setOpening(false) }
       }}>Открыть коробку #{String(found.n).padStart(3, '0')}</button>
       <button type="button" disabled={opening} onClick={() => { setFound(null); setError(null); setEnabled(true); setAttempt(v => v + 1) }}>Сканировать другой номер</button>
-    </div> : <button type="button" onClick={() => { setError(null); setStatus(enabled ? 'Камера приостановлена.' : 'Запрашиваем доступ к камере…'); setEnabled(v => !v); setAttempt(v => v + 1) }}>{enabled ? 'Приостановить' : 'Продолжить'}</button>}
+    </div> : <button type="button" onClick={() => { if (enabled) recognize.release?.(); setError(null); setStatus(enabled ? 'Камера приостановлена.' : 'Запрашиваем доступ к камере…'); setEnabled(v => !v); setAttempt(v => v + 1) }}>{enabled ? 'Приостановить' : 'Продолжить'}</button>}
     <p role="status" aria-live="polite">{!visible ? 'Камера приостановлена, пока вкладка скрыта.' : status}</p>
     <ErrorAlert message={error} />
     <p className="small">Экспериментальный режим. Кадры обрабатываются на устройстве и не сохраняются. Проверьте номер перед открытием.</p>

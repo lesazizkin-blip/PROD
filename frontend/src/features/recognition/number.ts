@@ -14,7 +14,11 @@ export interface HandwritingResult {
 }
 
 /** Integrator supplies a validated LOCAL worker, never an upload endpoint. */
-export type LocalHandwriting = (photo: Blob, signal: AbortSignal) => Promise<HandwritingResult>
+export type LocalHandwriting = {
+  (photo: Blob, signal: AbortSignal): Promise<HandwritingResult>
+  /** Release an idle model when a camera session ends. */
+  release?: () => void
+}
 export type ResolveCode = (code: string) => Promise<{ project_id: string; box_number: number }>
 
 export function normalizeCandidates(values: string[]): number[] {

@@ -36,6 +36,40 @@ describe('QR-контракт', () => {
   })
 })
 describe('локальный OCR adapter (технические тесты, не качество почерка)', () => {
+  it('reuses a warm model between frames and releases it explicitly', async () => {
+    const worker = { recognize: vi.fn().mockResolvedValue({ data: { text: '002' } }), setParameters: vi.fn().mockResolvedValue(null), terminate: vi.fn().mockResolvedValue(null) }
+    const create = vi.fn().mockResolvedValue(worker)
+    const recognize = createLocalOcrPrototype(create, { keepWarm: true })
+    await recognize(new Blob(), new AbortController().signal)
+    await recognize(new Blob(), new AbortController().signal)
+    expect(create).toHaveBeenCalledTimes(1)
+    expect(worker.terminate).not.toHaveBeenCalled()
+    recognize.release?.(); recognize.release?.()
+    expect(worker.terminate).toHaveBeenCalledTimes(1)
+  })
+  it('routes a reused worker error to the current frame and discards that worker', async () => {
+    let options!: Parameters<CreateOcrWorker>[2]
+    const worker = { recognize: vi.fn().mockResolvedValueOnce({ data: { text: '002' } }).mockImplementationOnce(() => new Promise(() => {})), setParameters: vi.fn().mockResolvedValue(null), terminate: vi.fn().mockResolvedValue(null) }
+    const create: CreateOcrWorker = async (_lang, _engine, value) => { options = value; return worker }
+    const recognize = createLocalOcrPrototype(create, { keepWarm: true })
+    await recognize(new Blob(), new AbortController().signal)
+    const pending = recognize(new Blob(), new AbortController().signal)
+    await Promise.resolve()
+    options.errorHandler('worker error')
+    await expect(pending).rejects.toThrow(/Ошибка локального OCR/)
+    expect(worker.terminate).toHaveBeenCalledTimes(1)
+    recognize.release?.()
+  })
+  it('releases the warm model after an idle timeout', async () => {
+    vi.useFakeTimers()
+    const worker = { recognize: vi.fn().mockResolvedValue({ data: { text: '002' } }), setParameters: vi.fn().mockResolvedValue(null), terminate: vi.fn().mockResolvedValue(null) }
+    const recognize = createLocalOcrPrototype(vi.fn().mockResolvedValue(worker), { keepWarm: true })
+    try {
+      await recognize(new Blob(), new AbortController().signal)
+      await vi.advanceTimersByTimeAsync(15_000)
+      expect(worker.terminate).toHaveBeenCalledTimes(1)
+    } finally { recognize.release?.(); vi.useRealTimers() }
+  })
   it('retries invalid OCR with cleaned pixels without substituting letters for digits', async () => {
     const worker = {
       recognize: vi.fn().mockResolvedValueOnce({ data: { text: '0.014' } }).mockResolvedValueOnce({ data: { text: '001' } }),

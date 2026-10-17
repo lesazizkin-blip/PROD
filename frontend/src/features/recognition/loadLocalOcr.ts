@@ -12,6 +12,7 @@ export const recognizeWithLocalPrototype: LocalHandwriting = async (photo, signa
   catch { throw new Error('Не удалось загрузить локальный OCR. Введите номер вручную или повторите позже.') }
   if (signal.aborted) throw new DOMException('Cancelled', 'AbortError')
   if (typeof module.default?.createWorker !== 'function') throw new Error('Локальный OCR не установлен. Введите номер вручную.')
-  prototype ??= createLocalOcrPrototype(module.default.createWorker)
+  prototype ??= createLocalOcrPrototype(module.default.createWorker, { keepWarm: true })
   return prototype(photo, signal)
 }
+recognizeWithLocalPrototype.release = () => prototype?.release?.()
