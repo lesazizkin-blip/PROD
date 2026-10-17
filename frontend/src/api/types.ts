@@ -284,3 +284,25 @@ export interface ChecklistApplied {
   added_tasks: number
   added_first_day: number
 }
+
+/** Фото-помощник: черновики модели, в проект попадают только после подтверждения */
+export interface PhotoItem {
+  name: string
+  first_day: boolean
+  fragile: boolean
+}
+
+export interface PhotoInventory {
+  items: PhotoItem[]
+}
+
+export interface RoomBox {
+  label: string
+  items: string[]
+  tip: string
+}
+
+export interface RoomPlan {
+  room: string
+  boxes: RoomBox[]
+}

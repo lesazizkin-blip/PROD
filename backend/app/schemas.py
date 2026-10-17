@@ -109,6 +109,51 @@ class PersonalPlan(BaseModel):
     first_day: list[Text200] = Field(default_factory=list, max_length=20)
 
 
+# ---------- фото-помощник (черновики модели, в проект попадают только после подтверждения) ----------
+class PhotoRequest(BaseModel):
+    """Фото как data URL (сайт уменьшает его до 1280 px). consent - явное согласие отправить фото модели."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [{"image": "data:image/jpeg;base64,/9j/4AAQ...", "consent": True}]
+        }
+    )
+    image: str = Field(min_length=32)
+    consent: Literal[True]
+
+
+class RoomPhotoRequest(PhotoRequest):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"image": "data:image/jpeg;base64,/9j/4AAQ...", "room": "Кухня", "consent": True}
+            ]
+        }
+    )
+    room: Text60
+
+
+class PhotoItem(BaseModel):
+    name: Text120
+    first_day: bool = False
+    fragile: bool = False
+
+
+class PhotoInventory(BaseModel):
+    items: list[PhotoItem] = Field(default_factory=list, max_length=40)
+
+
+class RoomBox(BaseModel):
+    label: Text120
+    items: list[Text120] = Field(default_factory=list, max_length=20)
+    tip: Annotated[str, StringConstraints(strip_whitespace=True, max_length=300)] = ""
+
+
+class RoomPlan(BaseModel):
+    room: str = ""
+    boxes: list[RoomBox] = Field(default_factory=list, max_length=12)
+
+
 # ---------- проекты ----------
 class QrMode(StrEnum):
     UNIVERSAL = "universal"
