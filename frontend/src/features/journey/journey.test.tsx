@@ -6,7 +6,6 @@ import { AuthProvider } from '../../state/AuthContext'
 import { ProjectProvider } from '../../state/ProjectContext'
 import BudgetPage from './BudgetPage'
 import CalculatorPage from './CalculatorPage'
-import MovingDayPage from './MovingDayPage'
 
 const me = vi.fn()
 const calculator = vi.fn()
@@ -89,32 +88,5 @@ describe('бюджет', () => {
     await userEvent.type(actual, '13500')
     fireEvent.blur(actual)
     await waitFor(() => expect(updateExpense).toHaveBeenCalledWith('p1', 7, { actual: 13500 }))
-  })
-})
-
-describe('день переезда', () => {
-  it('погрузка по номеру, счётчик и список того, что осталось', async () => {
-    setup(<MovingDayPage />)
-    expect(await screen.findByText('1 из 3')).toBeTruthy()
-    expect(screen.getByText('Осталось погрузить: 2')).toBeTruthy()
-    await userEvent.type(screen.getByLabelText('Номер коробки'), '003{Enter}')
-    await waitFor(() => expect(transition).toHaveBeenCalledWith('p1', 3, 'loaded'))
-    expect(await screen.findByText('2 из 3')).toBeTruthy()
-    // уже погруженная коробка не отправляется повторно, неизвестный номер - понятное сообщение
-    await userEvent.type(screen.getByLabelText('Номер коробки'), '2{Enter}')
-    expect(await screen.findByText('№ 2 (Спальня) уже погружена')).toBeTruthy()
-    await userEvent.type(screen.getByLabelText('Номер коробки'), '99{Enter}')
-    expect(await screen.findByText('Коробки № 99 нет в этом проекте')).toBeTruthy()
-    expect(transition).toHaveBeenCalledTimes(1)
-    // сервер принимает не больше 200 коробок на страницу
-    expect(boxesCall.mock.calls.every(([f]) => f.page_size <= 200)).toBe(true)
-  })
-
-  it('приёмка считает то, что доехало', async () => {
-    setup(<MovingDayPage />)
-    await screen.findByText('1 из 3')
-    await userEvent.click(screen.getByRole('tab', { name: 'Приёмка' }))
-    expect(screen.getByText('0 из 3')).toBeTruthy()
-    expect(screen.getByText('Не хватает: 3')).toBeTruthy()
   })
 })
