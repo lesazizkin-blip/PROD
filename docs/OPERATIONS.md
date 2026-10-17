@@ -46,11 +46,12 @@ CI-переменные: `SSH_PRIVATE_KEY` (тип «Файл», содержи�
 rsync -az --delete -e "ssh -i ~/.ssh/vm1.pem" \
   --exclude=.git --exclude=docs --exclude=node_modules --exclude=dist \
   --exclude=.venv --exclude='*.db' --exclude=.env --exclude=__pycache__ \
+  --exclude=docker-compose.override.yml --exclude=.maintenance --exclude=spirit-sa-key.json \
   ./ root@178.72.185.97:/opt/movermate/
 ssh -i ~/.ssh/vm1.pem root@178.72.185.97 'cd /opt/movermate/deploy && docker compose up -d --build'
 scripts/preflight.sh https://hack-led-20-vm1-12902f.vmaas-spirit.t-education.com
 ```
-`--exclude=.env` сохраняет настройки на ВМ, база в томе сохраняется. Состояние: `ssh … 'docker ps; docker logs --tail 50 deploy-app-1'`.
+`--exclude=.env` сохраняет настройки на ВМ, база в томе сохраняется; override и `.maintenance` на ВМ не удаляются. Пока на ВМ есть `docker-compose.override.yml` с `image:`, `--build` перезапишет закреплённый образ — передеплой только по согласованию с Фёдором. Без сети (после 16:00) — только `docker compose up -d --no-build` или `docker start deploy-app-1`, никаких `pull` и `--build`. Состояние: `ssh … 'docker ps; docker logs --tail 50 deploy-app-1'`.
 
 ## 4. Копии базы и восстановление
 
@@ -71,7 +72,7 @@ rm .maintenance
 
 ## 5. Безопасность на границе
 
-Caddy добавляет `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` (камера только для самого сайта) и скрывает `Server`; `preflight.sh` их проверяет.
+Caddy добавляет `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` (камера и микрофон только для самого сайта: сканер QR и голосовой ввод) и скрывает `Server`; `preflight.sh` их проверяет.
 
 ## 5а. Защита от перегрузки и злоупотреблений
 
