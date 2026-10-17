@@ -2,7 +2,7 @@
 # Резервная копия базы MoverMate на ВМ: онлайн-копия SQLite (корректна и во время записи),
 # проверка целостности копии, хранение последних KEEP копий.
 #   deploy/backup.sh [метка]      # по cron раз в час; deploy:vm вызывает с меткой ci перед выкаткой
-# Восстановление: docs/DEPLOY_VM.md, раздел «Резервные копии».
+# Восстановление: docs/OPERATIONS.md, раздел «Копии базы и восстановление».
 set -euo pipefail
 CONTAINER="${CONTAINER:-deploy-app-1}"
 DIR="${BACKUP_DIR:-/root/backups}"

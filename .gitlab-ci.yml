@@ -1,4 +1,4 @@
-# GitLab CI MoverMate по шаблону организаторов (templates/l2sh-template), подробности - docs/GITLAB.md.
+# GitLab CI MoverMate по шаблону организаторов (templates/l2sh-template), подробности - docs/OPERATIONS.md.
 #
 #   lint ──► test ──► build:image ──► setup:vm ──► deploy:vm ──► preflight:prod
 #   (стиль)  (тесты,   (Kaniko →      (Spirit CLI   (ssh + docker   (сценарий ТЗ
