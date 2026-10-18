@@ -81,7 +81,7 @@ export default function Shell() {
 
       <header className="topbar">
         <nav className="breadcrumb" aria-label="Вы здесь">
-          <Link to="/projects" aria-label="Все проекты" title="Все проекты"><FolderOpen className="icon-sm" aria-hidden /><span>Все проекты</span></Link>
+          <Link to="/projects" aria-label="Все проекты" title="Все проекты"><FolderOpen className="icon-sm" aria-hidden /><span className="breadcrumb-projects-label">Все проекты</span></Link>
           {breadcrumbProject && !['/projects', '/profile', '/new', '/about'].includes(pathname) ? <><span className="breadcrumb-project" aria-hidden="true">/</span><span className="breadcrumb-project" title={breadcrumbProject.name}>{breadcrumbProject.name}</span></> : null}
           {pathname !== '/projects' ? <><span aria-hidden="true"> / </span><span aria-current="page">{breadcrumbSection}</span></> : null}
         </nav>
