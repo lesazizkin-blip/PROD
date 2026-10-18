@@ -1,3 +1,4 @@
+import RequireProject from '../components/RequireProject'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRightLeft, Pencil, Plus, QrCode, Trash2 } from 'lucide-react'
@@ -25,7 +26,7 @@ import { boxPath, labelPath, plural } from '../ui/format'
 // Карточка коробки. Сюда ведёт QR: /projects/{pid}/boxes/{n} (открытие только читает, дублей не создаёт).
 export default function BoxPage() {
   const { pid = '', n = '' } = useParams()
-  return <BoxWorkspace key={`${pid}/${n}`} pid={pid} number={Number(n)} />
+  return <RequireProject pid={pid}>{() => <BoxWorkspace key={`${pid}/${n}`} pid={pid} number={Number(n)} />}</RequireProject>
 }
 
 function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
