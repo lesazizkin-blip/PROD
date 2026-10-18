@@ -267,7 +267,7 @@ a.button.primary { background: var(--primary); color: var(--surface); border-col
 .search-tools input { flex: 1; min-width: 0; height: 48px; border: 1px solid var(--border); border-radius: var(--radius-control); padding: 12px 14px; }
 .search-tools .button, .search-tools button { flex: none; min-height: 48px; }
 
-.badge { border-radius: 0; padding: 6px; font-size: 11px; }
+.badge { padding: 6px; font-size: 11px; }
 .st-packed, .st-unpacked { background: var(--pale); }
 .st-packing { background: var(--primary-soft); }
 
@@ -682,4 +682,43 @@ a.tips-card .sub, .scan-card .sub { display: block; color: var(--muted); font-si
   .boxes-filters__room-select { display: block; flex: 1 1 0; min-width: 0; }
   .boxes-filters .box-order { flex: 1 1 0; min-width: 0; }
   .boxes-filters select, .boxes-filters .box-order select { width: 100%; min-width: 0; min-height: 44px; padding-inline: 8px; font-size: 13px; }
+}
+
+/* Status marks belong to the packing label, rather than floating UI chips. */
+.badge.box-status {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  width: max-content; max-width: 100%; padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 7px; font-size: 12px; line-height: 1.4;
+  background: color-mix(in srgb, currentColor 7%, var(--surface));
+}
+.box-status > svg { width: 14px; height: 14px; flex: none; stroke-width: 1.8; }
+.shelf-carton .badge.box-status { padding: 3px 6px; font-size: 11px; background: color-mix(in srgb, currentColor 7%, var(--surface)); }
+.shelf-carton .box-status > svg { width: 13px; height: 13px; }
+
+/* A strip of the same tape used on cartons; decoration never clips the date. */
+.date-stamp.date-stamp--tape {
+  position: relative; isolation: isolate; flex: 0 1 270px;
+  min-width: 240px; max-width: 100%; padding: 22px 28px;
+  grid-template-columns: 1fr; gap: 8px; text-align: center;
+  background: none; border: 0; color: #4f4a3d;
+}
+.date-stamp--tape::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(#fbf3dfbc, #f6ecd6c9), var(--material-tape) center / 110% 300%;
+  clip-path: polygon(1% 0, 99% 2%, 98% 10%, 100% 20%, 98.5% 31%, 100% 42%, 98% 53%, 100% 65%, 98.5% 76%, 100% 88%, 99% 100%, 0 98%, 1.5% 88%, 0 76%, 2% 64%, 0 52%, 1.5% 40%, 0 28%, 2% 16%, 0 7%);
+  transform: rotate(-2deg);
+  box-shadow: inset 0 1px 0 #fff7e5aa, inset 0 -2px 3px #655a3626;
+}
+.date-stamp--tape .date-stamp__dates { display: flex; justify-content: center; align-items: center; gap: 8px; grid-row: auto; font-size: 38px; line-height: 1.25; color: #292923; }
+.date-stamp__dates time { white-space: nowrap; }
+.date-stamp--tape .date-stamp__caption { font-size: 11px; letter-spacing: .08em; }
+.date-stamp--range { flex-basis: 340px; }
+.date-stamp--range .date-stamp__dates { font-size: 24px; }
+.date-stamp--tape .date-stamp__dash { font-size: inherit; }
+@media (max-width: 599px) {
+  .date-stamp.date-stamp--tape { flex-basis: auto; width: 100%; min-width: 0; padding: 20px 18px; gap: 6px; }
+  .date-stamp--tape .date-stamp__dates { font-size: 32px; }
+  .date-stamp--range .date-stamp__dates { font-size: clamp(16px, 5vw, 24px); gap: 6px; }
+  .date-stamp--tape .date-stamp__caption { font-size: 10px; }
 }

@@ -150,9 +150,12 @@ function Plan({ pid }: { pid: string }) {
           <p className="small">{[project.data?.address_from, project.data?.address_to].filter(Boolean).join(' → ') || 'Соберите вещи по комнатам — их будет проще найти после переезда.'}</p>
           {boxes?.boxes_total === 0 ? <Link to="/boxes" className="button">Добавить коробку</Link> : null}
         </div>
-        <div className="date-stamp">
-          <strong>{project.data ? formatMoveDates(project.data.move_date, project.data.move_date_end).replace(/\.\d{4}/g, '').replace(/\./g, ' / ') : '…'}</strong>
-          <span>ДАТА ПЕРЕЕЗДА</span>
+        <div className={`date-stamp date-stamp--tape${project.data?.move_date_end && project.data.move_date_end !== project.data.move_date ? ' date-stamp--range' : ''}`} aria-label={project.data ? `Дата переезда: ${formatMoveDates(project.data.move_date, project.data.move_date_end)}` : 'Дата переезда'}>
+          <strong className="date-stamp__dates">{project.data ? <>
+            <time dateTime={project.data.move_date}>{formatDate(project.data.move_date).slice(0, 5).replace('.', ' / ')}</time>
+            {project.data.move_date_end && project.data.move_date_end !== project.data.move_date ? <><span className="date-stamp__dash" aria-hidden="true">—</span><time dateTime={project.data.move_date_end}>{formatDate(project.data.move_date_end).slice(0, 5).replace('.', ' / ')}</time></> : null}
+          </> : '…'}</strong>
+          <span className="date-stamp__caption">ДАТА ПЕРЕЕЗДА</span>
         </div>
       </div>
       <Link to="/journey" className="journey-link">Путь переезда: все 7 этапов от решения до «обжились» →</Link>
