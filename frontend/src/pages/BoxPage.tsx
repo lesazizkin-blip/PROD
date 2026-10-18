@@ -99,6 +99,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
   const [editing, setEditing] = useState(false)
   const [pickingBox, setPickingBox] = useState(false)
   const [movingItem, setMovingItem] = useState<Item | null>(null)
+  const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [movedTo, setMovedTo] = useState<{ name: string; number: number } | null>(null)
 
   // Открыли коробку по QR из другого проекта: переключаем вкладки на него, чтобы «Коробки» и «План» были про ту же коробку
@@ -137,7 +138,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
               <div className="carton-identity__title">
                 <h1 id="box-heading" tabIndex={-1}>Коробка {String(box.number).padStart(3, '0')}</h1>
                 <p className="carton-identity__room">{box.room}</p>
-                <p className="muted small">{box.items.length} {plural(box.items.length, ['вещь', 'вещи', 'вещей'])}</p>
+                <p className="muted small">{box.items.length} {plural(box.items.length, ['позиция', 'позиции', 'позиций'])}</p>
               </div>
               <div className="carton-identity__status">
                 <StatusBadge status={box.status} />
@@ -162,6 +163,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
                 <div key={item.id} className="manifest-item">
                   <span className="manifest-item__description">
                     <b>{item.name}</b>
+                    {(item.quantity ?? 1) > 1 ? <span className="sub">{item.quantity} шт.</span> : null}
                     {item.lost ? <span className="sub">Не могу найти. Подсказки — на «Прогрессе».</span> : null}
                   </span>
                   <div className="manifest-item__tools">
@@ -176,6 +178,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
                   </button>
                   <button className={item.lost ? 'chip-toggle warn on' : 'chip-toggle warn'} disabled={pendingItems.includes(item.id)} aria-pressed={item.lost} onClick={() => patchItem(item.id, { lost: !item.lost })} aria-label={`${item.lost ? 'Нашлась' : 'Не могу найти'}: ${item.name}`}>{item.lost ? 'Нашлась' : 'Не могу найти'}</button>
                   <button className={item.damaged ? 'chip-toggle warn on' : 'chip-toggle warn'} disabled={pendingItems.includes(item.id)} aria-pressed={!!item.damaged} onClick={() => patchItem(item.id, { damaged: !item.damaged })} aria-label={`Повреждена: ${item.name}`}>Повреждена</button>
+                  <button className="link small" disabled={pendingItems.includes(item.id)} onClick={() => setEditingItem(item)} aria-label={`Изменить «${item.name}»`}><Pencil className="icon-sm" aria-hidden /></button>
                   <button className="link small item-move" disabled={pendingItems.includes(item.id)} onClick={() => setMovingItem(item)} aria-label={`Переложить «${item.name}»`}><ArrowRightLeft className="icon-sm" aria-hidden />Переложить</button>
                   <button className="link small" disabled={busy} aria-label={`Удалить «${item.name}»`} onClick={async () => { if (await confirm({ title: `Удалить «${item.name}»?`, message: 'Вещь пропадёт из коробки и из поиска.' })) removeItem(item.id) }}><Trash2 className="icon-sm" aria-hidden /></button>
                   </div>
@@ -209,6 +212,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
               onClose={() => setPickingBox(false)}
             />
           ) : null}
+          {editingItem ? <EditItemModal item={editingItem} onClose={() => setEditingItem(null)} onSave={async (name, quantity) => { const updated = await api.updateItem(pid, editingItem.id, { name, quantity }); card.mutate(value => value ? { ...value, items: value.items.map(item => item.id === updated.id ? updated : item) } : value); setEditingItem(null); card.reload() }} /> : null}
           {movingItem ? <MoveItemModal pid={pid} from={number} item={movingItem} onClose={() => setMovingItem(null)} onMoved={target => { setMovedTo({ name: movingItem.name, number: target }); setMovingItem(null); card.reload() }} /> : null}
           {adding ? (
             <AddItemsModal
@@ -275,6 +279,23 @@ function AddItemsModal({ onClose, onSave, recognize }: {
       </form>
     </Modal>
   )
+}
+
+function EditItemModal({ item, onClose, onSave }: { item: Item; onClose: () => void; onSave: (name: string, quantity: number) => Promise<void> }) {
+  const [name, setName] = useState(item.name)
+  const [quantity, setQuantity] = useState(String(item.quantity ?? 1))
+  const { busy, error, submit } = useAction()
+  const count = Number(quantity)
+  const valid = name.trim().length > 0 && Number.isInteger(count) && count >= 1 && count <= 9999
+  return <Modal title="Изменить вещь" onClose={onClose} dirty={name !== item.name || count !== (item.quantity ?? 1)}>
+    <form className="stack" onSubmit={submit(() => onSave(name.trim(), count))}>
+      <label>Название вещи<input value={name} onChange={e => setName(e.target.value)} maxLength={120} required data-autofocus /></label>
+      <label>Количество, шт.<input type="number" inputMode="numeric" min={1} max={9999} step={1} value={quantity} onChange={e => setQuantity(e.target.value)} required /></label>
+      <p className="muted small">Например: «Тарелки», 6 шт. При переносе в другую коробку переместится вся позиция.</p>
+      <ErrorAlert message={error} />
+      <button className="primary" type="submit" disabled={busy || !valid}>Сохранить</button>
+    </form>
+  </Modal>
 }
 
 function EditBoxModal({ room: initialRoom, fillLater, onClose, onSave }: { room: string; fillLater: boolean; onClose: () => void; onSave: (room: string, later: boolean) => Promise<void> }) {

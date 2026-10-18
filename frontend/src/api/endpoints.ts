@@ -89,7 +89,7 @@ export const api = {
     request<RoomPlan>("POST", `${p(pid)}/room-plan`, { body: { image, room, consent: true }, timeoutMs: 70_000 }),
   createItemsBulk: (pid: string, n: number, text: string) =>
     request<{ created: Item[] }>("POST", `${p(pid)}/boxes/${n}/items/bulk`, { body: { text } }),
-  updateItem: (pid: string, id: number, body: { name?: string; status?: ItemStatus; damaged?: boolean; first_day?: boolean }) =>
+  updateItem: (pid: string, id: number, body: { name?: string; quantity?: number; status?: ItemStatus; lost?: boolean; damaged?: boolean; first_day?: boolean }) =>
     request<Item>("PATCH", `${p(pid)}/items/${id}`, { body }),
   deleteItem: (pid: string, id: number) =>
     request<void>("DELETE", `${p(pid)}/items/${id}`, { query: { confirm: true } }),

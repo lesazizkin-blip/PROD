@@ -107,6 +107,7 @@ def _item_out(item: Item, box_number: int) -> ItemOut:
         id=item.id,
         box_number=box_number,
         name=item.name,
+        quantity=item.quantity,
         status=item.status,  # type: ignore[arg-type]
         lost=item.status == ItemStatus.LOST,
         damaged=item.damaged,
@@ -329,6 +330,7 @@ class BoxService:
         names: list[str],
         first_day: bool = False,
         status: ItemStatus = ItemStatus.PACKED,
+        quantity: int = 1,
     ) -> list[ItemOut]:
         box = self.get_box(project_id, number)
         items = [
@@ -336,6 +338,7 @@ class BoxService:
                 box_id=box.id,
                 name=n,
                 name_norm=normalize(n),
+                quantity=quantity,
                 first_day=first_day,
                 status=status.value,
                 damaged=status == ItemStatus.DAMAGED,
@@ -365,10 +368,13 @@ class BoxService:
         lost: bool | None = None,
         first_day: bool | None = None,
         damaged: bool | None = None,
+        quantity: int | None = None,
     ) -> ItemOut:
         item, box = self.get_item(project_id, item_id)
         if name is not None:
             item.name, item.name_norm = name, normalize(name)
+        if quantity is not None:
+            item.quantity = quantity
         if first_day is not None:
             item.first_day = first_day
         if damaged is not None and damaged != item.damaged:
@@ -487,6 +493,7 @@ class BoxService:
             SearchHit(
                 item_id=i.id,
                 name=i.name,
+                quantity=i.quantity,
                 item_status=i.status,
                 lost=i.status == ItemStatus.LOST,
                 damaged=bool(i.damaged),
@@ -509,7 +516,9 @@ class BoxService:
             project_name=project.name,
             qr_path=f"/projects/{project.id}/boxes/{box.number}",
             qr_payload=box.qr_code.code if project.qr_mode == "compact" and box.qr_code else None,
-            items_preview=[i.name for i in box.items[:5]],
+            items_preview=[
+                f"{i.name} · {i.quantity} шт." if i.quantity > 1 else i.name for i in box.items[:5]
+            ],
         )
 
     def label(self, project: Project, number: int) -> LabelOut:

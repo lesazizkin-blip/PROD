@@ -64,7 +64,7 @@ export default function FirstDayChecklist({ pid }: { pid: string }) {
     {inventory.loading && !inventory.data ? <p role="status">Загружаем вещи…</p> : null}
     {packed.length ? <>
       <ul className="plain preparation-list">{packed.map(x => <li key={x.item.id} className="preparation-row">
-        <span className={`preparation-title${x.status === 'unpacked' ? ' done' : ''}`}><span>{x.status === 'unpacked' ? '✓ ' : ''}{x.item.name}{x.status === 'unpacked' ? ' · распакована' : ''}{x.item.lost ? ' · Не могу найти' : ''}{x.item.damaged ? ' · Повреждена' : ''}</span></span>
+        <span className={`preparation-title${x.status === 'unpacked' ? ' done' : ''}`}><span>{x.status === 'unpacked' ? '✓ ' : ''}{x.item.name}{(x.item.quantity ?? 1) > 1 ? ` · ${x.item.quantity} шт.` : ''}{x.status === 'unpacked' ? ' · распакована' : ''}{x.item.lost ? ' · Не могу найти' : ''}{x.item.damaged ? ' · Повреждена' : ''}</span></span>
         <Link to={boxPath(pid, x.box_number)} className="button small">№ {x.box_number} · {x.room}</Link>
       </li>)}</ul>
     </> : inventory.data ? <p className="muted small">Вещей в коробках пока нет. Нажмите «В коробку» у пункта выше или отметьте «Первый день» в карточке коробки.</p> : null}

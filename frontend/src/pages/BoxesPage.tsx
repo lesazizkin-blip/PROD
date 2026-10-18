@@ -108,7 +108,7 @@ function Boxes({ pid }: { pid: string }) {
                   <BoxLink key={h.item_id} pid={pid} number={h.box_number} sourceId={`item-${h.item_id}`} className="list-row">
                     <span aria-hidden>{h.lost ? '⚠️' : '🔎'}</span>
                     <span className="grow">
-                      <b><Highlight text={h.name} query={q} /></b>
+                      <b><Highlight text={h.name} query={q} />{(h.quantity ?? 1) > 1 ? ` · ${h.quantity} шт.` : ''}</b>
                       <span className="sub">Коробка № {h.box_number} · {h.room}{h.lost ? ' · не могу найти' : ''}{h.damaged ? ' · повреждена' : ''}</span>
                     </span>
                     <StatusBadge status={h.status} />

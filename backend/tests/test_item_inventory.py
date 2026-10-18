@@ -23,7 +23,8 @@ def test_move_preserves_identity_markers_and_updates_inventory(client, base, db_
     b = make_box(client, base, "Спальня", "Бельё")
     item = client.get(base + f"/boxes/{a['number']}").json()["items"][0]
     before = client.patch(
-        base + f"/items/{item['id']}", json={"first_day": True, "lost": True, "damaged": True}
+        base + f"/items/{item['id']}",
+        json={"first_day": True, "lost": True, "damaged": True, "quantity": 6},
     ).json()
     url = base + f"/items/{item['id']}/move"
     result = client.post(url, json={"from_box_number": a["number"], "to_box_number": b["number"]})

@@ -91,7 +91,7 @@ function ProgressView({ pid }: { pid: string }) {
               <div key={entry.item.id} className="list-row">
                 <span aria-hidden>⚠️</span>
                 <span className="grow">
-                  <b>{entry.item.name}</b>
+                  <b>{entry.item.name}{(entry.item.quantity ?? 1) > 1 ? ` · ${entry.item.quantity} шт.` : ''}</b>
                   <span className="sub">Коробка № {entry.box_number} · {entry.room}</span>
                 </span>
                 <button className="small" disabled={busy} onClick={() => showHints(entry)}>Где искать</button>

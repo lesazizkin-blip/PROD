@@ -611,6 +611,7 @@ class ItemOut(BaseModel):
     id: int
     box_number: int
     name: str
+    quantity: int = 1
     status: ItemStatus
     damaged: bool = False
     lost: bool  # то же, что status == "lost"; оставлено для совместимости
@@ -645,6 +646,7 @@ class ItemCreate(BaseModel):
         json_schema_extra={"examples": [{"name": "Чайник", "first_day": True, "status": "packed"}]}
     )
     name: Text120 = Field(examples=["Чайник"])
+    quantity: int = Field(default=1, ge=1, le=9999, strict=True)
     first_day: bool = False
     status: ItemStatus = ItemStatus.PACKED
 
@@ -669,6 +671,15 @@ class ItemUpdate(BaseModel):
     damaged: bool | None = None
     model_config = ConfigDict(json_schema_extra={"examples": [{"status": "found"}]})
     name: Text120 | None = None
+    quantity: int | None = Field(default=None, ge=1, le=9999, strict=True)
+
+    @field_validator("quantity", mode="before")
+    @classmethod
+    def quantity_not_null(cls, value):
+        if value is None:
+            raise ValueError("Укажите целое количество от 1 до 9999")
+        return value
+
     status: ItemStatus | None = Field(default=None, examples=["found"])
     first_day: bool | None = None
     lost: bool | None = Field(
@@ -694,6 +705,7 @@ class SearchHit(BaseModel):
     )
     item_id: int
     name: str
+    quantity: int = 1
     item_status: ItemStatus
     lost: bool
     damaged: bool = False
