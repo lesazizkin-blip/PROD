@@ -20,7 +20,7 @@ function Carton({ pid, box, motion }: { pid: string; box: Box; motion?: BoxMove 
           <StatusBadge status={box.status} />
         </div>
         <h2>{box.room}</h2>
-        <p className="shelf-carton__action"><span>{box.items_count} {plural(box.items_count, ['вещь', 'вещи', 'вещей'])} · {box.fill_later && box.items_count === 0 ? 'заполнить позже' : 'посмотреть содержимое'}</span><ArrowUpRight aria-hidden="true" /></p>
+        <p className="shelf-carton__action"><span>{box.items_count} {plural(box.items_count, ['позиция', 'позиции', 'позиций'])} · {box.fill_later && box.items_count === 0 ? 'заполнить позже' : 'посмотреть содержимое'}</span><ArrowUpRight aria-hidden="true" /></p>
       </div>
       <span className="shelf-carton__staples" aria-hidden="true" />
       <span className="shelf-carton__marks" aria-hidden="true"><span>↑↑</span><img src="/assets/packing-bars.svg" alt="" /></span>

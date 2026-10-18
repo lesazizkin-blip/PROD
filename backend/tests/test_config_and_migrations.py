@@ -88,3 +88,37 @@ def test_data_survives_restart(tmp_path):
     engine.dispose()
     with sa.create_engine(url).connect() as c:
         assert c.execute(sa.text("SELECT username FROM users")).scalar_one() == "keep"
+
+
+def test_quantity_migration_preserves_old_inventory_and_defaults_to_one(tmp_path):
+    url = f"sqlite:///{tmp_path / 'quantity.db'}"
+    cfg = Config("alembic.ini")
+    cfg.set_main_option("sqlalchemy.url", url)
+    command.upgrade(cfg, "0010_item_damage")
+    engine = sa.create_engine(url)
+    with engine.begin() as c:
+        c.execute(
+            sa.text(
+                "INSERT INTO projects (id, name, move_date, created_at) VALUES ('00000000000040008000000000000002', 'Переезд', '2026-12-01', CURRENT_TIMESTAMP)"
+            )
+        )
+        c.execute(
+            sa.text(
+                "INSERT INTO boxes (id, project_id, number, room, status, fill_later, created_at, updated_at) VALUES (1, '00000000000040008000000000000002', 1, 'Кухня', 'packed', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            )
+        )
+        c.execute(
+            sa.text(
+                "INSERT INTO items (id, box_id, name, name_norm, status, first_day, created_at, damaged) VALUES (99, 1, 'Тарелки (6 шт.)', 'тарелки (6 шт.)', 'lost', 1, CURRENT_TIMESTAMP, 1)"
+            )
+        )
+        before = c.execute(sa.text("SELECT * FROM items")).mappings().one()
+    command.upgrade(cfg, "head")
+    with engine.connect() as c:
+        after = c.execute(sa.text("SELECT * FROM items")).mappings().one()
+        assert {key: after[key] for key in before} == dict(before)
+        assert after["quantity"] == 1  # Literal quantities in old names are never guessed.
+        assert c.execute(sa.text("pragma integrity_check")).scalar_one() == "ok"
+    command.downgrade(cfg, "0010_item_damage")
+    with engine.connect() as c:
+        assert dict(c.execute(sa.text("SELECT * FROM items")).mappings().one()) == dict(before)

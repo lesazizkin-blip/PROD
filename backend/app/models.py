@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime, time
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -201,6 +202,12 @@ class Item(Base):
     box_id: Mapped[int] = _fk("boxes.id")
     name: Mapped[str] = mapped_column(String(120))
     name_norm: Mapped[str] = mapped_column(String(120), index=True)
+    quantity: Mapped[int] = mapped_column(
+        Integer,
+        CheckConstraint("quantity BETWEEN 1 AND 9999", name="ck_items_quantity"),
+        default=1,
+        server_default="1",
+    )
     damaged: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     status: Mapped[str] = mapped_column(String(20), default="packed")
     first_day: Mapped[bool] = mapped_column(Boolean, default=False)  # понадобится в первый день

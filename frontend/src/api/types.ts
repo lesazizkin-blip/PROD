@@ -108,6 +108,7 @@ export interface BoxCard extends Box {
 }
 
 export interface Item {
+  quantity?: number
   damaged?: boolean
   id: number
   box_number: number
@@ -121,6 +122,7 @@ export interface Item {
 }
 
 export interface SearchHit {
+  quantity?: number
   item_id: number
   name: string
   item_status: ItemStatus

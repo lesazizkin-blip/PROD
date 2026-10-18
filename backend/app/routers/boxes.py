@@ -162,7 +162,9 @@ def list_items(
 def add_item(
     n: Id, body: ItemCreate, project: Project = Depends(get_project), db: Session = Depends(get_db)
 ):
-    return BoxService(db).add_items(project.id, n, [body.name], body.first_day, body.status)[0]
+    return BoxService(db).add_items(
+        project.id, n, [body.name], body.first_day, body.status, body.quantity
+    )[0]
 
 
 @router.post(
@@ -184,7 +186,9 @@ def add_items_bulk(
 
 
 @router.patch(
-    "/items/{item_id}", response_model=ItemOut, summary="Переименовать / пометить потерянной"
+    "/items/{item_id}",
+    response_model=ItemOut,
+    summary="Изменить название, количество и отметки вещи",
 )
 def update_item(
     item_id: Id,
@@ -193,7 +197,14 @@ def update_item(
     db: Session = Depends(get_db),
 ):
     return BoxService(db).update_item(
-        project.id, item_id, body.name, body.status, body.lost, body.first_day, body.damaged
+        project.id,
+        item_id,
+        body.name,
+        body.status,
+        body.lost,
+        body.first_day,
+        body.damaged,
+        body.quantity,
     )
 
 
