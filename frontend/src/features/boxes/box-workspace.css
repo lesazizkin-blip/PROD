@@ -118,3 +118,19 @@
 
 .move-box-list { max-height: min(40dvh, 360px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 2px 3px 3px; }
 .move-item-form > .primary { position: sticky; bottom: 0; z-index: 1; }
+
+.carton-layout { display: grid; gap: 16px; min-width: 0; }
+.box-advice { align-self: start; min-width: 0; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); display: grid; gap: 14px; }
+.box-advice__heading { display: flex; align-items: center; gap: 8px; }
+.box-advice__heading > svg { color: var(--primary); }
+.box-advice__heading h2 { font-size: 18px; margin: 0; flex: 1; }
+.box-advice__badge { flex: none; font: 11px var(--font-data); padding: 4px 6px; border-radius: var(--radius-label); background: var(--primary-soft); }
+.box-advice__tips { padding-left: 18px; margin: 0; display: grid; gap: 12px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.box-advice__privacy { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.box-advice > button { width: 100%; }
+.box-advice .alert { overflow-wrap: anywhere; font-size: 13px; }
+@media (min-width: 1400px) {
+  .carton-layout { grid-template-columns: minmax(0, 1fr) 280px; gap: 28px; align-items: start; }
+  .carton-layout .box-advice { position: sticky; top: 92px; margin-top: 58px; }
+  .carton-layout .manifest-item { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+}

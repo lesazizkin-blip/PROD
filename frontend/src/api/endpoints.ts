@@ -1,7 +1,7 @@
 import { request } from "./client"
 import { isCompactCode, isResolvedBox } from '../features/labels/contract'
 import type {
-  AppEvent, Box, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Hint, Item, ItemStatus,
+  AppEvent, Box, BoxAdvice, ChecklistApplied, ChecklistFlags, ChecklistSuggestion, BoxCard, BoxCreate, BoxFilters, BoxStatus, BoxUpdate, FirstDayItem, Hint, Item, ItemStatus,
   Credentials, InviteInfo, InviteOut, Member, Label, LostItem, Page, PageParams, Progress, Project, ProjectBrief, ProjectCreate, ProjectUpdate, Reminder, SearchHit, User,
   Stage, Task, TaskCreate, TaskTemplate, TaskUpdate, Tip, TipTopic, PhotoInventory, RoomPlan, CalculatorIn, CalculatorOut, City, Budget, Expense, ExpenseCategory,
 } from "./types"
@@ -60,6 +60,7 @@ export const api = {
   boxes: (pid: string, filters: BoxFilters = {}) =>
     request<Page<Box>>("GET", `${p(pid)}/boxes`, { query: { ...filters } }),
   createBox: (pid: string, body: BoxCreate) => request<Box>("POST", `${p(pid)}/boxes`, { body }),
+  boxAdvice: (pid: string, n: number) => request<BoxAdvice>("POST", `${p(pid)}/boxes/${n}/advice`, { body: { consent: true }, timeoutMs: 40000 }),
   getBox: (pid: string, n: number) => request<BoxCard>("GET", `${p(pid)}/boxes/${n}`),
   updateBox: (pid: string, n: number, body: BoxUpdate) =>
     request<Box>("PATCH", `${p(pid)}/boxes/${n}`, { body }),

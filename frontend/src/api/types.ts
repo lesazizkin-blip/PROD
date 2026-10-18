@@ -391,3 +391,8 @@ export interface Budget {
   actual: number
   variance: number
 }
+
+export interface BoxAdvice {
+  basis: string
+  tips: string[]
+}
