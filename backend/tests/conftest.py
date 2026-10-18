@@ -15,6 +15,14 @@ from app.db import Base, engine, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.reference_data import ensure_reference_data  # noqa: E402
 
+FIXED_TODAY = __import__("datetime").date(2026, 10, 18)
+
+
+@pytest.fixture(autouse=True)
+def _fixed_today(monkeypatch):
+    """«Сегодня» для проверки даты переезда закреплено: тесты с датами 2026 года не стареют."""
+    monkeypatch.setattr("app.move_dates.today_msk", lambda: FIXED_TODAY)
+
 
 @pytest.fixture()
 def db_session():
