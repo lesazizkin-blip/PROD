@@ -7,13 +7,13 @@
 import base64
 import binascii
 import json
+import logging
 import re
-
-from pydantic import ValidationError
 
 from app.config import Settings
 from app.errors import ValidationFailed
-from app.schemas import PhotoInventory, RoomPlan
+from app.logging_setup import log
+from app.schemas import PhotoInventory, PhotoItem, RoomBox, RoomPlan
 from app.services.planner import PlannerInvalidResponse, chat_completion
 
 # фото уменьшается в браузере до 1280 px (JPEG ~150-400 КБ); 4 МБ base64 - с большим запасом
@@ -36,7 +36,8 @@ INVENTORY_PROMPT = f"""Ты помощник по переезду MoverMate. {_
 ROOM_PROMPT = f"""Ты логист переезда MoverMate. {_GUARD}
 По фото комнаты найди вещи, которые пакуют в коробки (без крупной мебели), и разложи их по коробкам.
 Не смешивай тяжёлое (книги, инструменты) с хрупким (посуда, стекло, декор); коробка до 15-20 кг.
-Для каждой коробки дай короткое назначение и совет по упаковке. До 10 коробок, до 15 вещей в коробке.
+Для каждой коробки дай короткое назначение и совет по упаковке (до 150 символов). До 10 коробок,
+до 15 вещей в коробке.
 Формат: {{"boxes":[{{"label":"Посуда и стекло","items":["Тарелки","Бокалы"],"tip":"Каждую тарелку в бумагу"}}]}}"""
 
 
@@ -83,36 +84,87 @@ def _dedupe(names: list[str]) -> list[str]:
     return [n for n in seen.values() if n]
 
 
+def _json_object(content: str) -> dict | None:
+    """JSON-объект из ответа модели. Прощает то, что модели делают на настоящих фото: ```json-обёртку,
+    фразу до или после объекта и обрыв на лимите токенов (берём всё до последнего целого элемента)."""
+    text = content.strip()
+    start = text.find("{")
+    if start == -1:
+        return None
+    text = text[start:]
+    end = len(text)
+    for _ in range(40):  # каждый шаг отбрасывает один незаконченный хвост
+        end = text.rfind("}", 0, end)
+        if end == -1:
+            return None
+        for tail in ("", "]}", "}]}", "]}]}"):
+            try:
+                data = json.loads(text[: end + 1] + tail)
+            except ValueError:
+                continue
+            return data if isinstance(data, dict) else None
+    return None
+
+
+def _text(value: object, limit: int) -> str:
+    return " ".join(value.split())[:limit] if isinstance(value, str) else ""
+
+
+def _invalid(what: str, content: str) -> PlannerInvalidResponse:
+    # в лог - только размер ответа, без описи вещей пользователя
+    log(
+        logging.getLogger("app"),
+        "ai.invalid_response",
+        level=logging.WARNING,
+        message=f"Модель вернула не-JSON ({what}), {len(content)} символов",
+        reason="not_json",
+        chars=len(content),
+    )
+    return PlannerInvalidResponse(f"Модель вернула некорректную {what}. Попробуйте другое фото.")
+
+
 def box_inventory(image: str, settings: Settings) -> PhotoInventory:
     content = _ask(
-        settings, INVENTORY_PROMPT, "Составь опись вещей на фото.", check_image(image), 1500
+        settings, INVENTORY_PROMPT, "Составь опись вещей на фото.", check_image(image), 2500
     )
-    try:
-        result = PhotoInventory.model_validate_json(content)
-    except (ValidationError, ValueError):
-        raise PlannerInvalidResponse(
-            "Модель вернула некорректную опись. Попробуйте другое фото."
-        ) from None
-    seen: dict[str, object] = {}
-    for item in result.items:
-        seen.setdefault(" ".join(item.name.casefold().split()), item)
-    result.items = list(seen.values())  # type: ignore[assignment]
-    return result
+    data = _json_object(content)
+    if data is None:
+        raise _invalid("опись", content)
+    seen: dict[str, PhotoItem] = {}
+    raw_items = data.get("items")
+    for raw in raw_items if isinstance(raw_items, list) else []:
+        raw = raw if isinstance(raw, dict) else {"name": raw}
+        name = _text(raw.get("name"), 120)
+        if name:  # лишнее (длинное название, пустая строка) обрезаем или пропускаем, а не роняем всю опись
+            seen.setdefault(
+                " ".join(name.casefold().split()),
+                PhotoItem(
+                    name=name,
+                    first_day=raw.get("first_day") is True,
+                    fragile=raw.get("fragile") is True,
+                ),
+            )
+    return PhotoInventory(items=list(seen.values())[:40])
 
 
 def room_plan(image: str, room: str, settings: Settings) -> RoomPlan:
     text = json.dumps(
         {"room": room, "task": "Разложи вещи комнаты по коробкам."}, ensure_ascii=False
     )
-    content = _ask(settings, ROOM_PROMPT, text, check_image(image), 2500)
-    try:
-        result = RoomPlan.model_validate_json(content)
-    except (ValidationError, ValueError):
-        raise PlannerInvalidResponse(
-            "Модель вернула некорректную раскладку. Попробуйте другое фото."
-        ) from None
-    for box in result.boxes:
-        box.items = _dedupe(box.items)
-    result.boxes = [b for b in result.boxes if b.items]
-    result.room = room
-    return result
+    content = _ask(settings, ROOM_PROMPT, text, check_image(image), 4000)
+    data = _json_object(content)
+    if data is None:
+        raise _invalid("раскладку", content)
+    boxes: list[RoomBox] = []
+    raw_boxes = data.get("boxes")
+    for raw in raw_boxes if isinstance(raw_boxes, list) else []:
+        if not isinstance(raw, dict):
+            continue
+        raw_items = raw.get("items")
+        items = _dedupe(
+            [_text(i, 120) for i in (raw_items if isinstance(raw_items, list) else [])]
+        )[:20]
+        if items:  # коробки без вещей не предлагаем
+            label = _text(raw.get("label"), 120) or items[0]
+            boxes.append(RoomBox(label=label, items=items, tip=_text(raw.get("tip"), 300)))
+    return RoomPlan(room=room, boxes=boxes[:12])
