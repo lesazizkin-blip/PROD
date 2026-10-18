@@ -1,3 +1,6 @@
+import { useEffect, useId, useRef, useState } from 'react'
+import BoxContentsPopover from './BoxContentsPopover'
+import { boxContentsText } from '../ui/boxContents'
 import { ArrowUpRight } from 'lucide-react'
 import type { Box } from '../api/types'
 import { plural } from '../ui/format'
@@ -11,8 +14,16 @@ import './BoxShelf.css'
 
 function Carton({ pid, box, motion }: { pid: string; box: Box; motion?: BoxMove | null }) {
   const open = box.status === 'packing' || box.status === 'unpacked'
+  const [previewAnchor, setPreviewAnchor] = useState<DOMRect | null>(null)
+  const previewId = useId()
+  const timers = useRef<{ show?: ReturnType<typeof setTimeout>; hide?: ReturnType<typeof setTimeout> }>({})
+  function clearTimers() { clearTimeout(timers.current.show); clearTimeout(timers.current.hide) }
+  function closePreview() { clearTimers(); setPreviewAnchor(null) }
+  function leavePreview() { clearTimers(); timers.current.hide = setTimeout(() => setPreviewAnchor(null), 180) }
+  useEffect(() => () => { clearTimeout(timers.current.show); clearTimeout(timers.current.hide) }, [])
   return (
-    <BoxLink pid={pid} number={box.number} data-box-location={locationFor(box.status)} data-box-status={box.status} className={`shelf-carton shelf-carton--${box.status} ${open ? 'shelf-carton--open' : 'shelf-carton--sealed'}`} style={roomStyle(box.room)}>
+    <>
+    <BoxLink aria-describedby={previewAnchor ? previewId : undefined} onPointerEnter={event => { if (event.pointerType !== 'mouse' || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return; clearTimers(); const rect = event.currentTarget.getBoundingClientRect(); timers.current.show = setTimeout(() => setPreviewAnchor(rect), 220) }} onPointerLeave={leavePreview} onFocus={event => { if (!event.currentTarget.matches(':focus-visible') || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return; clearTimers(); setPreviewAnchor(event.currentTarget.getBoundingClientRect()) }} onBlur={closePreview} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); closePreview() } }} pid={pid} number={box.number} data-box-location={locationFor(box.status)} data-box-status={box.status} className={`shelf-carton shelf-carton--${box.status} ${open ? 'shelf-carton--open' : 'shelf-carton--sealed'}`} style={roomStyle(box.room)}>
       <CartonLid status={box.status} closing={motion?.number === box.number && motion.to === 'packed'} opening={motion?.number === box.number && motion.to === 'unpacked'} className="shelf-carton__lid" />
       <div className="shelf-carton__label">
         <div className="shelf-carton__identity">
@@ -20,11 +31,14 @@ function Carton({ pid, box, motion }: { pid: string; box: Box; motion?: BoxMove 
           <StatusBadge status={box.status} />
         </div>
         <h2>{box.room}</h2>
-        <p className="shelf-carton__action"><span>{box.items_count} {plural(box.items_count, ['позиция', 'позиции', 'позиций'])} · {box.fill_later && box.items_count === 0 ? 'заполнить позже' : 'посмотреть содержимое'}</span><ArrowUpRight aria-hidden="true" /></p>
+        <p className="shelf-carton__contents">{boxContentsText(box)}</p>
+        <p className="shelf-carton__action"><span>{box.items_count} {plural(box.items_count, ['позиция', 'позиции', 'позиций'])}{box.items_count > 3 ? ` · ещё ${box.items_count - 3}` : ''}</span><ArrowUpRight aria-hidden="true" /></p>
       </div>
       <span className="shelf-carton__staples" aria-hidden="true" />
       <span className="shelf-carton__marks" aria-hidden="true"><span>↑↑</span><img src="/assets/packing-bars.svg" alt="" /></span>
     </BoxLink>
+    {previewAnchor ? <BoxContentsPopover id={previewId} pid={pid} number={box.number} room={box.room} anchor={previewAnchor} onClose={closePreview} onPointerEnter={clearTimers} onPointerLeave={leavePreview} /> : null}
+    </>
   )
 }
 

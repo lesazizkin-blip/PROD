@@ -10,6 +10,7 @@ from app.models import Box, Event, Item, Project
 from app.schemas import (
     BoxCardOut,
     BoxCreate,
+    BoxItemPreview,
     BoxOut,
     BoxStatus,
     BoxUpdate,
@@ -88,7 +89,7 @@ def parse_lines(text: str) -> list[str]:
     return names
 
 
-def _box_out(box: Box, count: int) -> BoxOut:
+def _box_out(box: Box, count: int, preview: list[BoxItemPreview] | None = None) -> BoxOut:
     return BoxOut(
         number=box.number,
         project_id=box.project_id,
@@ -97,6 +98,7 @@ def _box_out(box: Box, count: int) -> BoxOut:
         fill_later=box.fill_later,
         remind_at=box.remind_at,
         items_count=count,
+        contents_preview=preview or [],
         created_at=box.created_at,
         updated_at=box.updated_at,
     )
@@ -134,7 +136,16 @@ class BoxService:
         return box
 
     def box_out(self, box: Box) -> BoxOut:
-        return _box_out(box, self._count(box.id))
+        preview = [
+            BoxItemPreview(name=name, quantity=quantity)
+            for name, quantity in self.db.execute(
+                select(Item.name, Item.quantity)
+                .where(Item.box_id == box.id)
+                .order_by(Item.id)
+                .limit(5)
+            )
+        ]
+        return _box_out(box, self._count(box.id), preview)
 
     def card(self, project_id: uuid.UUID, number: int) -> BoxCardOut:
         box = self.get_box(project_id, number)
@@ -153,6 +164,8 @@ class BoxService:
         limit: int,
         location: str | None = None,
         sort: str = "number",
+        q: str | None = None,
+        exclude_number: int | None = None,
     ) -> tuple[list[BoxOut], int]:
         where = [Box.project_id == project_id]
         if room:
@@ -170,6 +183,25 @@ class BoxService:
             where.append(Box.fill_later.is_(fill_later))
         if number is not None:
             where.append(Box.number == number)
+        if exclude_number is not None:
+            where.append(Box.number != exclude_number)
+        needle = normalize(q or "")
+        if needle:
+            # Python normalization handles Cyrillic room names on SQLite and PostgreSQL alike.
+            rooms = self.db.scalars(select(Box.room).where(Box.project_id == project_id).distinct())
+            matching_rooms = [room for room in rooms if needle in normalize(room)]
+            where.append(
+                or_(
+                    Box.room.in_(matching_rooms),
+                    Box.number == int(needle)
+                    if needle.isascii() and needle.isdigit() and len(needle) <= 10
+                    else False,
+                    select(Item.id)
+                    .where(Item.box_id == Box.id, Item.name_norm.contains(needle, autoescape=True))
+                    .correlate(Box)
+                    .exists(),
+                )
+            )
         total = self.db.scalar(select(func.count(Box.id)).where(*where)) or 0
         order = [Box.number]
         if sort != "number":
@@ -190,7 +222,33 @@ class BoxService:
             .offset(offset)
             .limit(limit)
         ).all()
-        return [_box_out(b, c) for b, c in rows], total
+        # One bounded query for the entire page, never one inventory query per carton.
+        previews: dict[int, list[BoxItemPreview]] = {}
+        if rows:
+            preview_order = [Item.id]
+            if needle:
+                preview_order.insert(
+                    0, case((Item.name_norm.contains(needle, autoescape=True), 0), else_=1)
+                )
+            ranked = (
+                select(
+                    Item.box_id,
+                    Item.name,
+                    Item.quantity,
+                    func.row_number()
+                    .over(partition_by=Item.box_id, order_by=preview_order)
+                    .label("position"),
+                )
+                .where(Item.box_id.in_([box.id for box, _ in rows]))
+                .subquery()
+            )
+            for box_id, name, quantity in self.db.execute(
+                select(ranked.c.box_id, ranked.c.name, ranked.c.quantity)
+                .where(ranked.c.position <= 5)
+                .order_by(ranked.c.box_id, ranked.c.position)
+            ):
+                previews.setdefault(box_id, []).append(BoxItemPreview(name=name, quantity=quantity))
+        return [_box_out(b, c, previews.get(b.id)) for b, c in rows], total
 
     # --- запись ---
     def _next_number(self, project_id: uuid.UUID) -> int:
