@@ -5,7 +5,6 @@ export const BOX_LOCATIONS: BoxLocation[] = ['old', 'truck', 'new']
 export const LOCATION_LABELS: Record<BoxLocation, string> = { old: 'Старый дом', truck: 'В машине', new: 'Новый дом' }
 export const locationFor = (status: BoxStatus): BoxLocation => status === 'loaded' ? 'truck' : status === 'delivered' || status === 'unpacked' ? 'new' : 'old'
 export const locationCounts = (summary: Progress | null) => ({ old: (summary?.by_status.packing ?? 0) + (summary?.by_status.packed ?? 0), truck: summary?.by_status.loaded ?? 0, new: (summary?.by_status.delivered ?? 0) + (summary?.by_status.unpacked ?? 0) })
-export const NEXT_ACTION: Partial<Record<BoxStatus, string>> = { packing: 'Собрать', packed: 'Погрузить', loaded: 'Доставлена', delivered: 'Распаковать' }
 
 export type LocationPages = Record<BoxLocation, number>
 export type LocationBoxes = Partial<Record<BoxLocation, Page<Box> | null>>
