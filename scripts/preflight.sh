@@ -48,8 +48,9 @@ reference_ok() { api /task-templates | ok_if "len(d)>=10" && api /tips | ok_if "
 
 # ---- полный сценарий на временном проекте ----
 scenario() {  # временный проект всегда удаляется, даже если проверка упала
-  local pid rc
-  pid="$(post /projects '{"name":"preflight","move_date":"2030-01-01"}' | json "d['id']")" || return 1
+  local pid rc move_date
+  move_date="$(python3 -c 'from datetime import datetime, timedelta, timezone; print((datetime.now(timezone(timedelta(hours=3))).date() + timedelta(days=30)).isoformat())')" || return 1
+  pid="$(post /projects "{\"name\":\"preflight\",\"move_date\":\"$move_date\"}" | json "d['id']")" || return 1
   scenario_body "$pid"; rc=$?
   curl -s -b "$JAR" -o /dev/null -X DELETE "$BASE/api/projects/$pid?confirm=true"
   [ "$rc" = 0 ] && [ "$(code GET "/projects/$pid")" = 404 ]  # и правда удалился вместе с содержимым

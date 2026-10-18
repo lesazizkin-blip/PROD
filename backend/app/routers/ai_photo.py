@@ -9,13 +9,22 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.deps import get_current_user, get_project
+from app.errors import ValidationFailed
 from app.logging_setup import audit
 from app.models import Project, User
 from app.routers.common import Id
-from app.schemas import PhotoInventory, PhotoRequest, RoomPhotoRequest, RoomPlan
+from app.schemas import (
+    BoxAdviceOut,
+    BoxAdviceRequest,
+    PhotoInventory,
+    PhotoRequest,
+    RoomPhotoRequest,
+    RoomPlan,
+)
 from app.services.ai_budget import reserve_attempt
+from app.services.box_advice import generate_advice
 from app.services.boxes import BoxService
-from app.services.planner import ensure_planner_configured
+from app.services.planner import PlannerUnavailable, ensure_planner_configured
 from app.services.vision import box_inventory, check_image, room_plan
 
 router = APIRouter(prefix="/projects/{pid}", tags=["ai-photo"])
@@ -62,4 +71,28 @@ def photo_room_plan(
     reserve_attempt(db, user.id, settings)
     result = room_plan(body.image, body.room, settings)
     audit("ai.room_plan", project_id=project.id, boxes=len(result.boxes))
+    return result
+
+
+@router.post(
+    "/boxes/{number}/advice",
+    response_model=BoxAdviceOut,
+    summary="Советы по описи коробки (по явному запросу)",
+)
+def box_advice(
+    number: Id,
+    body: BoxAdviceRequest,
+    project: Project = Depends(get_project),
+    user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+):
+    box = BoxService(db).card(project.id, number)
+    if not box.items:
+        raise ValidationFailed("Добавьте вещи в опись, чтобы получить советы по коробке.")
+    if not (settings.ai_api_key.get_secret_value() and settings.ai_base_url and settings.ai_model):
+        raise PlannerUnavailable("ИИ-советы пока не настроены. Попробуйте позже.")
+    reserve_attempt(db, user.id, settings)
+    result = generate_advice(box, settings)
+    audit("ai.box_advice", project_id=project.id, box=number, tips=len(result.tips))
     return result

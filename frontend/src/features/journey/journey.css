@@ -34,10 +34,10 @@
 
 /* путь переезда: 7 этапов */
 .journey-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
-.journey-step { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 16px; position: relative; padding-bottom: 18px; }
-.journey-step:not(:last-child)::before { content: ''; position: absolute; left: 27px; top: 52px; bottom: 0; width: 2px; background: var(--border); }
+.journey-step { --journey-marker-size: 56px; --journey-line-gap: 8px; display: grid; grid-template-columns: var(--journey-marker-size) minmax(0, 1fr); gap: 16px; position: relative; padding-bottom: 18px; }
+.journey-step:not(:last-child)::before { content: ''; position: absolute; left: calc(var(--journey-marker-size) / 2 - 1px); top: calc(var(--journey-marker-size) + var(--journey-line-gap)); bottom: var(--journey-line-gap); width: 2px; background: var(--border); }
 .journey-step.done:not(:last-child)::before { background: var(--green); }
-.journey-step__n { width: 56px; height: 56px; display: grid; place-items: center; font: 18px 'IBM Plex Mono', monospace; background: var(--surface); border: 2px solid var(--border); }
+.journey-step__n { width: var(--journey-marker-size); height: var(--journey-marker-size); display: grid; place-items: center; font: 18px 'IBM Plex Mono', monospace; background: var(--surface); border: 2px solid var(--border); }
 .journey-step.done .journey-step__n { background: var(--green); border-color: var(--green); color: var(--surface); }
 .journey-step.active .journey-step__n { border-color: var(--primary); color: var(--primary); }
 .journey-step.current .journey-step__n { background: var(--primary); color: var(--surface); }
@@ -51,9 +51,8 @@
 .journey-badge.current { color: var(--surface); background: var(--primary); }
 .journey-badge.todo { color: var(--muted); background: var(--bg); }
 @media (max-width: 599px) {
-  .journey-step { grid-template-columns: 40px minmax(0, 1fr); gap: 10px; }
-  .journey-step__n { width: 40px; height: 40px; font-size: 14px; }
-  .journey-step:not(:last-child)::before { left: 19px; top: 40px; }
+  .journey-step { --journey-marker-size: 40px; gap: 10px; }
+  .journey-step__n { font-size: 14px; }
 }
 .journey-link { justify-self: start; font-weight: 600; }
 

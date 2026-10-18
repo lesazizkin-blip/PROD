@@ -17,6 +17,7 @@ import CartonLid from '../components/CartonLid'
 import { useBoxNavigation } from '../features/boxes/BoxNavigation'
 import '../features/boxes/box-workspace.css'
 import BoxRoute from '../features/boxes/BoxRoute'
+import BoxAdvicePanel from '../features/boxes/BoxAdvicePanel'
 import { recordBoxMove } from '../features/boxes/boxMoveEvents'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
@@ -132,6 +133,7 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
     <StateView loading={card.loading && !box} error={card.error} onRetry={card.reload}>
       {box ? (
         <>
+          <div className="carton-layout">
           <div className="carton-scene">
           <article className={`carton-workspace ${box.status === 'packing' || box.status === 'unpacked' ? 'is-open' : 'is-sealed'}${packingAnimation ? ' is-closing' : ''}`} style={{ ...roomStyle(box.room), viewTransitionName: 'carton-zoom' }} aria-labelledby="box-heading">
             <CartonLid status={box.status} closing={packingAnimation} opening={openingAnimation} className="carton-workspace__lid" />
@@ -197,6 +199,8 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
           <span className="carton-workspace__staples" aria-hidden />
           <div className="carton-workspace__marks" aria-hidden><span>↑↑</span><i /></div>
           </article>
+          </div>
+          <BoxAdvicePanel box={box} disabled={busy || card.loading || pendingItems.length > 0} onRefresh={card.reload} />
           </div>
 
           {pickingBox ? (

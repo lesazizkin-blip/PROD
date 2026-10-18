@@ -253,6 +253,18 @@ class PhotoRequest(BaseModel):
     consent: Literal[True]
 
 
+class BoxAdviceRequest(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"consent": True}]})
+    consent: Literal[True]
+
+
+class BoxAdviceOut(BaseModel):
+    basis: str
+    tips: list[
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=220)]
+    ] = Field(min_length=1, max_length=3)
+
+
 class RoomPhotoRequest(PhotoRequest):
     model_config = ConfigDict(
         json_schema_extra={
