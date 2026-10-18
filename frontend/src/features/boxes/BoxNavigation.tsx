@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type MouseEvent } from 'react'
 import { Link, useLocation, useNavigate, type LinkProps } from 'react-router-dom'
 import { api } from '../../api/endpoints'
-import type { Box, BoxCard, Page, Progress, SearchHit } from '../../api/types'
+import type { Box, BoxCard, BoxSort, Page, Progress, SearchHit } from '../../api/types'
 import { boxPath } from '../../ui/format'
 import { locationFor, INITIAL_LOCATION_PAGES, LOCATION_PAGE_SIZE, type BoxLocation, type LocationBoxes, type LocationPages } from './boxLocations'
 import './box-navigation.css'
@@ -12,6 +12,7 @@ export interface ShelfView {
   room: string | null
   scrollY: number
   page: number
+  sort?: BoxSort
   place?: BoxLocation
   placePages?: LocationPages
   locations?: LocationBoxes
@@ -125,15 +126,15 @@ export function BoxNavigationProvider({ children }: { children: ReactNode }) {
       const previous = shelf.current?.pid === pid ? shelf.current : null
       const placePages = previous?.placePages ?? INITIAL_LOCATION_PAGES
       const [old, truck, arrived, summary, card] = await Promise.all([
-        api.boxes(pid, { location: 'old', page_size: LOCATION_PAGE_SIZE, page: placePages.old, ...(previous?.room ? { room: previous.room } : {}) }),
-        api.boxes(pid, { location: 'truck', page_size: LOCATION_PAGE_SIZE, page: placePages.truck, ...(previous?.room ? { room: previous.room } : {}) }),
-        api.boxes(pid, { location: 'new', page_size: LOCATION_PAGE_SIZE, page: placePages.new, ...(previous?.room ? { room: previous.room } : {}) }),
+        api.boxes(pid, { sort: previous?.sort ?? 'number', location: 'old', page_size: LOCATION_PAGE_SIZE, page: placePages.old, ...(previous?.room ? { room: previous.room } : {}) }),
+        api.boxes(pid, { sort: previous?.sort ?? 'number', location: 'truck', page_size: LOCATION_PAGE_SIZE, page: placePages.truck, ...(previous?.room ? { room: previous.room } : {}) }),
+        api.boxes(pid, { sort: previous?.sort ?? 'number', location: 'new', page_size: LOCATION_PAGE_SIZE, page: placePages.new, ...(previous?.room ? { room: previous.room } : {}) }),
         api.progress(pid), api.getBox(pid, number),
       ])
       if (!mounted.current || ticket !== request.current || window.location.href !== origin) return
       const destination = locationFor(card.status)
       const place = destination
-      shelf.current = { pid, query: previous?.query ?? '', room: previous?.room ?? null, scrollY: previous?.scrollY ?? 0, page: previous?.page ?? 1, hits: previous?.hits ?? null, byNumber: previous?.byNumber ?? null, boxes: previous?.boxes ?? null, summary, place, placePages, locations: { old, truck, new: arrived } }
+      shelf.current = { pid, query: previous?.query ?? '', room: previous?.room ?? null, scrollY: previous?.scrollY ?? 0, page: previous?.page ?? 1, hits: previous?.hits ?? null, byNumber: previous?.byNumber ?? null, boxes: previous?.boxes ?? null, summary, sort: previous?.sort ?? 'number', place, placePages, locations: { old, truck, new: arrived } }
     } catch {
       if (!mounted.current || ticket !== request.current || window.location.href !== origin) return
       shelf.current = null

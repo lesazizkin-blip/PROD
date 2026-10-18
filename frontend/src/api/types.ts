@@ -3,6 +3,8 @@ import type { QrMode } from '../features/labels/contract'
 
 export type Stage = "before" | "moving_day" | "after"
 
+export type BoxSort = "number" | "open_first" | "closed_first"
+
 export type BoxStatus = "packing" | "packed" | "loaded" | "delivered" | "unpacked"
 
 export const BOX_STATUSES: BoxStatus[] = ["packing", "packed", "loaded", "delivered", "unpacked"]
@@ -251,6 +253,7 @@ export interface BoxUpdate {
 }
 
 export interface BoxFilters {
+  sort?: BoxSort
   location?: "old" | "truck" | "new"
   room?: string
   status?: BoxStatus

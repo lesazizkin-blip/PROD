@@ -76,32 +76,16 @@ function Plan({ pid }: { pid: string }) {
 
   return (
     <StateView loading={tasks.loading && !tasks.data} error={tasks.error} onRetry={reloadAll}>
-      <div className="page-toolbar"><PageHeading title="План переезда">
+      <PageHeading title="План переезда">
         {project.data ? formatMoveDates(project.data.move_date, project.data.move_date_end) : '…'} · {days !== null && days > 0 ? `${days} ${plural(days, ['день', 'дня', 'дней'])} до переезда` : 'Ваш переезд'}
-      </PageHeading><button className="primary" onClick={() => setForm('new')}><Plus className="icon-sm" aria-hidden />Добавить задачу</button></div>
-      <Link to="/journey" className="journey-link">Путь переезда: все 7 этапов от решения до «обжились» →</Link>
-      <div className="move-ticket">
-        <div className="stack">
-          <span className="eyebrow">Маршрут / {project.data?.name ?? 'ваш переезд'}</span>
-          <h2>{boxes?.boxes_total === 0 ? <>Начните с первой коробки</> : <>Упаковка вещей<br />{boxes ? `${boxes.boxes_total - boxes.by_status.packing} из ${boxes.boxes_total} коробок готовы` : 'Загружаем прогресс…'}</>}</h2>
-          <p className="small">{[project.data?.address_from, project.data?.address_to].filter(Boolean).join(' → ') || 'Соберите вещи по комнатам — их будет проще найти после переезда.'}</p>
-          {boxes?.boxes_total === 0 ? <Link to="/boxes" className="button">Добавить коробку</Link> : null}
-        </div>
-        <div className="date-stamp">
-          <strong>{project.data ? formatMoveDates(project.data.move_date, project.data.move_date_end).replace(/\.\d{4}/g, '').replace(/\./g, ' / ') : '…'}</strong>
-          <span>ДАТА ПЕРЕЕЗДА</span>
-        </div>
-      </div>
-      <div className="plan-stats">
-        <div className="stat"><b>{list.length ? `${done} / ${list.length}` : 'Нет задач'}</b><span>{list.length ? 'задач выполнено' : 'Добавьте дела в план'}</span>{list.length ? <ProgressBar value={done} max={list.length} label="Выполнено задач" /> : null}</div>
-        <div className="stat"><b>{boxes ? boxes.boxes_total ? `${boxes.boxes_total - boxes.by_status.packing} / ${boxes.boxes_total}` : 'Нет коробок' : '…'}</b><span>{boxes?.boxes_total === 0 ? 'Добавьте первую коробку' : 'коробок собрано'}</span></div>
-        <div className="stat"><b>{countdown}</b><span>{timingLabel}</span></div>
-      </div>
-
+      </PageHeading>
       <div className="plan-tasks stack">
-      <div className="row between">
+      <div className="plan-tasks-header">
         <h2>Ближайшие дела</h2>
-        <button className="link" onClick={() => setSmart(true)}><Sparkles className="icon-sm" aria-hidden />Умный чек-лист →</button>
+        <div className="plan-task-actions">
+          <button className="link" onClick={() => setSmart(true)}><Sparkles className="icon-sm" aria-hidden />Умный чек-лист</button>
+          {activeTab !== 'first-day' ? <button className="primary" onClick={() => setForm('new')}><Plus className="icon-sm" aria-hidden />Добавить задачу</button> : null}
+        </div>
       </div>
       <ErrorAlert message={quickError} />
 
@@ -126,8 +110,8 @@ function Plan({ pid }: { pid: string }) {
       ) : (
       <section className="task-list" role="tabpanel" aria-label={STAGE_LABELS[activeTab]}>
         {list.length === 0 ? (
-          <div className="state"><ClipboardList className="icon" aria-hidden /><h3>План пока пуст</h3><p>Добавьте свою задачу сверху или выберите готовые дела для переезда.</p><button className="tonal" onClick={() => setSmart(true)}>Выбрать готовые задачи</button></div>
-        ) : stageTasks.length === 0 ? <div className="state"><p>На этом этапе задач нет. Добавьте задачу кнопкой над планом.</p></div> : null}
+          <div className="state"><ClipboardList className="icon" aria-hidden /><h3>План пока пуст</h3><p>Добавьте свою задачу или выберите готовые дела для переезда.</p><button className="tonal" onClick={() => setSmart(true)}>Выбрать готовые задачи</button></div>
+        ) : stageTasks.length === 0 ? <div className="state"><p>На этом этапе задач нет. Добавьте задачу для этого этапа.</p></div> : null}
         {stageTasks.map((t) => (
           <label key={t.id} className={`task-card${t.done ? ' done' : ''}${isOverdue(t) ? ' overdue' : ''}`}>
             <input type="checkbox" className="check" checked={t.done} onChange={() => toggleTask(t)} />
@@ -151,6 +135,28 @@ function Plan({ pid }: { pid: string }) {
       </section>
       )}
       </div>
+
+      <section className="plan-overview stack" aria-label="Сводка переезда">
+      <div className="plan-stats">
+        <div className="stat"><b>{list.length ? `${done} / ${list.length}` : 'Нет задач'}</b><span>{list.length ? 'задач выполнено' : 'Добавьте дела в план'}</span>{list.length ? <ProgressBar value={done} max={list.length} label="Выполнено задач" /> : null}</div>
+        <div className="stat"><b>{boxes ? boxes.boxes_total ? `${boxes.boxes_total - boxes.by_status.packing} / ${boxes.boxes_total}` : 'Нет коробок' : '…'}</b><span>{boxes?.boxes_total === 0 ? 'Добавьте первую коробку' : 'коробок собрано'}</span></div>
+        <div className="stat"><b>{countdown}</b><span>{timingLabel}</span></div>
+      </div>
+
+      <div className="move-ticket">
+        <div className="stack">
+          <span className="eyebrow">Маршрут / {project.data?.name ?? 'ваш переезд'}</span>
+          <h2>{boxes?.boxes_total === 0 ? <>Начните с первой коробки</> : <>Упаковка вещей<br />{boxes ? `${boxes.boxes_total - boxes.by_status.packing} из ${boxes.boxes_total} коробок готовы` : 'Загружаем прогресс…'}</>}</h2>
+          <p className="small">{[project.data?.address_from, project.data?.address_to].filter(Boolean).join(' → ') || 'Соберите вещи по комнатам — их будет проще найти после переезда.'}</p>
+          {boxes?.boxes_total === 0 ? <Link to="/boxes" className="button">Добавить коробку</Link> : null}
+        </div>
+        <div className="date-stamp">
+          <strong>{project.data ? formatMoveDates(project.data.move_date, project.data.move_date_end).replace(/\.\d{4}/g, '').replace(/\./g, ' / ') : '…'}</strong>
+          <span>ДАТА ПЕРЕЕЗДА</span>
+        </div>
+      </div>
+      <Link to="/journey" className="journey-link">Путь переезда: все 7 этапов от решения до «обжились» →</Link>
+      </section>
 
       {smart ? <ChecklistModal pid={pid} onClose={() => setSmart(false)} onApplied={reloadAll} /> : null}
       {form ? (

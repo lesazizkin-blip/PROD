@@ -56,12 +56,12 @@ describe('A4 printing', () => {
   })
   it('uses all four templates and removes the QR in the no-QR template', () => {
     const { container } = render(<MemoryRouter><PrintWorkspace labels={[labels[0]]} pid="p" /></MemoryRouter>)
-    expect(container.querySelector('svg')?.getAttribute('viewBox')).toBeTruthy()
+    expect(container.querySelector('.mm-label svg')?.getAttribute('viewBox')).toBeTruthy()
     for (const template of ['qr-only', 'notes', 'no-qr']) {
       fireEvent.change(screen.getByLabelText('Шаблон'), { target: { value: template } })
       expect(container.querySelector(`.mm-label--${template}`)).toBeTruthy()
     }
-    expect(container.querySelector('svg')).toBeNull()
+    expect(container.querySelector('.mm-label svg')).toBeNull()
     fireEvent.click(screen.getByLabelText('Поле для заметок'))
     expect(screen.getByLabelText('Поле для заметок от руки')).toBeTruthy()
   })
@@ -71,4 +71,19 @@ describe('A4 printing', () => {
     fireEvent.click(screen.getByRole('link', { name: 'clear' }))
     expect(screen.queryAllByRole('article')).toHaveLength(0)
   })
+  it('turns screen preview pages and clamps the current page after selection shrinks', () => {
+    const { container } = render(<MemoryRouter><PrintWorkspace labels={labels} pid="p" /></MemoryRouter>)
+    const active = () => container.querySelector('.mm-a4.is-preview-page')?.getAttribute('aria-label')
+    expect(active()).toBe('Лист 1 из 2')
+    fireEvent.click(screen.getByRole('button', { name: 'Следующий лист' }))
+    expect(active()).toBe('Лист 2 из 2')
+    // The other sheet stays available to the print stylesheet.
+    expect(container.querySelectorAll('.mm-a4')).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Снять выбор' }))
+    fireEvent.click(screen.getByLabelText('#002 · Кухня'))
+    expect(active()).toBe('Лист 1 из 1')
+    expect((screen.getByRole('button', { name: 'Следующий лист' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Предыдущий лист' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
 })

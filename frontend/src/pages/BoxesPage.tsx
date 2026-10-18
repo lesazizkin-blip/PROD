@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { BookOpen, Camera } from 'lucide-react'
 import { api } from '../api/endpoints'
-import type { RoomPlan } from '../api/types'
+import type { BoxSort, RoomPlan } from '../api/types'
 import PhotoPicker from '../components/PhotoPicker'
 import Modal from '../components/Modal'
 import BoxGrid from '../components/BoxShelf'
@@ -45,6 +45,7 @@ function Boxes({ pid }: { pid: string }) {
   const [page, setPage] = useState(requestedPlace ? 1 : saved?.page ?? 1)
   const [place, setPlace] = useState<BoxLocation>(() => BOX_LOCATIONS.includes(routeState?.boxPlace) ? routeState.boxPlace : saved?.place ?? 'old')
   const [placePages, setPlacePages] = useState<LocationPages>(saved?.placePages ?? INITIAL_LOCATION_PAGES)
+  const [sort, setSort] = useState<BoxSort>(saved?.sort ?? 'number')
   const locationCache = useRef<LocationBoxes>(saved?.locations ?? {})
   const [adding, setAdding] = useState(false)
   const [roomPhoto, setRoomPhoto] = useState(false)
@@ -75,8 +76,8 @@ function Boxes({ pid }: { pid: string }) {
   }
 
   useLayoutEffect(() => () => {
-    navigation.rememberShelf({ pid, query, room, page, scrollY: window.scrollY, boxes: null, hits: hits.data, byNumber: byNumber.data, summary: summary.data, place, placePages, locations: locationCache.current })
-  }, [pid, query, room, page, hits.data, byNumber.data, summary.data, place, placePages, navigation])
+    navigation.rememberShelf({ pid, query, room, page, scrollY: window.scrollY, boxes: null, hits: hits.data, byNumber: byNumber.data, summary: summary.data, sort, place, placePages, locations: locationCache.current })
+  }, [pid, query, room, page, hits.data, byNumber.data, summary.data, sort, place, placePages, navigation])
 
   useLayoutEffect(() => { window.scrollTo({ top: saved?.scrollY ?? 0, behavior: 'instant' }) }, [saved])
 
@@ -125,6 +126,7 @@ function Boxes({ pid }: { pid: string }) {
             <button className={room === null ? 'chip on' : 'chip'} onClick={() => { setRoom(null); setPlacePages(INITIAL_LOCATION_PAGES); setPage(1) }}>Все комнаты · {summary.data?.boxes_total}</button>
             {rooms.map(r => <button key={r.room} className={room === r.room ? 'chip room-chip on' : 'chip room-chip'} style={roomStyle(r.room)} onClick={() => { setRoom(room === r.room ? null : r.room); setPlacePages(INITIAL_LOCATION_PAGES); setPage(1) }}>{r.room} · {r.total}</button>)}
           </div> : null}
+          <label className="box-order">Порядок коробок<select aria-label="Порядок коробок" value={sort} onChange={e => { setSort(e.target.value as BoxSort); setPlacePages(INITIAL_LOCATION_PAGES); locationCache.current = {} }}><option value="number">По номеру</option><option value="open_first">Сначала открытые</option><option value="closed_first">Сначала закрытые</option></select></label>
         <StateView loading={summary.loading && !summary.data} error={summary.error} onRetry={summary.reload}>
           {waiting.length > 0 ? (
             <div className="banner">
@@ -132,7 +134,7 @@ function Boxes({ pid }: { pid: string }) {
               <BoxLink pid={pid} number={waiting[0].box.number} sourceId="reminder">Открыть</BoxLink>
             </div>
           ) : null}
-          <RelocationBoard key={`${room ?? ''}/${boardRevision}`} pid={pid} room={room} summary={summary.data} place={place} onPlace={setPlace} pages={placePages} onPage={(location, value) => setPlacePages(previous => previous[location] === value ? previous : { ...previous, [location]: value })} initialData={room === (saved?.room ?? null) ? saved?.locations : undefined} onCache={data => { locationCache.current = data }} onChanged={summary.reload} />
+          <RelocationBoard key={`${room ?? ''}/${sort}/${boardRevision}`} pid={pid} room={room} sort={sort} summary={summary.data} place={place} onPlace={setPlace} pages={placePages} onPage={(location, value) => setPlacePages(previous => previous[location] === value ? previous : { ...previous, [location]: value })} initialData={room === (saved?.room ?? null) && sort === (saved?.sort ?? 'number') ? saved?.locations : undefined} onCache={data => { locationCache.current = data }} onChanged={summary.reload} />
           <p className="muted small">Статусы: {Object.values(STATUS_LABELS).join(' → ')}</p>
           <Link to="/tips" className="tips-card">
             <BookOpen className="icon" aria-hidden />

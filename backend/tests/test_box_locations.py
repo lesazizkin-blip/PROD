@@ -53,3 +53,41 @@ def test_locations_filter_before_pagination_and_combine_with_room(
         == 0
     )
     assert client.get(f"{base}/boxes", params={"location": "moon"}).status_code == 422
+
+
+def test_open_closed_order_is_global_and_stable_across_pages(client, base, project, db_session):
+    statuses = ["packed", "loaded", "delivered", "packing", "unpacked"]
+    db_session.add_all(
+        [
+            Box(
+                project_id=uuid.UUID(project["id"]),
+                number=n,
+                room="Кухня" if n % 2 else "Спальня",
+                status=statuses[(n - 1) % 5],
+            )
+            for n in range(1, 101)
+        ]
+    )
+    db_session.commit()
+    for order in ["open_first", "closed_first"]:
+        rows = []
+        for page in range(1, 10):
+            r = client.get(base + "/boxes", params={"sort": order, "page_size": 12, "page": page})
+            assert r.status_code == 200
+            rows.extend(r.json()["items"])
+        assert len(rows) == len({b["number"] for b in rows}) == 100
+
+        def key(box, order=order):
+            opened = box["status"] in {"packing", "unpacked"}
+            return (not opened if order == "open_first" else opened, box["number"])
+
+        assert rows == sorted(rows, key=key)
+    filtered = client.get(
+        base + "/boxes",
+        params={"sort": "open_first", "location": "old", "room": "Кухня", "page_size": 200},
+    ).json()["items"]
+    assert all(b["room"] == "Кухня" and b["status"] in {"packing", "packed"} for b in filtered)
+    assert [b["status"] == "packing" for b in filtered] == sorted(
+        [b["status"] == "packing" for b in filtered], reverse=True
+    )
+    assert client.get(base + "/boxes?sort=unknown").status_code == 422

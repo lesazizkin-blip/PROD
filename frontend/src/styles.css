@@ -239,6 +239,19 @@ h2 { letter-spacing: normal; }
 .plan-stats .progress { height: 3px; }
 .progress-layout { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(260px, 1fr); gap: 24px; align-items: start; }
 .plan-tasks, .room-progress { background: var(--surface); padding: 24px; border-radius: var(--radius); }
+.plan-tasks-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.plan-tasks-header h2 { margin: 0; }
+.plan-task-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.plan-overview { margin-top: 24px; }
+.box-order { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin: 0 0 16px; color: var(--muted); font-size: var(--text-sm); }
+.box-order select { width: auto; max-width: 100%; min-width: 0; }
+@media (max-width: 599px) {
+  .plan-tasks-header, .plan-task-actions { width: 100%; }
+  .plan-task-actions { flex-direction: column-reverse; align-items: stretch; }
+  .plan-task-actions button { width: 100%; justify-content: center; }
+  .box-order { justify-content: space-between; }
+  .box-order select { flex: 0 1 220px; }
+}
 .plan-tasks .section-title { color: var(--primary); font: 11px 'IBM Plex Mono', monospace; margin: 12px 0; }
 .plan-tasks .list-row { padding: 16px 0; min-height: 70px; }
 .plan-tasks .list-row .title { font-weight: 700; }
