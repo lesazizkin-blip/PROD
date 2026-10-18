@@ -563,6 +563,11 @@ class BoxUpdate(BaseModel):
     remind_at: datetime | None = None
 
 
+class BoxItemPreview(BaseModel):
+    name: str
+    quantity: int = 1
+
+
 class BoxOut(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
@@ -588,6 +593,7 @@ class BoxOut(BaseModel):
     fill_later: bool
     remind_at: datetime | None
     items_count: int
+    contents_preview: list[BoxItemPreview] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
