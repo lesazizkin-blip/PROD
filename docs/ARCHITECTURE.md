@@ -134,6 +134,7 @@ erDiagram
         uuid id PK
         string name
         date move_date
+        date move_date_end
         string address_from "nullable"
         string address_to "nullable"
         string qr_mode "universal | compact"
@@ -246,7 +247,7 @@ erDiagram
 
 Индексы: `boxes(project_id, number)` (уникальный: карточка, QR, поиск по номеру), `boxes(project_id, room, status)` (фильтры, прогресс), `items(box_id)`, `items(name_norm)`, `tasks(project_id, stage)`, `events(project_id, id)`, `project_members(project_id, user_id)` (уникальный: проверка доступа в каждом запросе), `sessions(user_id)`.
 
-Миграции — `backend/alembic/versions/` (`0001` схема, `0002` время и категория задач, `0003` пользователи и доступ, `0004` статус вещи, лимиты ИИ и компактные QR, `0005` пометка «вещь первого дня» и слияние веток, `0007` выравнивание локальных баз, `0008` бюджет `expenses`, `0009` цены по городам `city_prices`, `0010` отметка повреждения вещи `items.damaged`); применяются при старте контейнера, перед выкаткой CI делает копию базы. Тест проверяет `upgrade → downgrade` и что схема миграций совпадает с моделями.
+Миграции — `backend/alembic/versions/` (`0001` схема, `0002` время и категория задач, `0003` пользователи и доступ, `0004` статус вещи, лимиты ИИ и компактные QR, `0005` пометка «вещь первого дня» и слияние веток, `0007` выравнивание локальных баз, `0008` бюджет `expenses`, `0009` цены по городам `city_prices`, `0010` отметка повреждения вещи `items.damaged`, `0011` переезд на несколько дней `projects.move_date_end`); применяются при старте контейнера, перед выкаткой CI делает копию базы. Тест проверяет `upgrade → downgrade` и что схема миграций совпадает с моделями.
 
 ## 4. API
 

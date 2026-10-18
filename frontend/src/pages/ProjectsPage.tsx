@@ -7,7 +7,7 @@ import { useAsync } from '../state/useAsync'
 import PageHeading from '../components/PageHeading'
 import StateView from '../ui/StateView'
 import ErrorAlert from '../ui/ErrorAlert'
-import { formatDate } from '../ui/format'
+import { formatMoveDates } from '../ui/format'
 
 export default function ProjectsPage() {
   const { user } = useAuth()
@@ -35,7 +35,7 @@ function ProjectList() {
       {list.length ? <div className="project-grid">{list.map(p => <article key={p.id} className={`project-card${p.id === currentId ? ' current' : ''}`}>
         <div className="row between wrap"><span className={`badge ${p.role === 'owner' ? 'role-owner' : 'role-member'}`}>{p.role === 'owner' ? 'Владелец' : 'Помогаю'}</span>{p.id === currentId ? <span className="badge st-unpacked">Открыт сейчас</span> : null}</div>
         <h2 className="project-card__name">{p.name}</h2>
-        <p className="muted small row"><Calendar className="icon-sm" aria-hidden />{p.move_date ? formatDate(p.move_date) : 'Дата не указана'}</p>
+        <p className="muted small row"><Calendar className="icon-sm" aria-hidden />{p.move_date ? formatMoveDates(p.move_date, p.move_date_end) : 'Дата не указана'}</p>
         {tab === 'active' ? <button className={p.id === currentId ? 'tonal' : 'primary'} aria-label={`${p.id === currentId ? 'Открыть' : 'Выбрать'} проект «${p.name}»`} onClick={() => { select(p.id); navigate('/') }}>Открыть проект</button> : null}
         <div className="row between wrap project-card__secondary">{tab === 'active' ? <Link to={`/projects/${p.id}/settings`} className="button small" aria-label={`Настройки проекта «${p.name}»`}><Settings2 className="icon-sm" aria-hidden />Настройки</Link> : null}<button className="link" aria-label={`${tab === 'archive' ? 'Восстановить' : 'Архивировать'} проект «${p.name}»`} onClick={() => { archive(p.id, tab !== 'archive'); setTab(tab === 'archive' ? 'active' : 'archive') }}>{tab === 'archive' ? <Undo2 className="icon-sm" aria-hidden /> : <Archive className="icon-sm" aria-hidden />}{tab === 'archive' ? 'Вернуть' : 'В архив'}</button></div>
       </article>)}</div> : <section className="project-empty stack"><FolderOpen className="project-empty__icon" aria-hidden /><h2>{query ? 'Проект не найден' : tab === 'archive' ? 'Архив пока пуст' : 'Нет активных проектов'}</h2><p className="muted">{query ? 'Попробуйте другое название.' : tab === 'archive' ? 'Здесь будут проекты, которые вы убрали в архив на этом устройстве.' : 'Создайте новый переезд или верните проект из архива.'}</p>{!query && tab === 'active' ? <Link to="/new" className="button primary">Создать проект</Link> : null}</section>}

@@ -45,6 +45,22 @@ export function formatDate(iso: string): string {
   return `${d}.${m}.${y}`
 }
 
+/** Даты переезда: «01.11.2026» или, если переезд на несколько дней, «01.11–03.11.2026». */
+export function formatMoveDates(start: string, end?: string | null): string {
+  if (!end || end.slice(0, 10) === start.slice(0, 10)) return formatDate(start)
+  const [a, b] = [formatDate(start), formatDate(end)]
+  return a.slice(6) === b.slice(6) ? `${a.slice(0, 5)}–${b}` : `${a} – ${b}`
+}
+
+/** Ошибка в датах «с ... по ...» до отправки на сервер (те же правила: конец не раньше начала, до 31 дня). */
+export function moveDatesError(start: string, end: string): string | null {
+  if (!end || !start) return null
+  const days = (Date.parse(end) - Date.parse(start)) / 86_400_000
+  if (days < 0) return 'Дата окончания раньше даты начала'
+  if (days >= 31) return 'Переезд длится не больше 31 дня'
+  return null
+}
+
 
 /** Сколько дней до даты (ГГГГ-ММ-ДД) от сегодняшнего дня по календарю: 0 - сегодня, меньше нуля - уже прошла. */
 export function daysUntil(iso: string, today: Date = new Date()): number {
