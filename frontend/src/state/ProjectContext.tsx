@@ -37,7 +37,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     const list = await api.myProjects()
     setState((prev) => {
-      const projects = list.map((p) => ({ id: p.id, name: p.name, role: p.role, move_date: p.move_date }))
+      const projects = list.map((p) => ({ id: p.id, name: p.name, role: p.role, move_date: p.move_date, ...(p.move_date_end ? { move_date_end: p.move_date_end } : {}) }))
       const active = projects.filter(p => !archiveIds.current.includes(p.id))
       const currentId = active.some((p) => p.id === prev.currentId) ? prev.currentId : (active[0]?.id ?? null)
       const next = { projects, currentId }

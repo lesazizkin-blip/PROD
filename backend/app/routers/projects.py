@@ -79,7 +79,9 @@ def create_project(
 @router.get("", response_model=list[ProjectBrief], summary="Мои проекты (владелец и участник)")
 def my_projects(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return [
-        ProjectBrief(id=p.id, name=p.name, move_date=p.move_date, role=role)
+        ProjectBrief(
+            id=p.id, name=p.name, move_date=p.move_date, move_date_end=p.move_date_end, role=role
+        )
         for p, role in AuthService(db).projects_of(user.id)
     ]
 

@@ -255,6 +255,39 @@ def test_changing_move_date_shifts_open_template_tasks(client):
             assert date.fromisoformat(after[t["id"]]).toordinal() == shifted
 
 
+def test_move_can_span_several_days(client):
+    r = client.post(
+        "/api/projects",
+        json={"name": "Долгий", "move_date": "2026-11-01", "move_date_end": "2026-11-03"},
+    )
+    assert r.status_code == 201, r.text
+    pid = r.json()["id"]
+    assert r.json()["move_date_end"] == "2026-11-03"
+    brief = next(p for p in client.get("/api/projects").json() if p["id"] == pid)
+    assert brief["move_date_end"] == "2026-11-03"
+    # конец раньше начала и переезд дольше месяца - 422, и при создании, и при правке
+    for end in ("2026-10-31", "2026-12-15"):
+        bad = {"name": "Плохой", "move_date": "2026-11-01", "move_date_end": end}
+        assert client.post("/api/projects", json=bad).status_code == 422
+        assert client.patch(f"/api/projects/{pid}", json={"move_date_end": end}).status_code == 422
+    # перенос начала сдвигает весь переезд, если конец не прислан
+    client.patch(f"/api/projects/{pid}", json={"move_date": "2026-11-10"})
+    assert client.get(f"/api/projects/{pid}").json()["move_date_end"] == "2026-11-12"
+    # начало позже прежнего конца вместе с новым концом - можно
+    r = client.patch(
+        f"/api/projects/{pid}", json={"move_date": "2026-11-20", "move_date_end": "2026-11-20"}
+    )
+    assert r.status_code == 200 and r.json()["move_date_end"] == "2026-11-20"
+    # null - снова переезд в один день
+    assert (
+        client.patch(f"/api/projects/{pid}", json={"move_date_end": None}).json()["move_date_end"]
+        is None
+    )
+    # проект без конца - как раньше
+    one = client.post("/api/projects", json={"name": "Один день", "move_date": "2026-11-01"})
+    assert one.json()["move_date_end"] is None
+
+
 def test_health_reports_db_down(anon_client):
     from app.db import get_db
     from app.main import app

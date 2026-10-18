@@ -291,11 +291,26 @@ class QrMode(StrEnum):
 
 # дата переезда: от 2000 до 2100 года (дата 1900 года давала сроки задач в XIX веке)
 MoveDate = Annotated[date, Field(ge=date(2000, 1, 1), le=date(2100, 12, 31))]
+MAX_MOVE_DAYS = 31  # переезд «с ... по ...» - не дольше месяца
+
+
+def check_move_dates(start: date, end: date | None) -> None:
+    if end is None:
+        return
+    if end < start:
+        raise ValueError("Дата окончания переезда раньше даты начала")
+    if (end - start).days >= MAX_MOVE_DAYS:
+        raise ValueError(f"Переезд длится не больше {MAX_MOVE_DAYS} дня")
 
 
 class ProjectCreate(BaseModel):
     name: Text120 = Field(examples=["Переезд на Лесную"])
-    move_date: MoveDate = Field(examples=["2026-11-01"])
+    move_date: MoveDate = Field(examples=["2026-11-01"], description="Дата переезда (первый день)")
+    move_date_end: MoveDate | None = Field(
+        default=None,
+        examples=["2026-11-03"],
+        description="Последний день, если переезд на несколько дней",
+    )
     address_from: str | None = Field(default=None, max_length=300)
     address_to: str | None = Field(default=None, max_length=300)
     qr_mode: QrMode = QrMode.UNIVERSAL
@@ -307,6 +322,7 @@ class ProjectCreate(BaseModel):
 
     @model_validator(mode="after")
     def check_plan_dates(self):
+        check_move_dates(self.move_date, self.move_date_end)
         if self.plan_mode == "empty" and self.personal_plan:
             raise ValueError("Для персонального плана выберите стандартный начальный план")
         if self.plan_mode == "standard":
@@ -332,6 +348,7 @@ class ProjectUpdate(BaseModel):
     )
     name: Text120 | None = None
     move_date: MoveDate | None = None
+    move_date_end: MoveDate | None = None  # null - переезд в один день
     address_from: str | None = Field(default=None, max_length=300)
     address_to: str | None = Field(default=None, max_length=300)
     qr_mode: QrMode | None = None
@@ -389,6 +406,7 @@ class ProjectBrief(BaseModel):
     id: uuid.UUID
     name: str
     move_date: date
+    move_date_end: date | None = None
     role: str  # owner | member
 
 
@@ -408,6 +426,7 @@ class ProjectOut(ORM):
     id: uuid.UUID
     name: str
     move_date: date
+    move_date_end: date | None = None
     address_from: str | None
     address_to: str | None
     created_at: datetime

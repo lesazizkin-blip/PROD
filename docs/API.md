@@ -184,19 +184,19 @@ packing (собирается) → packed (собрана) → loaded (погр�
 ## Проекты
 
 ### `GET /api/projects`
-Мои проекты: `200 [ { "id", "name", "move_date", "role": "owner" | "member" } ]`.
+Мои проекты: `200 [ { "id", "name", "move_date", "move_date_end", "role": "owner" | "member" } ]`.
 
 ### `POST /api/projects`
 Создаёт проект со стандартными задачами и сроками `move_date + default_offset_days`, а также базовым списком первого дня. `plan_mode: "empty"` явно отключает оба набора. Поле `first_day: ["…"]` заменяет базовый список (до 20 строк по 200 символов); принятые `personal_plan.first_day` дополняют его без дублей. AI-задачи сохраняются в той же транзакции, после дедупликации со стандартными. Существующие проекты при обновлении не заполняются автоматически.
 
-Запрос: `{ "name": "…", "move_date": "2026-11-01", "address_from": null, "address_to": null, "qr_mode": "universal", "plan_mode": "standard", "personal_plan": null, "first_day": null }`. `name` 1–120 символов, `move_date` обязательна и лежит в 2000–2100 годах, адреса необязательны (≤ 300).
+Запрос: `{ "name": "…", "move_date": "2026-11-01", "address_from": null, "address_to": null, "qr_mode": "universal", "plan_mode": "standard", "personal_plan": null, "first_day": null }`. `name` 1–120 символов, `move_date` обязательна и лежит в 2000–2100 годах, адреса необязательны (≤ 300). Переезд на несколько дней: `move_date` — первый день, `move_date_end` — последний (необязательно; не раньше `move_date` и не дольше 31 дня, иначе `422`); сроки задач считаются от `move_date`.
 Ответ `201`: Project.
 
 ### `GET /api/projects/{pid}`
 `200` Project; `404`, если нет.
 
 ### `PATCH /api/projects/{pid}`
-Любые из `name`, `move_date`, `address_from`, `address_to`, `qr_mode` (только владелец). Смена `move_date` сдвигает на ту же разницу сроки невыполненных задач стандартного плана. `200` Project.
+Любые из `name`, `move_date`, `move_date_end` (`null` — переезд в один день), `address_from`, `address_to`, `qr_mode` (только владелец). Смена `move_date` сдвигает на ту же разницу сроки невыполненных задач стандартного плана и `move_date_end`, если тот не прислан в том же запросе. `200` Project.
 
 ### `DELETE /api/projects/{pid}?confirm=true`
 Только владелец. Удаляет проект и всё внутри (каскад). `204`; `403` для демо-проекта (он общий для жюри).
