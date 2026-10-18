@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     # свой ключ для второй модели (другой аккаунт Spirit); пусто -> общий AI_API_KEY. На сайт не отдаётся
     ai_vision_api_key: SecretStr = SecretStr("")
     ai_timeout_seconds: float = Field(default=45, gt=0, le=60)
-    ai_requests_per_hour: int = Field(default=10, ge=1, le=100)
+    ai_requests_per_hour: int = Field(default=10, ge=1, le=1000)
     ai_global_requests_per_day: int = Field(default=50, ge=0, le=10_000)
 
     @field_validator("ai_base_url")
