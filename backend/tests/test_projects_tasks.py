@@ -313,10 +313,7 @@ def test_only_real_future_move_dates(client, move_date, status, detail):
         assert detail in r.json()["detail"]  # понятный текст, а не «Некорректные данные»
 
 
-def test_changed_move_date_is_checked_old_one_is_kept(client):
-    from app.db import SessionLocal
-    from app.models import Project
-
+def test_changed_move_date_is_checked_old_one_is_kept(client, monkeypatch):
     pid = client.post(
         "/api/projects", json={"name": "Старый", "move_date": "2026-11-01", "plan_mode": "empty"}
     ).json()["id"]
@@ -324,16 +321,15 @@ def test_changed_move_date_is_checked_old_one_is_kept(client):
     assert r.status_code == 422 and "уже прошла" in r.json()["detail"]
     r = client.patch(f"/api/projects/{pid}", json={"move_date_end": "2027-02-29"})
     assert r.status_code == 422 and "Такой даты нет" in r.json()["detail"]
-    # переезд уже прошёл: настройки сохраняются с прежней датой, проверяется только новая
-    import uuid
-
-    with SessionLocal() as db:
-        db.get(Project, uuid.UUID(pid)).move_date = date(2026, 9, 1)
-        db.commit()
+    # переезд уже прошёл (сегодня 01.12.2026): настройки сохраняются с прежней датой,
+    # проверяется только новая
+    monkeypatch.setattr("app.move_dates.today_msk", lambda: date(2026, 12, 1))
     r = client.patch(
-        f"/api/projects/{pid}", json={"name": "Уже переехали", "move_date": "2026-09-01"}
+        f"/api/projects/{pid}", json={"name": "Уже переехали", "move_date": "2026-11-01"}
     )
     assert r.status_code == 200, r.text
+    r = client.patch(f"/api/projects/{pid}", json={"move_date": "2026-11-02"})
+    assert r.status_code == 422 and "уже прошла" in r.json()["detail"]
 
 
 def test_ai_plan_needs_a_real_future_date(client):
