@@ -154,3 +154,21 @@
   .shelf-carton { transition: none; }
   .shelf-carton:hover, .shelf-carton:focus-visible { transform: none; }
 }
+
+.shelf-carton__label .shelf-carton__contents {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; overflow-wrap: anywhere; color: var(--text); line-height: 1.45;
+  font-size: 13px;
+}
+.shelf-carton__label .shelf-carton__action { font-size: 11px; line-height: 1.4; margin-top: 2px; }
+.box-contents-popover {
+  position: fixed; z-index: 60; pointer-events: none; width: 320px; max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px); padding: 16px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-float);
+  font-size: 14px; line-height: 1.5;
+}
+.box-contents-popover > b { display: block; overflow-wrap: anywhere; }
+.box-contents-popover > p { margin-top: 4px; }
+.box-contents-popover ul { margin: 10px 0 0; padding: 0 0 0 18px; overflow: hidden; }
+.box-contents-popover li { padding: 3px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

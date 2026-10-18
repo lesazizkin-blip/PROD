@@ -96,6 +96,11 @@ export interface TaskTemplate {
   default_offset_days: number
 }
 
+export interface BoxItemPreview {
+  name: string
+  quantity: number
+}
+
 export interface Box {
   number: number
   project_id: string
@@ -104,6 +109,7 @@ export interface Box {
   fill_later: boolean
   remind_at: string | null
   items_count: number
+  contents_preview?: BoxItemPreview[]
   created_at: string
   updated_at: string
 }
@@ -253,6 +259,8 @@ export interface BoxUpdate {
 }
 
 export interface BoxFilters {
+  q?: string
+  exclude_number?: number
   sort?: BoxSort
   location?: "old" | "truck" | "new"
   room?: string

@@ -44,6 +44,8 @@ router = APIRouter(prefix="/projects/{pid}", tags=["boxes"])
 
 @router.get("/boxes", response_model=Page[BoxOut], summary="Коробки (фильтры, пагинация)")
 def list_boxes(
+    q: str | None = Query(default=None, max_length=120),
+    exclude_number: int | None = Query(default=None, ge=1, le=MAX_INT),
     room: str | None = None,
     status: BoxStatus | None = None,
     location: Literal["old", "truck", "new"] | None = None,
@@ -56,6 +58,8 @@ def list_boxes(
 ):
     items, total = BoxService(db).list_boxes(
         project.id,
+        q=q,
+        exclude_number=exclude_number,
         room=room,
         status=status,
         location=location,

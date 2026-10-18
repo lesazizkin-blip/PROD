@@ -5,7 +5,9 @@ import { ArrowLeft, ArrowRightLeft, Pencil, Plus, QrCode, Trash2 } from 'lucide-
 import { BOX_STATUSES, type BoxStatus, type Item, type PhotoItem } from '../api/types'
 import { errorMessage } from '../api/client'
 import { api } from '../api/endpoints'
-import { readAllPages } from '../api/pagination'
+import { useDebounced } from '../state/useDebounced'
+import Pagination from '../ui/Pagination'
+import { boxContentsText } from '../ui/boxContents'
 import Modal from '../components/Modal'
 import PhotoPicker from '../components/PhotoPicker'
 import StatusPickerModal from '../components/StatusPickerModal'
@@ -316,23 +318,31 @@ function EditBoxModal({ room: initialRoom, fillLater, onClose, onSave }: { room:
 
 
 function MoveItemModal({ pid, from, item, onClose, onMoved }: { pid: string; from: number; item: Item; onClose: () => void; onMoved: (number: number) => void }) {
-  const boxes = useAsync(() => readAllPages(page => api.boxes(pid, { page, page_size: 200 })), [pid])
-  const [target, setTarget] = useState('')
+  const [page, setPage] = useState(1)
   const [query, setQuery] = useState('')
+  const q = useDebounced(query.trim())
+  const boxes = useAsync(() => api.boxes(pid, { q, exclude_number: from, page, page_size: 8 }), [pid, from, q, page])
+  const [target, setTarget] = useState<number | null>(null)
   const { busy, error, submit } = useAction()
-  const choices = boxes.data?.filter(box => box.number !== from) ?? []
-  const visible = choices.filter(box => `${box.number} ${box.room}`.toLowerCase().includes(query.trim().toLowerCase()))
+  const pendingSearch = query.trim() !== q
+  const loading = boxes.loading || pendingSearch
   return <Modal title={`Переложить «${item.name}»`} onClose={onClose}>
-    <form className="stack" onSubmit={submit(async () => { await api.moveItem(pid, item.id, from, Number(target)); onMoved(Number(target)) })}>
-      <p className="muted small">Из коробки № {from}. Отметка первого дня и отметки о вещи сохранятся.</p>
-      {choices.length > 10 ? <label>Найти коробку<input type="search" value={query} onChange={e => { setQuery(e.target.value); setTarget('') }} placeholder="Номер или комната" /></label> : null}
-      <label>В какую коробку<select value={target} onChange={e => setTarget(e.target.value)} disabled={busy || boxes.loading} data-autofocus><option value="">Выберите коробку</option>{visible.map(box => <option key={box.number} value={box.number}>№ {box.number} · {box.room}</option>)}</select></label>
-      {boxes.loading ? <p role="status">Загружаем коробки…</p> : null}
-      {boxes.data && !choices.length ? <p>Других коробок пока нет. <Link to="/boxes">Добавить коробку</Link></p> : null}
-      {choices.length > 0 && !visible.length ? <p>По этому запросу коробок нет.</p> : null}
+    <form className="stack move-item-form" onSubmit={submit(async () => { if (!target || loading || boxes.error) return; await api.moveItem(pid, item.id, from, target); onMoved(target) })}>
+      <p className="muted small">Из коробки № {from}. Количество и отметки вещи сохранятся.</p>
+      <label>Найти коробку<input type="search" maxLength={120} value={query} onChange={e => { setQuery(e.target.value); setPage(1); setTarget(null) }} placeholder="Номер, комната или вещь" data-autofocus /></label>
+      <fieldset className="move-box-list" disabled={busy || loading}>
+        <legend>В какую коробку</legend>
+        {!loading ? boxes.data?.items.map(box => <label key={box.number} className={`move-box-choice${target === box.number ? ' is-selected' : ''}`}>
+          <input type="radio" name="target-box" value={box.number} checked={target === box.number} onChange={() => setTarget(box.number)} />
+          <span className="move-box-choice__body"><span className="move-box-choice__heading"><b>№ {box.number} · {box.room}</b><StatusBadge status={box.status} /></span><span className="move-box-choice__contents">{boxContentsText(box, 5)}</span><span className="muted small">{box.items_count} {plural(box.items_count, ['позиция', 'позиции', 'позиций'])}</span></span>
+        </label>) : null}
+      </fieldset>
+      {loading ? <p role="status">Загружаем коробки…</p> : null}
+      {!loading && boxes.data?.total === 0 ? <p>{q ? 'По этому запросу коробок нет.' : <>Других коробок пока нет. <Link to="/boxes">Добавить коробку</Link></>}</p> : null}
+      <Pagination page={page} pageSize={8} total={boxes.data?.total ?? 0} busy={busy || loading} onChange={value => { setPage(value); setTarget(null) }} label="Коробки для переноса" />
       <ErrorAlert message={error ?? boxes.error} />
       {boxes.error ? <button type="button" onClick={boxes.reload}>Повторить загрузку</button> : null}
-      <button className="primary" disabled={busy || !target || boxes.loading}>Переложить</button>
+      <button className="primary" disabled={busy || !target || loading || !!boxes.error}>Переложить</button>
     </form>
   </Modal>
 }
