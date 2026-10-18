@@ -149,6 +149,69 @@ def test_other_users_project_and_missing_box_are_404_without_model_call(
     assert calls == []
 
 
+ROOM_REAL = {  # как отвечает модель на настоящем фото: длинные советы, пустые строки, много вещей
+    "boxes": [
+        {"label": "Книги", "items": ["Книги", "", "  Журналы  "], "tip": "Совет. " * 80},
+        {"label": "", "items": [f"Вещь {i}" for i in range(30)]},
+        {"label": "Без вещей", "items": [""]},
+        "не коробка",
+    ]
+}
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        json.dumps(ROOM_REAL, ensure_ascii=False),
+        "```json\n" + json.dumps(ROOM_REAL, ensure_ascii=False) + "\n```",  # обёртка markdown
+        "Вот раскладка: " + json.dumps(ROOM_REAL, ensure_ascii=False),
+    ],
+)
+def test_room_plan_tolerates_real_model_output(client, base, provider, content):
+    install, _ = provider
+    install(content)
+    r = client.post(f"{base}/room-plan", json={"image": IMAGE, "room": "Кабинет", "consent": True})
+    assert r.status_code == 200, r.text
+    boxes = r.json()["boxes"]
+    assert [b["label"] for b in boxes] == ["Книги", "Вещь 0"]  # без подписи - по первой вещи
+    assert boxes[0]["items"] == ["Книги", "Журналы"]
+    assert len(boxes[0]["tip"]) == 300  # длинный совет обрезан, а не роняет ответ
+    assert len(boxes[1]["items"]) == 20
+
+
+def test_room_plan_cut_off_by_token_limit_keeps_whole_boxes(client, base, provider):
+    install, _ = provider
+    whole = json.dumps(
+        {"boxes": [{"label": "Посуда", "items": ["Тарелки"], "tip": ""}]}, ensure_ascii=False
+    )
+    install(whole[:-2] + ', {"label": "Книги", "items": ["Слова')  # ответ оборвался на середине
+    r = client.post(f"{base}/room-plan", json={"image": IMAGE, "room": "Кухня", "consent": True})
+    assert r.status_code == 200, r.text
+    assert r.json()["boxes"] == [{"label": "Посуда", "items": ["Тарелки"], "tip": ""}]
+
+
+def test_inventory_tolerates_long_names_and_strings(client, base, provider):
+    install, _ = provider
+    install(
+        {
+            "items": [
+                "Чайник",
+                {"name": "Л" * 200, "fragile": True},
+                {"name": ""},
+                {"first_day": True},
+            ]
+        }
+    )
+    box = make_box(client, base)
+    r = client.post(
+        f"{base}/boxes/{box['number']}/photo-inventory", json={"image": IMAGE, "consent": True}
+    )
+    assert r.status_code == 200, r.text
+    items = r.json()["items"]
+    assert [i["name"] for i in items] == ["Чайник", "Л" * 120]
+    assert items[1]["fragile"] is True
+
+
 def test_invalid_model_output_is_502(client, base, provider):
     install, _ = provider
     install("это не JSON")
