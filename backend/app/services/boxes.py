@@ -150,12 +150,20 @@ class BoxService:
         number: int | None,
         offset: int,
         limit: int,
+        location: str | None = None,
     ) -> tuple[list[BoxOut], int]:
         where = [Box.project_id == project_id]
         if room:
             where.append(Box.room == room.strip())
         if status:
             where.append(Box.status == status.value)
+        if location:
+            statuses = {
+                "old": ("packing", "packed"),
+                "truck": ("loaded",),
+                "new": ("delivered", "unpacked"),
+            }
+            where.append(Box.status.in_(statuses[location]))
         if fill_later is not None:
             where.append(Box.fill_later.is_(fill_later))
         if number is not None:

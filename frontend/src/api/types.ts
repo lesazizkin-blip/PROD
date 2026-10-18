@@ -245,6 +245,7 @@ export interface BoxUpdate {
 }
 
 export interface BoxFilters {
+  location?: "old" | "truck" | "new"
   room?: string
   status?: BoxStatus
   fill_later?: boolean

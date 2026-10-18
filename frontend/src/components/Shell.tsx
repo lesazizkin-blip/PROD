@@ -11,6 +11,7 @@ import SidebarToggle from './SidebarToggle'
 import NotificationsModal from './NotificationsModal'
 import { JOURNEY_TABS, NAV_TABS, tabNumber } from './navTabs'
 import { BoxNavigationProvider } from '../features/boxes/BoxNavigation'
+import BoxMoveNotice from '../features/boxes/BoxMoveNotice'
 import '../features/workspace.css'
 
 
@@ -100,6 +101,7 @@ export default function Shell() {
         <BoxNavigationProvider><div key={pathname} className={`page-content${state?.cartonTransition ? '' : ' page-content--enter'}`}><Outlet /></div></BoxNavigationProvider>
       </main>
 
+      <BoxMoveNotice pid={contextId} />
       {notifying ? <NotificationsModal key={contextId} pid={contextId} reminders={reminders.data ?? []} onClose={() => setNotifying(false)} /> : null}
     </div>
   )

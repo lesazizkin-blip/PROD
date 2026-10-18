@@ -1,5 +1,5 @@
-import { useLayoutEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { BookOpen, Camera } from 'lucide-react'
 import { api } from '../api/endpoints'
 import type { RoomPlan } from '../api/types'
@@ -18,6 +18,8 @@ import { roomStyle } from '../ui/roomTheme'
 import { STATUS_LABELS, boxNumberFromInput, boxPath, plural } from '../ui/format'
 import { BoxLink, useBoxNavigation } from '../features/boxes/BoxNavigation'
 import Pagination from '../ui/Pagination'
+import RelocationBoard from '../features/boxes/RelocationBoard'
+import { BOX_LOCATIONS, INITIAL_LOCATION_PAGES, type BoxLocation, type LocationBoxes, type LocationPages } from '../features/boxes/boxLocations'
 
 export default function BoxesPage() {
   return <RequireProject>{(pid) => <Boxes key={pid} pid={pid} />}</RequireProject>
@@ -33,16 +35,28 @@ function Highlight({ text, query }: { text: string; query: string }) {
 function Boxes({ pid }: { pid: string }) {
   const navigate = useNavigate()
   const navigation = useBoxNavigation()
+  const { state: routeState, key: routeKey } = useLocation()
   const [saved] = useState(() => navigation.shelfView(pid))
-  const [query, setQuery] = useState(saved?.query ?? '')
+  const requestedPlace = BOX_LOCATIONS.includes(routeState?.boxPlace) ? routeState.boxPlace as BoxLocation : undefined
+  const [query, setQuery] = useState(requestedPlace ? '' : saved?.query ?? '')
   const q = useDebounced(query.trim())
-  const [room, setRoom] = useState<string | null>(saved?.room ?? null)
-  const [page, setPage] = useState(saved?.page ?? 1)
+  const [room, setRoom] = useState<string | null>(requestedPlace ? null : saved?.room ?? null)
+  const [page, setPage] = useState(requestedPlace ? 1 : saved?.page ?? 1)
+  const [place, setPlace] = useState<BoxLocation>(() => BOX_LOCATIONS.includes(routeState?.boxPlace) ? routeState.boxPlace : saved?.place ?? 'old')
+  const [placePages, setPlacePages] = useState<LocationPages>(saved?.placePages ?? INITIAL_LOCATION_PAGES)
+  const locationCache = useRef<LocationBoxes>(saved?.locations ?? {})
   const [adding, setAdding] = useState(false)
   const [roomPhoto, setRoomPhoto] = useState(false)
+  const [boardRevision, setBoardRevision] = useState(0)
+  const [appliedRoute, setAppliedRoute] = useState(routeKey)
+  if (appliedRoute !== routeKey) {
+    setAppliedRoute(routeKey)
+    if (requestedPlace) { setPlace(requestedPlace); setQuery(''); setRoom(null); setPage(1) }
+  }
 
-  const boxes = useAsync(() => api.boxes(pid, { page_size: 36, page, ...(room ? { room } : {}) }), [pid, room, page], { refreshOnFocus: true, initialData: saved?.boxes })
-  // поиск вещи идёт по всем комнатам: чипы комнат при поиске скрыты, и фильтр был бы незаметен
+
+
+  // Поиск вещи идёт по всем комнатам.
   const hits = useAsync(() => (q ? api.search(pid, q, { page_size: 50, page }) : Promise.resolve(null)), [pid, q, page], { refreshOnFocus: true, initialData: saved?.hits })
   const summary = useAsync(() => api.progress(pid), [pid], { refreshOnFocus: true, initialData: saved?.summary })
   // Поиск коробки по номеру: если запрос - число, показываем коробку с этим номером
@@ -50,8 +64,8 @@ function Boxes({ pid }: { pid: string }) {
   const typedNumber = boxNumberFromInput(q, pid)
   const byNumber = useAsync(() => (typeof typedNumber === 'number' ? api.boxes(pid, { number: typedNumber }) : Promise.resolve(null)), [pid, typedNumber], { refreshOnFocus: true, initialData: saved?.byNumber })
   const reminders = useAsync(() => api.reminders(pid), [pid], { refreshOnFocus: true })
-  const activeTotal = q ? hits.data?.total : boxes.data?.total
-  const activeLoading = q ? hits.loading : boxes.loading
+  const activeTotal = q ? hits.data?.total : undefined
+  const activeLoading = hits.loading
   // A deletion in another tab can remove the last page. Adjust before drawing
   // an invalid pager; the next render refetches the remaining last page.
   if (!activeLoading && activeTotal !== undefined) {
@@ -60,12 +74,11 @@ function Boxes({ pid }: { pid: string }) {
   }
 
   useLayoutEffect(() => () => {
-    navigation.rememberShelf({ pid, query, room, page, scrollY: window.scrollY, boxes: boxes.data, hits: hits.data, byNumber: byNumber.data, summary: summary.data })
-  }, [pid, query, room, page, boxes.data, hits.data, byNumber.data, summary.data, navigation])
+    navigation.rememberShelf({ pid, query, room, page, scrollY: window.scrollY, boxes: null, hits: hits.data, byNumber: byNumber.data, summary: summary.data, place, placePages, locations: locationCache.current })
+  }, [pid, query, room, page, hits.data, byNumber.data, summary.data, place, placePages, navigation])
 
   useLayoutEffect(() => { window.scrollTo({ top: saved?.scrollY ?? 0, behavior: 'instant' }) }, [saved])
 
-  const all = boxes.data?.items ?? []
   const rooms = summary.data?.rooms ?? []
   const waiting = reminders.data ?? []
   const numberMatch = byNumber.data?.items[0]
@@ -107,17 +120,17 @@ function Boxes({ pid }: { pid: string }) {
       ) : (
         <>
           {rooms.length > 1 ? <div className="chips" role="group" aria-label="Фильтр по комнатам">
-            <button className={room === null ? 'chip on' : 'chip'} onClick={() => { setRoom(null); setPage(1) }}>Все комнаты · {summary.data?.boxes_total}</button>
-            {rooms.map(r => <button key={r.room} className={room === r.room ? 'chip room-chip on' : 'chip room-chip'} style={roomStyle(r.room)} onClick={() => { setRoom(room === r.room ? null : r.room); setPage(1) }}>{r.room} · {r.total}</button>)}
+            <button className={room === null ? 'chip on' : 'chip'} onClick={() => { setRoom(null); setPlacePages(INITIAL_LOCATION_PAGES); setPage(1) }}>Все комнаты · {summary.data?.boxes_total}</button>
+            {rooms.map(r => <button key={r.room} className={room === r.room ? 'chip room-chip on' : 'chip room-chip'} style={roomStyle(r.room)} onClick={() => { setRoom(room === r.room ? null : r.room); setPlacePages(INITIAL_LOCATION_PAGES); setPage(1) }}>{r.room} · {r.total}</button>)}
           </div> : null}
-        <StateView loading={boxes.loading && !boxes.data} error={boxes.error} empty={boxes.data?.total === 0} emptyText={room ? 'В этой комнате пока нет коробок.' : 'Коробок пока нет. Нажмите «+ Коробка».'} emptyIcon="📦" onRetry={boxes.reload}>
+        <StateView loading={summary.loading && !summary.data} error={summary.error} onRetry={summary.reload}>
           {waiting.length > 0 ? (
             <div className="banner">
               <span>Ждут описи содержимого: {waiting.map((r) => `№${r.box.number}`).join(', ')}</span>
               <BoxLink pid={pid} number={waiting[0].box.number} sourceId="reminder">Открыть</BoxLink>
             </div>
           ) : null}
-          <BoxGrid pid={pid} boxes={all} />
+          <RelocationBoard key={`${room ?? ''}/${boardRevision}`} pid={pid} room={room} summary={summary.data} place={place} onPlace={setPlace} pages={placePages} onPage={(location, value) => setPlacePages(previous => previous[location] === value ? previous : { ...previous, [location]: value })} initialData={room === (saved?.room ?? null) ? saved?.locations : undefined} onCache={data => { locationCache.current = data }} onChanged={summary.reload} />
           <p className="muted small">Статусы: {Object.values(STATUS_LABELS).join(' → ')}</p>
           <Link to="/tips" className="tips-card">
             <BookOpen className="icon" aria-hidden />
@@ -128,7 +141,6 @@ function Boxes({ pid }: { pid: string }) {
             <span aria-hidden>→</span>
           </Link>
         </StateView>
-        <Pagination page={page} pageSize={36} total={boxes.data?.total ?? 0} busy={boxes.loading} onChange={setPage} label="Страницы коробок" />
         </>
       )}
       {adding ? (
@@ -148,7 +160,7 @@ function Boxes({ pid }: { pid: string }) {
           onClose={() => setRoomPhoto(false)}
           onCreated={() => {
             setRoomPhoto(false)
-            boxes.reload()
+            setBoardRevision(v => v + 1)
             summary.reload()
             reminders.reload()
           }}

@@ -14,3 +14,10 @@
 @keyframes carton-mouth-close { to { opacity: 0; } }
 @keyframes carton-lid-tape { from { opacity: 0; transform: scaleY(0); } to { opacity: 1; transform: scaleY(1); } }
 @media (prefers-reduced-motion: reduce) { .carton-lid-art * { animation: none !important; } }
+
+.carton-lid-art.is-opening .carton-flap-left { animation: carton-unfold-left 650ms var(--ease-out) both; }
+.carton-lid-art.is-opening .carton-flap-right { animation: carton-unfold-right 650ms var(--ease-out) 100ms both; }
+.carton-lid-art.is-opening .shelf-carton__mouth { animation: carton-open-mouth 450ms ease-out both; }
+@keyframes carton-unfold-left { from { d: path('M0 64 14 44 157 44 143 64Z'); } }
+@keyframes carton-unfold-right { from { d: path('M157 44 300 44 286 64 143 64Z'); } }
+@keyframes carton-open-mouth { from { opacity: 0; } to { opacity: 1; } }
