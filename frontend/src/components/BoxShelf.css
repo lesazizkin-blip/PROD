@@ -162,7 +162,7 @@
 }
 .shelf-carton__label .shelf-carton__action { font-size: 11px; line-height: 1.4; margin-top: 2px; }
 .box-contents-popover {
-  position: fixed; z-index: 60; width: 320px; max-width: calc(100vw - 24px);
+  position: fixed; z-index: 60; pointer-events: none; width: 320px; max-width: calc(100vw - 24px);
   max-height: calc(100dvh - 24px); padding: 16px;
   background: var(--surface); color: var(--text); border: 1px solid var(--border);
   border-radius: var(--radius); box-shadow: var(--shadow-float);
@@ -170,5 +170,5 @@
 }
 .box-contents-popover > b { display: block; overflow-wrap: anywhere; }
 .box-contents-popover > p { margin-top: 4px; }
-.box-contents-popover ul { margin: 10px 0 0; padding: 0 0 0 18px; max-height: min(250px, calc(100dvh - 130px)); overflow-y: auto; overscroll-behavior: contain; }
-.box-contents-popover li { padding: 3px 4px; overflow-wrap: anywhere; }
+.box-contents-popover ul { margin: 10px 0 0; padding: 0 0 0 18px; overflow: hidden; }
+.box-contents-popover li { padding: 3px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
