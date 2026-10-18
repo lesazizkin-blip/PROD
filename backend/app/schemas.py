@@ -16,6 +16,8 @@ from pydantic import (
     model_validator,
 )
 
+from app.move_dates import check_move_start
+
 T = TypeVar("T")
 
 
@@ -334,6 +336,7 @@ class ProjectCreate(BaseModel):
 
     @model_validator(mode="after")
     def check_plan_dates(self):
+        check_move_start(self.move_date)
         check_move_dates(self.move_date, self.move_date_end)
         if self.plan_mode == "empty" and self.personal_plan:
             raise ValueError("Для персонального плана выберите стандартный начальный план")

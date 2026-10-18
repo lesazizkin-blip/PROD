@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.errors import ValidationFailed
 from app.logging_setup import audit
 from app.models import FirstDayItem, Project, ProjectMember, Task, TaskTemplate
+from app.move_dates import check_move_start
 from app.reference_data import FIRST_DAY_BASICS
 from app.schemas import ProjectCreate, ProjectUpdate, check_move_dates
 from app.services.events import log_event
@@ -99,6 +100,9 @@ class ProjectService:
             if project.move_date_end and "move_date_end" not in changes:
                 changes["move_date_end"] = project.move_date_end + shift
         try:
+            # старая дата не мешает сохранять настройки; проверяется только новая
+            if changes.get("move_date") and changes["move_date"] != project.move_date:
+                check_move_start(changes["move_date"])
             check_move_dates(
                 changes.get("move_date") or project.move_date,
                 changes["move_date_end"] if "move_date_end" in changes else project.move_date_end,

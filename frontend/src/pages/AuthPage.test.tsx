@@ -68,6 +68,64 @@ describe('вход и регистрация', () => {
     expect(register).toHaveBeenCalled()
   })
 
+  it('занятый логин подсвечивает поле логина, а не общую плашку', async () => {
+    register.mockRejectedValue(new ApiError('Такой логин уже занят', 409, 'conflict'))
+    await setup()
+    await userEvent.click(screen.getByRole('tab', { name: 'Регистрация' }))
+    const loginField = screen.getByLabelText('Логин')
+    await userEvent.type(loginField, 'anna')
+    await userEvent.type(screen.getByLabelText('Пароль'), 'секрет-секрет')
+    await userEvent.type(screen.getByLabelText('Повторите пароль'), 'секрет-секрет')
+    await userEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }))
+    expect((await screen.findByText('Такой логин уже занят')).id).toBe('auth-username-error')
+    expect(loginField.getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByLabelText('Пароль').getAttribute('aria-invalid')).toBe('false')
+    expect(screen.queryByRole('alert')).toBeNull() // текст не дублируется
+    await userEvent.type(loginField, '2') // правка поля снимает подсветку
+    expect(loginField.getAttribute('aria-invalid')).toBe('false')
+    expect(screen.queryByText('Такой логин уже занят')).toBeNull()
+  })
+
+  it('422 сервера подсвечивает поле из ответа, английскую причину заменяет своим правилом', async () => {
+    register.mockRejectedValue(
+      new ApiError('Некорректные данные', 422, 'validation_failed', { password: 'String should have at least 8 characters' }),
+    )
+    await setup()
+    await userEvent.click(screen.getByRole('tab', { name: 'Регистрация' }))
+    await userEvent.type(screen.getByLabelText('Логин'), 'anna')
+    await userEvent.type(screen.getByLabelText('Пароль'), 'секрет-секрет')
+    await userEvent.type(screen.getByLabelText('Повторите пароль'), 'секрет-секрет')
+    await userEvent.click(screen.getByRole('button', { name: 'Создать аккаунт' }))
+    expect((await screen.findByText('Пароль: от 8 до 128 символов')).id).toBe('auth-password-error')
+    expect(screen.getByLabelText('Пароль').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByLabelText('Логин').getAttribute('aria-invalid')).toBe('false')
+    expect((await screen.findByRole('alert')).textContent).toBe('Некорректные данные')
+  })
+
+  it('кириллица в логине подсвечивается до отправки', async () => {
+    await setup()
+    await userEvent.click(screen.getByRole('tab', { name: 'Регистрация' }))
+    const loginField = screen.getByLabelText('Логин')
+    await userEvent.type(loginField, 'Анна')
+    await userEvent.type(screen.getByLabelText('Пароль'), 'секрет-секрет')
+    await userEvent.type(screen.getByLabelText('Повторите пароль'), 'секрет-секрет')
+    expect(loginField.getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByText(/Логин: 3–40 символов/).id).toBe('auth-username-error')
+    expect((screen.getByRole('button', { name: 'Создать аккаунт' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(register).not.toHaveBeenCalled()
+  })
+
+  it('неверный логин или пароль при входе подсвечивает оба поля и показывает плашку', async () => {
+    login.mockRejectedValue(new ApiError('Неверный логин или пароль', 401))
+    await setup()
+    await userEvent.type(screen.getByLabelText('Логин'), 'anna')
+    await userEvent.type(screen.getByLabelText('Пароль'), 'не-тот')
+    await userEvent.click(screen.getByRole('button', { name: 'Войти' }))
+    expect((await screen.findByRole('alert')).textContent).toBe('Неверный логин или пароль')
+    expect(screen.getByLabelText('Логин').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByLabelText('Пароль').getAttribute('aria-invalid')).toBe('true')
+  })
+
   it('кнопки демо без регистрации нет, пароль нельзя скопировать', async () => {
     await setup()
     expect(screen.queryByRole('button', { name: /демо/i })).toBeNull()

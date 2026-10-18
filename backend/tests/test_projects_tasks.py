@@ -1,6 +1,8 @@
 import uuid
 from datetime import date, timedelta
 
+import pytest
+
 from app.reference_data import TASK_TEMPLATES
 
 
@@ -286,6 +288,54 @@ def test_move_can_span_several_days(client):
     # проект без конца - как раньше
     one = client.post("/api/projects", json={"name": "Один день", "move_date": "2026-11-01"})
     assert one.json()["move_date_end"] is None
+
+
+@pytest.mark.parametrize(
+    ("move_date", "status", "detail"),
+    [
+        ("2026-10-17", 422, "Дата переезда уже прошла"),  # вчера (сегодня в тестах 18.10.2026)
+        ("2026-10-18", 201, None),  # сегодня
+        ("2028-10-18", 201, None),  # ровно 2 года, хотя между ними 29.02.2028
+        ("2028-10-19", 422, "не дальше чем через 2 года"),
+        ("2027-02-28", 201, None),
+        ("2027-02-29", 422, "Такой даты нет в календаре"),  # 2027 не високосный
+        ("2028-02-29", 201, None),  # 2028 високосный
+        ("2027-02-30", 422, "Такой даты нет в календаре"),
+        ("2027-04-31", 422, "Такой даты нет в календаре"),
+    ],
+)
+def test_only_real_future_move_dates(client, move_date, status, detail):
+    r = client.post(
+        "/api/projects", json={"name": "Дата", "move_date": move_date, "plan_mode": "empty"}
+    )
+    assert r.status_code == status, r.text
+    if detail:
+        assert detail in r.json()["detail"]  # понятный текст, а не «Некорректные данные»
+
+
+def test_changed_move_date_is_checked_old_one_is_kept(client, monkeypatch):
+    pid = client.post(
+        "/api/projects", json={"name": "Старый", "move_date": "2026-11-01", "plan_mode": "empty"}
+    ).json()["id"]
+    r = client.patch(f"/api/projects/{pid}", json={"move_date": "2026-10-01"})
+    assert r.status_code == 422 and "уже прошла" in r.json()["detail"]
+    r = client.patch(f"/api/projects/{pid}", json={"move_date_end": "2027-02-29"})
+    assert r.status_code == 422 and "Такой даты нет" in r.json()["detail"]
+    # переезд уже прошёл (сегодня 01.12.2026): настройки сохраняются с прежней датой,
+    # проверяется только новая
+    monkeypatch.setattr("app.move_dates.today_msk", lambda: date(2026, 12, 1))
+    r = client.patch(
+        f"/api/projects/{pid}", json={"name": "Уже переехали", "move_date": "2026-11-01"}
+    )
+    assert r.status_code == 200, r.text
+    r = client.patch(f"/api/projects/{pid}", json={"move_date": "2026-11-02"})
+    assert r.status_code == 422 and "уже прошла" in r.json()["detail"]
+
+
+def test_ai_plan_needs_a_real_future_date(client):
+    body = {"description": "Переезжаем с кошкой", "move_date": "2026-01-10", "consent": True}
+    r = client.post("/api/projects/plan-questions", json=body)
+    assert r.status_code == 422 and "уже прошла" in r.json()["detail"]
 
 
 def test_health_reports_db_down(anon_client):

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boxNumberFromInput, boxPath, boxUrl, formatDate, formatMoveDates, formatTimeRange, moveDatesError, parseBoxLink, plural } from './format'
+import { boxNumberFromInput, boxPath, boxUrl, formatDate, formatMoveDates, formatTimeRange, isRealDate, moveDateBounds, moveDatesError, parseBoxLink, plural } from './format'
 
 const PID = '00000000-0000-4000-8000-000000000001'
 
@@ -37,12 +37,35 @@ describe('форматы', () => {
     expect(formatMoveDates('2026-11-01', '2026-11-03')).toBe('01.11–03.11.2026')
     expect(formatMoveDates('2026-12-30', '2027-01-02')).toBe('30.12.2026 – 02.01.2027')
   })
+  const TODAY = new Date(2026, 9, 18) // 18.10.2026, местное время
   it('даты «с ... по ...» проверяются как на сервере', () => {
-    expect(moveDatesError('2026-11-01', '')).toBeNull()
-    expect(moveDatesError('2026-11-01', '2026-11-01')).toBeNull()
-    expect(moveDatesError('2026-11-01', '2026-11-30')).toBeNull()
-    expect(moveDatesError('2026-11-03', '2026-11-01')).toBe('Дата окончания раньше даты начала')
-    expect(moveDatesError('2026-11-01', '2026-12-02')).toBe('Переезд длится не больше 31 дня')
+    const check = (a: string, b: string) => moveDatesError(a, b, { today: TODAY })
+    expect(check('2026-11-01', '')).toBeNull()
+    expect(check('2026-11-01', '2026-11-01')).toBeNull()
+    expect(check('2026-11-01', '2026-11-30')).toBeNull()
+    expect(check('2026-11-03', '2026-11-01')).toBe('Дата окончания раньше даты начала')
+    expect(check('2026-11-01', '2026-12-02')).toBe('Переезд длится не больше 31 дня')
+    expect(check('2027-02-27', '2027-03-01')).toBeNull() // через конец февраля
+  })
+  it('февраль: 29-е только в високосный год, 30-го и 31-го не бывает', () => {
+    expect(isRealDate('2028-02-29')).toBe(true)
+    expect(isRealDate('2027-02-29')).toBe(false)
+    expect(isRealDate('2027-02-30')).toBe(false)
+    expect(isRealDate('2027-04-31')).toBe(false)
+    expect(isRealDate('2027-1-5')).toBe(false)
+    expect(moveDatesError('2027-02-29', '', { today: TODAY })).toBe('Такой даты нет в календаре: проверьте число и месяц')
+    expect(moveDatesError('2028-02-29', '', { today: TODAY })).toBeNull()
+    expect(moveDatesError('2027-02-27', '2027-02-30', { today: TODAY })).toBe('Дата окончания: такой даты нет в календаре')
+  })
+  it('дата переезда: от сегодня до той же даты через 2 года', () => {
+    expect(moveDateBounds(TODAY)).toEqual({ min: '2026-10-18', max: '2028-10-18' })
+    expect(moveDateBounds(new Date(2028, 1, 29))).toEqual({ min: '2028-02-29', max: '2030-02-28' })
+    expect(moveDatesError('2026-10-17', '', { today: TODAY })).toBe('Дата переезда уже прошла: выберите сегодняшнюю или будущую')
+    expect(moveDatesError('2026-10-18', '', { today: TODAY })).toBeNull()
+    expect(moveDatesError('2028-10-18', '', { today: TODAY })).toBeNull()
+    expect(moveDatesError('2028-10-19', '', { today: TODAY })).toBe('Дата переезда — не дальше чем через 2 года')
+    // прежняя дата уже идущего переезда в настройках не проверяется
+    expect(moveDatesError('2026-09-01', '', { today: TODAY, checkStart: false })).toBeNull()
   })
   it.each([
     [1, 'вещь'],

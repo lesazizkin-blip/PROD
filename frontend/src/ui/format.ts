@@ -52,9 +52,37 @@ export function formatMoveDates(start: string, end?: string | null): string {
   return a.slice(6) === b.slice(6) ? `${a.slice(0, 5)}–${b}` : `${a} – ${b}`
 }
 
-/** Ошибка в датах «с ... по ...» до отправки на сервер (те же правила: конец не раньше начала, до 31 дня). */
-export function moveDatesError(start: string, end: string): string | null {
-  if (!end || !start) return null
+/** ГГГГ-ММ-ДД, которая есть в календаре: 30 февраля, 31 апреля и 29 февраля не в високосный год - нет
+ *  (Date.parse молча переносит их на март, поэтому сверяем число и месяц). */
+export function isRealDate(iso: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (!m) return false
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  const t = new Date(Date.UTC(y, mo - 1, d))
+  return t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d
+}
+
+const two = (n: number) => String(n).padStart(2, '0')
+
+/** Допустимая дата переезда, как на сервере: от сегодня до той же даты через 2 года (29 февраля → 28-е). */
+export function moveDateBounds(today: Date = new Date()): { min: string; max: string } {
+  const [y, m, d] = [today.getFullYear(), today.getMonth() + 1, today.getDate()]
+  return { min: `${y}-${two(m)}-${two(d)}`, max: `${y + 2}-${two(m)}-${two(m === 2 && d === 29 ? 28 : d)}` }
+}
+
+/** Ошибка в датах переезда до отправки на сервер (те же правила): дата есть в календаре, не в прошлом
+ *  и не дальше 2 лет (checkStart: false - прежняя дата проекта, её не проверяем), конец не раньше начала
+ *  и переезд не дольше 31 дня. */
+export function moveDatesError(start: string, end: string, { checkStart = true, today = new Date() }: { checkStart?: boolean; today?: Date } = {}): string | null {
+  if (!start) return null
+  if (!isRealDate(start)) return 'Такой даты нет в календаре: проверьте число и месяц'
+  if (checkStart) {
+    const { min, max } = moveDateBounds(today)
+    if (start < min) return 'Дата переезда уже прошла: выберите сегодняшнюю или будущую'
+    if (start > max) return 'Дата переезда — не дальше чем через 2 года'
+  }
+  if (!end) return null
+  if (!isRealDate(end)) return 'Дата окончания: такой даты нет в календаре'
   const days = (Date.parse(end) - Date.parse(start)) / 86_400_000
   if (days < 0) return 'Дата окончания раньше даты начала'
   if (days >= 31) return 'Переезд длится не больше 31 дня'
