@@ -1,3 +1,4 @@
+import RequireProject from '../components/RequireProject'
 import { useState, type ChangeEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Settings2, Trash2, Users } from 'lucide-react'
@@ -18,7 +19,7 @@ const DEMO_PROJECT_ID = '00000000-0000-4000-8000-000000000001'
 
 export default function ProjectSettingsPage() {
   const { pid = '' } = useParams()
-  return <ProjectSettings key={pid} pid={pid} />
+  return <RequireProject pid={pid}>{() => <ProjectSettings key={pid} pid={pid} />}</RequireProject>
 }
 
 function ProjectSettings({ pid }: { pid: string }) {
