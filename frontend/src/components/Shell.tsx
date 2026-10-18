@@ -30,12 +30,17 @@ function sectionTitle(pathname: string): string {
 
 /** Desktop navigation can be collapsed explicitly; phones use bottom tabs. */
 export default function Shell() {
-  const { currentId, projects, select } = useProjects()
+  const { currentId, projects, select, archivedIds = [] } = useProjects()
   const { user } = useAuth()
   const { pathname, state } = useLocation()
   const routeProject = pathname.match(/^\/projects\/([^/]+)\//)?.[1]
-  const current = projects.find(p => p.id === (routeProject ?? currentId))
-  const contextId = current?.id ?? currentId
+  const routeBrief = routeProject ? projects.find(p => p.id === routeProject) : null
+  const archivedRoute = routeBrief && archivedIds.includes(routeBrief.id) ? routeBrief : null
+  const current = projects.find(p => p.id === (routeProject ?? currentId) && !archivedIds.includes(p.id))
+  const contextId = routeProject ? current?.id ?? null : currentId
+  const projectPage = ['/', '/boxes', '/labels', '/labels/print', '/progress', '/budget', '/moving-day', '/scan'].includes(pathname) || !!routeProject
+  const breadcrumbProject = current ?? archivedRoute
+  const breadcrumbSection = archivedRoute ? 'В архиве' : projectPage && !current ? 'Выберите проект' : sectionTitle(pathname)
   const adoptProject = () => { if (routeProject && current && current.id !== currentId) select(current.id) }
   const boxSection = /^\/projects\/[^/]+\/boxes\/\d+\/label/.test(pathname) ? '/labels' : /^\/projects\/[^/]+\/boxes\/\d+$/.test(pathname) ? '/boxes' : null
   const [notifying, setNotifying] = useState(false)
@@ -77,8 +82,8 @@ export default function Shell() {
       <header className="topbar">
         <nav className="breadcrumb" aria-label="Вы здесь">
           <Link to="/projects" aria-label="Все проекты" title="Все проекты"><FolderOpen className="icon-sm" aria-hidden /><span>Все проекты</span></Link>
-          {current && !['/projects', '/profile', '/new', '/about'].includes(pathname) ? <><span className="breadcrumb-project" aria-hidden="true">/</span><span className="breadcrumb-project" title={current.name}>{current.name}</span></> : null}
-          {pathname !== '/projects' ? <><span aria-hidden="true"> / </span><span aria-current="page">{sectionTitle(pathname)}</span></> : null}
+          {breadcrumbProject && !['/projects', '/profile', '/new', '/about'].includes(pathname) ? <><span className="breadcrumb-project" aria-hidden="true">/</span><span className="breadcrumb-project" title={breadcrumbProject.name}>{breadcrumbProject.name}</span></> : null}
+          {pathname !== '/projects' ? <><span aria-hidden="true"> / </span><span aria-current="page">{breadcrumbSection}</span></> : null}
         </nav>
         <Link to="/scan" onClick={adoptProject} className="icon-link" aria-label="Сканировать QR"><ScanLine className="icon" aria-hidden /></Link>
         <button className="icon-link" onClick={() => setNotifying(true)} aria-label={pending ? `Уведомления: ${pending}` : 'Уведомления и журнал'}>
