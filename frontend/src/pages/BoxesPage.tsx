@@ -86,11 +86,17 @@ function Boxes({ pid }: { pid: string }) {
   const numberMatch = byNumber.data?.items[0]
 
   return (
-    <>
-      <PageHeading title="Коробки и вещи" mobileTitle="Коробки">{summary.data ? <>{summary.data.boxes_total} {plural(summary.data.boxes_total, ['коробка', 'коробки', 'коробок'])} · {summary.data.by_status.packing} ещё {plural(summary.data.by_status.packing, ['собирается', 'собираются', 'собираются'])}</> : '…'}</PageHeading>
+    <div className="boxes-page">
+      <div className="boxes-page__heading">
+        <PageHeading title="Коробки и вещи" mobileTitle="Коробки">{summary.data ? <>{summary.data.boxes_total} {plural(summary.data.boxes_total, ['коробка', 'коробки', 'коробок'])} · {summary.data.by_status.packing} ещё {plural(summary.data.by_status.packing, ['собирается', 'собираются', 'собираются'])}</> : '…'}</PageHeading>
+        <button className="primary" onClick={() => setAdding(true)}>+ Коробка</button>
+      </div>
       {/* без сети падают все запросы: одну и ту же ошибку показываем один раз - в списке ниже */}
       <ErrorAlert message={q && !hits.error ? summary.error : null} />
-      <div className="search-tools"><input type="search" maxLength={120} placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} aria-label="Поиск" /><Link to="/scan" className="button">Сканировать QR</Link><button onClick={() => setRoomPhoto(true)}><Camera className="icon-sm" aria-hidden />Комната по фото</button><button className="primary" onClick={() => setAdding(true)}>+ Коробка</button></div>
+      <div className="search-tools boxes-search">
+        <input type="search" maxLength={120} placeholder="Вещь или номер коробки" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} aria-label="Поиск" />
+        <button className="boxes-search__action" onClick={() => setRoomPhoto(true)} aria-label="Комната по фото" title="Комната по фото"><Camera className="icon-sm" aria-hidden /><span>Комната по фото</span></button>
+      </div>
 
       {q ? (
         <>
@@ -122,11 +128,19 @@ function Boxes({ pid }: { pid: string }) {
         </>
       ) : (
         <>
-          {rooms.length > 1 ? <div className="chips" role="group" aria-label="Фильтр по комнатам">
+          <div className="boxes-filters">
+          {rooms.length > 1 ? <>
+          <div className="chips boxes-filters__rooms" role="group" aria-label="Фильтр по комнатам">
             <button className={room === null ? 'chip on' : 'chip'} onClick={() => { setRoom(null); setPlacePages(INITIAL_LOCATION_PAGES); setPage(1) }}>Все комнаты · {summary.data?.boxes_total}</button>
             {rooms.map(r => <button key={r.room} className={room === r.room ? 'chip room-chip on' : 'chip room-chip'} style={roomStyle(r.room)} onClick={() => { setRoom(room === r.room ? null : r.room); setPlacePages(INITIAL_LOCATION_PAGES); setPage(1) }}>{r.room} · {r.total}</button>)}
-          </div> : null}
-          <label className="box-order">Порядок коробок<select aria-label="Порядок коробок" value={sort} onChange={e => { setSort(e.target.value as BoxSort); setPlacePages(INITIAL_LOCATION_PAGES); locationCache.current = {} }}><option value="number">По номеру</option><option value="open_first">Сначала открытые</option><option value="closed_first">Сначала закрытые</option></select></label>
+          </div>
+          <label className="boxes-filters__room-select"><span className="sr-only">Комната</span><select aria-label="Комната" value={room ?? ''} onChange={e => { setRoom(e.target.value || null); setPlacePages(INITIAL_LOCATION_PAGES); setPage(1) }}>
+            <option value="">Все комнаты · {summary.data?.boxes_total}</option>
+            {rooms.map(r => <option key={r.room} value={r.room}>{r.room} · {r.total}</option>)}
+          </select></label>
+          </> : null}
+          <label className="box-order"><span className="sr-only">Порядок коробок</span><select aria-label="Порядок коробок" value={sort} onChange={e => { setSort(e.target.value as BoxSort); setPlacePages(INITIAL_LOCATION_PAGES); locationCache.current = {} }}><option value="number">По номеру</option><option value="open_first">Сначала открытые</option><option value="closed_first">Сначала закрытые</option></select></label>
+          </div>
         <StateView loading={summary.loading && !summary.data} error={summary.error} onRetry={summary.reload}>
           {waiting.length > 0 ? (
             <div className="banner">
@@ -170,7 +184,7 @@ function Boxes({ pid }: { pid: string }) {
           }}
         />
       ) : null}
-    </>
+    </div>
   )
 }
 

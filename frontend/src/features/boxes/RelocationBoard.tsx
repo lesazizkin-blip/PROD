@@ -55,7 +55,7 @@ export default function RelocationBoard({ pid, room, sort = 'number', summary, p
           <Icon aria-hidden className="icon" /><span>{LOCATION_LABELS[location]}<b>{total ?? '…'}</b></span>
         </button>
       })}
-      <div key={move?.id ?? 0} className={`relocation-route__truck${move?.pid === pid && move.to === 'delivered' && !move.correction ? ' is-delivering' : ''}`} aria-hidden><MovingTruck cargo={totals.truck > 0} /></div>
+      {motion?.to === 'delivered' ? <div key={motion.id} className="relocation-route__truck is-delivering" aria-hidden><MovingTruck cargo /></div> : null}
     </div>
     <div className="relocation-racks">
       {BOX_LOCATIONS.map(location => <LocationRack key={location} pid={pid} location={location} selected={place === location} data={lists[location]} page={pages[location]} onPage={page => onPage(location, page)} motion={motion} />)}
@@ -74,7 +74,7 @@ function LocationRack({ pid, location, selected, data, page, onPage, motion }: {
     if (!data.loading && data.data && page > last) onPage(last)
   }, [total, data.loading, data.data, page, onPage])
   return <section id={`rack-${location}`} className={`relocation-rack relocation-rack--${location}${selected ? ' is-selected' : ''}`} aria-labelledby={`rack-heading-${location}`}>
-    <header className="relocation-rack__heading"><div><h2 id={`rack-heading-${location}`} tabIndex={-1}>{LOCATION_LABELS[location]}</h2><p>{DESCRIPTIONS[location]}</p></div><span className="relocation-rack__count" aria-label={`Всего: ${total}`}>{data.data ? total : '…'}</span></header>
+    <header className="relocation-rack__heading"><h2 id={`rack-heading-${location}`} tabIndex={-1} title={DESCRIPTIONS[location]}>{LOCATION_LABELS[location]}</h2></header>
     <StateView loading={data.loading && !data.data} error={data.error} onRetry={data.reload}>
       {data.data && total > 0 ? <BoxShelf pid={pid} boxes={data.data.items} compact motion={motion} /> : data.data ? <div className="relocation-empty">
         {location === 'truck' ? <MovingTruck /> : <div className="relocation-empty__shelf" aria-hidden><span /><span /></div>}
