@@ -5,6 +5,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
+from app.move_dates import check_move_start
+
 Short = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 
 
@@ -39,6 +41,7 @@ class PlanRequest(BaseModel):
         self.description = self.description.strip()
         if len(self.description) < 10:
             raise ValueError("Опишите потребности хотя бы в 10 символах")
+        check_move_start(self.move_date)
         return self
 
 

@@ -5,7 +5,7 @@ import { api } from '../api/endpoints'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
 import ErrorAlert from '../ui/ErrorAlert'
-import { moveDatesError } from '../ui/format'
+import { moveDateBounds, moveDatesError } from '../ui/format'
 import AddressInput from './AddressInput'
 import PersonalPlanner from '../features/planner/PersonalPlanner'
 import type { PersonalPlan } from '../features/planner/types'
@@ -26,6 +26,7 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
   const { busy, error, submit } = useAction()
 
   const datesError = moveDatesError(date, dateEnd)
+  const bounds = moveDateBounds()
   const invalid = name.trim().length === 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date) || datesError !== null
 
   const create = async () => {
@@ -53,7 +54,7 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
       <div className="form-grid">
         <label>
           Дата переезда
-          <input type="date" value={date} min="1900-01-01" max="9998-12-31" disabled={busy || generating}
+          <input type="date" value={date} min={bounds.min} max={bounds.max} disabled={busy || generating}
             onChange={(e) => { setDate(e.target.value); setPlan(null) }} />
         </label>
         <label>
@@ -74,7 +75,7 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
       {planMode === 'standard' ? <>
         <label>Первый день: что подготовить<textarea rows={4} value={firstDay} disabled={busy || generating} onChange={e => setFirstDay(e.target.value)} maxLength={4020} /></label>
         <p className="muted small">По одному пункту на строку. Список сохранится без коробок; привязать вещи к ним можно позже.</p>
-      <PersonalPlanner moveDate={date} plan={plan} onPlan={setPlan} busy={busy || generating} onBusy={setGenerating} />
+      <PersonalPlanner moveDate={datesError ? '' : date} plan={plan} onPlan={setPlan} busy={busy || generating} onBusy={setGenerating} />
       </> : <p className="muted small">Без готовых задач и списка первого дня. Добавите их, когда будет удобно.</p>}
       <ErrorAlert message={error} />
       <button className="primary" type="submit" disabled={busy || generating || invalid}>Создать проект</button>

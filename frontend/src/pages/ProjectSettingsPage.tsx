@@ -54,7 +54,8 @@ function ProjectForm({ project, onSaved }: { project: Project; onSaved: () => vo
   const [to, setTo] = useState(project.address_to ?? '')
   const [saved, setSaved] = useState(false)
   const { busy, error, submit } = useAction()
-  const datesError = moveDatesError(date, dateEnd)
+  // прошедшая дата уже идущего переезда не мешает сохранить настройки: проверяется только новая
+  const datesError = moveDatesError(date, dateEnd, { checkStart: date !== project.move_date })
   const invalid = !name.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(date) || datesError !== null
 
   const save = async () => {

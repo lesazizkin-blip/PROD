@@ -232,6 +232,16 @@ async def overflow_handler(request: Request, exc: OverflowError):
     return await app_error_handler(request, NotFoundError("Не найдено"))
 
 
+def _human_error(e: dict) -> str | None:
+    """Понятный текст вместо «Некорректные данные»: свои проверки пишут его сами (ValueError),
+    а несуществующая дата (30 февраля, 29 февраля не в високосный год) получает свой."""
+    if e["type"] == "value_error":
+        return str(e["msg"]).removeprefix("Value error, ")
+    if e["type"] in ("date_from_datetime_parsing", "date_parsing", "date_type"):
+        return "Такой даты нет в календаре: проверьте число и месяц (в феврале 28 дней, в високосный год 29)"
+    return None
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_handler(request: Request, exc: RequestValidationError):
     errors = [
@@ -253,7 +263,9 @@ async def validation_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
         status_code=422,
         content={
-            "detail": "Некорректные данные",
+            "detail": next(
+                (h for h in (_human_error(e) for e in exc.errors()) if h), "Некорректные данные"
+            ),
             "code": "validation_failed",
             "errors": errors,
             "request_id": request.state.request_id,

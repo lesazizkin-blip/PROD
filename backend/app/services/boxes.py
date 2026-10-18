@@ -152,6 +152,7 @@ class BoxService:
         offset: int,
         limit: int,
         location: str | None = None,
+        sort: str = "number",
     ) -> tuple[list[BoxOut], int]:
         where = [Box.project_id == project_id]
         if room:
@@ -170,12 +171,22 @@ class BoxService:
         if number is not None:
             where.append(Box.number == number)
         total = self.db.scalar(select(func.count(Box.id)).where(*where)) or 0
+        order = [Box.number]
+        if sort != "number":
+            opened = Box.status.in_(("packing", "unpacked"))
+            order.insert(
+                0,
+                case(
+                    (opened, 0 if sort == "open_first" else 1),
+                    else_=1 if sort == "open_first" else 0,
+                ),
+            )
         rows = self.db.execute(
             select(Box, func.count(Item.id))
             .outerjoin(Item, Item.box_id == Box.id)
             .where(*where)
             .group_by(Box.id)
-            .order_by(Box.number)
+            .order_by(*order)
             .offset(offset)
             .limit(limit)
         ).all()

@@ -190,12 +190,6 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
           <button className="manifest-add" onClick={() => setAdding(true)}><Plus className="icon-sm" aria-hidden />Добавить вещи</button>
           </section>
           <footer className="carton-footer">
-            <details className="carton-help">
-              <summary>Нет принтера?</summary>
-              <p>Напишите маркером на коробке <strong>#{String(box.number).padStart(3, '0')}</strong> и комнату «{box.room}». Подпишите с двух сторон — так её проще найти в стопке.</p>
-              <p>Открыть коробку можно по номеру в выбранном проекте.</p>
-              <Link to="/scan" className="button tonal">Найти по номеру</Link>
-            </details>
             <button className="danger" disabled={busy} onClick={deleteBox}><Trash2 className="icon-sm" aria-hidden />Удалить коробку</button>
           </footer>
           <span className="carton-workspace__staples" aria-hidden />

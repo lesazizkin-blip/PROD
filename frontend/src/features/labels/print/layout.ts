@@ -4,7 +4,7 @@ import type { LabelTemplate } from '../contract'
 // Print-local settings. Shared QR/API contracts belong to the integrator.
 export type PrintTemplate = LabelTemplate
 export const TEMPLATES: Record<PrintTemplate, string> = {
-  standard: 'Стандарт: номер, комната и QR',
+  standard: 'Номер и QR',
   'qr-only': 'Только QR', notes: 'Для заметок', 'no-qr': 'Без QR',
 }
 export const PRESETS = {

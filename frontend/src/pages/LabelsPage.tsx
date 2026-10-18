@@ -15,7 +15,9 @@ function LabelList({ pid }: { pid: string }) {
   return <div className="stack labels-page"><StateView loading={labels.loading && !labels.data} error={labels.error} empty={labels.data?.length === 0} emptyText="Сначала создайте коробку на вкладке «Коробки»" emptyIcon="🏷️" onRetry={labels.reload}>
     {labels.data?.length ? <PrintWorkspace labels={labels.data} pid={pid} extraSettings={<details className="qr-mode-details no-print"><summary>Настройки QR-кодов проекта</summary><QrModeSettings pid={pid} onSaved={labels.reload} /></details>} /> : null}
     {labels.data?.length ? <ScanCard /> : null}
-  </StateView></div>
+  </StateView>
+    <details className="mm-no-printer no-print"><summary>Нет принтера?</summary><p>Напишите маркером номер коробки и комнату с двух сторон. Например: #001 · Кухня. Найти содержимое можно по номеру в выбранном проекте.</p><Link to="/scan" className="button tonal">Найти коробку по номеру</Link></details>
+  </div>
 }
 
 /** Этикетки наклеены - дальше их сканируют: камера открывает карточку коробки, там меняют статус. */
