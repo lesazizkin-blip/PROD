@@ -14,7 +14,7 @@ import { useAsync } from '../state/useAsync'
 import ErrorAlert from '../ui/ErrorAlert'
 import ProgressBar from '../ui/ProgressBar'
 import StateView from '../ui/StateView'
-import { STAGES, STAGE_LABELS, daysUntil, formatDate, formatTimeRange, plural } from '../ui/format'
+import { STAGES, STAGE_LABELS, daysUntil, formatDate, formatMoveDates, formatTimeRange, plural } from '../ui/format'
 import { errorMessage } from '../api/client'
 
 // Вкладки плана: три этапа переезда и отдельно коробка первого дня
@@ -77,7 +77,7 @@ function Plan({ pid }: { pid: string }) {
   return (
     <StateView loading={tasks.loading && !tasks.data} error={tasks.error} onRetry={reloadAll}>
       <div className="page-toolbar"><PageHeading title="План переезда">
-        {project.data ? formatDate(project.data.move_date) : '…'} · {days !== null && days > 0 ? `${days} ${plural(days, ['день', 'дня', 'дней'])} до переезда` : 'Ваш переезд'}
+        {project.data ? formatMoveDates(project.data.move_date, project.data.move_date_end) : '…'} · {days !== null && days > 0 ? `${days} ${plural(days, ['день', 'дня', 'дней'])} до переезда` : 'Ваш переезд'}
       </PageHeading><button className="primary" onClick={() => setForm('new')}><Plus className="icon-sm" aria-hidden />Добавить задачу</button></div>
       <Link to="/journey" className="journey-link">Путь переезда: все 7 этапов от решения до «обжились» →</Link>
       <div className="move-ticket">
@@ -88,7 +88,7 @@ function Plan({ pid }: { pid: string }) {
           {boxes?.boxes_total === 0 ? <Link to="/boxes" className="button">Добавить коробку</Link> : null}
         </div>
         <div className="date-stamp">
-          <strong>{project.data ? formatDate(project.data.move_date).slice(0, 5).replace('.', ' / ') : '…'}</strong>
+          <strong>{project.data ? formatMoveDates(project.data.move_date, project.data.move_date_end).replace(/\.\d{4}/g, '').replace(/\./g, ' / ') : '…'}</strong>
           <span>ДАТА ПЕРЕЕЗДА</span>
         </div>
       </div>

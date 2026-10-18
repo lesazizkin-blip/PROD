@@ -38,6 +38,8 @@ export interface ProjectBrief {
   id: string
   name: string
   move_date: string
+  /** последний день, если переезд на несколько дней */
+  move_date_end?: string | null
   role: 'owner' | 'member'
 }
 
@@ -63,6 +65,7 @@ export interface Project {
   id: string
   name: string
   move_date: string
+  move_date_end?: string | null
   address_from: string | null
   address_to: string | null
   created_at: string
@@ -212,6 +215,7 @@ export interface ProjectCreate {
   personal_plan?: import('../features/planner/types').PersonalPlan
   name: string
   move_date: string
+  move_date_end?: string | null
   address_from?: string | null
   address_to?: string | null
 }

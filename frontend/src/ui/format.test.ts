@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boxNumberFromInput, boxPath, boxUrl, formatDate, formatTimeRange, parseBoxLink, plural } from './format'
+import { boxNumberFromInput, boxPath, boxUrl, formatDate, formatMoveDates, formatTimeRange, moveDatesError, parseBoxLink, plural } from './format'
 
 const PID = '00000000-0000-4000-8000-000000000001'
 
@@ -29,6 +29,20 @@ describe('форматы', () => {
   it('дата ДД.ММ.ГГГГ, время игнорируется', () => {
     expect(formatDate('2026-11-01')).toBe('01.11.2026')
     expect(formatDate('2026-11-01T10:00:00Z')).toBe('01.11.2026')
+  })
+  it('переезд на несколько дней: «с ... по ...», год один раз', () => {
+    expect(formatMoveDates('2026-11-01')).toBe('01.11.2026')
+    expect(formatMoveDates('2026-11-01', null)).toBe('01.11.2026')
+    expect(formatMoveDates('2026-11-01', '2026-11-01')).toBe('01.11.2026')
+    expect(formatMoveDates('2026-11-01', '2026-11-03')).toBe('01.11–03.11.2026')
+    expect(formatMoveDates('2026-12-30', '2027-01-02')).toBe('30.12.2026 – 02.01.2027')
+  })
+  it('даты «с ... по ...» проверяются как на сервере', () => {
+    expect(moveDatesError('2026-11-01', '')).toBeNull()
+    expect(moveDatesError('2026-11-01', '2026-11-01')).toBeNull()
+    expect(moveDatesError('2026-11-01', '2026-11-30')).toBeNull()
+    expect(moveDatesError('2026-11-03', '2026-11-01')).toBe('Дата окончания раньше даты начала')
+    expect(moveDatesError('2026-11-01', '2026-12-02')).toBe('Переезд длится не больше 31 дня')
   })
   it.each([
     [1, 'вещь'],

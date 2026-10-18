@@ -111,6 +111,8 @@ class Project(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(120))
     move_date: Mapped[date] = mapped_column(Date)
+    # переезд на несколько дней: последний день (пусто - один день move_date)
+    move_date_end: Mapped[date | None] = mapped_column(Date, nullable=True)
     address_from: Mapped[str | None] = mapped_column(String(300), nullable=True)
     address_to: Mapped[str | None] = mapped_column(String(300), nullable=True)
     qr_mode: Mapped[str] = mapped_column(

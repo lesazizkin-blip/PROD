@@ -51,7 +51,7 @@ it('настройки и помощники принадлежат конкре
   const from = await screen.findByPlaceholderText('ул. Садовая, 5')
   await userEvent.type(from, '  Садовая, 5 ')
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
-  await waitFor(() => expect(updateProject).toHaveBeenCalledWith('p1', { name: 'Переезд', move_date: '2026-11-01', address_from: 'Садовая, 5', address_to: null }))
+  await waitFor(() => expect(updateProject).toHaveBeenCalledWith('p1', { name: 'Переезд', move_date: '2026-11-01', move_date_end: null, address_from: 'Садовая, 5', address_to: null }))
   await userEvent.click(screen.getByRole('tab', { name: 'Помощники' }))
   expect(await screen.findByRole('heading', { name: 'Помощники' })).toBeTruthy()
   expect(screen.queryByPlaceholderText('ул. Садовая, 5')).toBeNull()

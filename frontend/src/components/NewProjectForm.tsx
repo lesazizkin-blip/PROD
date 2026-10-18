@@ -5,6 +5,7 @@ import { api } from '../api/endpoints'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
 import ErrorAlert from '../ui/ErrorAlert'
+import { moveDatesError } from '../ui/format'
 import AddressInput from './AddressInput'
 import PersonalPlanner from '../features/planner/PersonalPlanner'
 import type { PersonalPlan } from '../features/planner/types'
@@ -14,6 +15,7 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
   const { add } = useProjects()
   const [name, setName] = useState('')
   const [date, setDate] = useState('')
+  const [dateEnd, setDateEnd] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [withAddresses, setWithAddresses] = useState(false)
@@ -23,17 +25,19 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
   const [generating, setGenerating] = useState(false)
   const { busy, error, submit } = useAction()
 
-  const invalid = name.trim().length === 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date)
+  const datesError = moveDatesError(date, dateEnd)
+  const invalid = name.trim().length === 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date) || datesError !== null
 
   const create = async () => {
     if (planMode === 'standard' && (firstDayLines(firstDay).length > 20 || firstDayLines(firstDay).some(t => t.length > 200))) throw new Error('Первый день: до 20 пунктов, каждый не длиннее 200 символов.')
     const project = await api.createProject({ name: name.trim(), move_date: date,
+      ...(dateEnd ? { move_date_end: dateEnd } : {}),
       ...(from.trim() ? { address_from: from.trim() } : {}),
       ...(to.trim() ? { address_to: to.trim() } : {}),
       plan_mode: planMode,
       ...(planMode === 'standard' ? { first_day: firstDayLines(firstDay), ...(plan ? { personal_plan: plan } : {}) } : {}),
     })
-    add({ id: project.id, name: project.name, role: 'owner', move_date: project.move_date })
+    add({ id: project.id, name: project.name, role: 'owner', move_date: project.move_date, ...(project.move_date_end ? { move_date_end: project.move_date_end } : {}) })
     onDone?.()
   }
 
@@ -46,11 +50,19 @@ export default function NewProjectForm({ onDone }: { onDone?: () => void }) {
         Название переезда
         <input value={name} disabled={busy || generating} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="Переезд на Лесную" data-autofocus />
       </label>
-      <label>
-        Дата переезда
-        <input type="date" value={date} min="1900-01-01" max="9998-12-31" disabled={busy || generating}
-          onChange={(e) => { setDate(e.target.value); setPlan(null) }} />
-      </label>
+      <div className="form-grid">
+        <label>
+          Дата переезда
+          <input type="date" value={date} min="1900-01-01" max="9998-12-31" disabled={busy || generating}
+            onChange={(e) => { setDate(e.target.value); setPlan(null) }} />
+        </label>
+        <label>
+          По (если переезд на несколько дней)
+          <input type="date" value={dateEnd} min={date || undefined} disabled={busy || generating}
+            onChange={(e) => setDateEnd(e.target.value)} aria-describedby="move-dates-hint" />
+        </label>
+      </div>
+      {datesError ? <p className="error small" id="move-dates-hint" role="alert">{datesError}</p> : null}
       {withAddresses ? <div className="form-grid">
         <AddressInput label="Откуда (необязательно)" value={from} onChange={setFrom} />
         <AddressInput label="Куда (необязательно)" value={to} onChange={setTo} />

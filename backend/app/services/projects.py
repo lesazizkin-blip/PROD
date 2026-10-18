@@ -8,7 +8,7 @@ from app.errors import ValidationFailed
 from app.logging_setup import audit
 from app.models import FirstDayItem, Project, ProjectMember, Task, TaskTemplate
 from app.reference_data import FIRST_DAY_BASICS
-from app.schemas import ProjectCreate, ProjectUpdate
+from app.schemas import ProjectCreate, ProjectUpdate, check_move_dates
 from app.services.events import log_event
 
 
@@ -22,6 +22,7 @@ class ProjectService:
         project = Project(
             name=data.name,
             move_date=data.move_date,
+            move_date_end=data.move_date_end,
             address_from=data.address_from,
             address_to=data.address_to,
             qr_mode=data.qr_mode.value,
@@ -94,6 +95,16 @@ class ProjectService:
                 )
             ):
                 task.due_date = task.due_date + shift
+            # переезд на несколько дней сдвигается целиком, если конец не задан в том же запросе
+            if project.move_date_end and "move_date_end" not in changes:
+                changes["move_date_end"] = project.move_date_end + shift
+        try:
+            check_move_dates(
+                changes.get("move_date") or project.move_date,
+                changes["move_date_end"] if "move_date_end" in changes else project.move_date_end,
+            )
+        except ValueError as e:
+            raise ValidationFailed(str(e)) from None
         # в журнал - только поля, которые действительно изменились (форма шлёт все поля сразу)
         changes = {k: v for k, v in changes.items() if getattr(project, k) != v}
         for field, value in changes.items():

@@ -13,6 +13,7 @@ import { useAsync } from '../state/useAsync'
 import { useAction } from '../state/useAction'
 import StateView from '../ui/StateView'
 import ErrorAlert from '../ui/ErrorAlert'
+import { moveDatesError } from '../ui/format'
 
 // общий демо-проект жюри удалить нельзя (сервер отвечает 403), поэтому кнопку не показываем
 const DEMO_PROJECT_ID = '00000000-0000-4000-8000-000000000001'
@@ -48,16 +49,19 @@ function ProjectSettings({ pid }: { pid: string }) {
 function ProjectForm({ project, onSaved }: { project: Project; onSaved: () => void }) {
   const [name, setName] = useState(project.name)
   const [date, setDate] = useState(project.move_date)
+  const [dateEnd, setDateEnd] = useState(project.move_date_end ?? '')
   const [from, setFrom] = useState(project.address_from ?? '')
   const [to, setTo] = useState(project.address_to ?? '')
   const [saved, setSaved] = useState(false)
   const { busy, error, submit } = useAction()
-  const invalid = !name.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(date)
+  const datesError = moveDatesError(date, dateEnd)
+  const invalid = !name.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(date) || datesError !== null
 
   const save = async () => {
     await api.updateProject(project.id, {
       name: name.trim(),
       move_date: date,
+      move_date_end: dateEnd || null,
       address_from: from.trim() || null,
       address_to: to.trim() || null,
     })
@@ -82,9 +86,14 @@ function ProjectForm({ project, onSaved }: { project: Project; onSaved: () => vo
           Дата переезда
           <input type="date" value={date} onChange={edit(setDate)} />
         </label>
+        <label>
+          По (если переезд на несколько дней)
+          <input type="date" value={dateEnd} min={date || undefined} onChange={edit(setDateEnd)} />
+        </label>
         <AddressInput label="Откуда (необязательно)" value={from} onChange={editValue(setFrom)} placeholder="ул. Садовая, 5" />
         <AddressInput label="Куда (необязательно)" value={to} onChange={editValue(setTo)} placeholder="ул. Лесная, 12" />
       </div>
+      {datesError ? <p className="error small" role="alert">{datesError}</p> : null}
       <p className="muted small">Адреса видят только участники этого проекта и больше никто.</p>
       <ErrorAlert message={error} />
       <div className="row">

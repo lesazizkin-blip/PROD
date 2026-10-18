@@ -80,6 +80,22 @@ describe('создание проекта', () => {
     await waitFor(() => expect(createProject).toHaveBeenCalledWith({ name: 'Пустой', move_date: '2026-12-01', plan_mode: 'empty' }))
   })
 
+  it('переезд на несколько дней: дата «по» уходит на сервер, конец раньше начала не отправить', async () => {
+    createProject.mockResolvedValue({ id: 'p1', name: 'Долгий', move_date: '2026-11-01', move_date_end: '2026-11-03' })
+    await setup()
+    await userEvent.type(screen.getByLabelText('Название переезда'), 'Долгий')
+    fireEvent.change(screen.getByLabelText('Дата переезда'), { target: { value: '2026-11-03' } })
+    fireEvent.change(screen.getByLabelText(/^По/), { target: { value: '2026-11-01' } })
+    const submit = screen.getByRole('button', { name: 'Создать проект' }) as HTMLButtonElement
+    expect(screen.getByRole('alert').textContent).toBe('Дата окончания раньше даты начала')
+    expect(submit.disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText('Дата переезда'), { target: { value: '2026-11-01' } })
+    fireEvent.change(screen.getByLabelText(/^По/), { target: { value: '2026-11-03' } })
+    await userEvent.click(submit)
+    await waitFor(() => expect(createProject).toHaveBeenCalledWith({ name: 'Долгий', move_date: '2026-11-01', move_date_end: '2026-11-03', plan_mode: 'standard', first_day: FIRST_DAY_BASICS }))
+    expect(saved().projects[0].move_date_end).toBe('2026-11-03')
+  })
+
   it('ошибка сервера показывается, проект не запоминается', async () => {
     createProject.mockRejectedValue(new ApiError('Некорректные данные', 422))
     const { onDone } = await setup()
