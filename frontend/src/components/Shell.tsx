@@ -6,6 +6,7 @@ import { useAuth } from '../state/AuthContext'
 import { useProjects } from '../state/ProjectContext'
 import { useAsync } from '../state/useAsync'
 import Avatar from './Avatar'
+import ThemeToggle from './ThemeToggle'
 import BrandMark from './BrandMark'
 import SidebarToggle from './SidebarToggle'
 import NotificationsModal from './NotificationsModal'
@@ -86,6 +87,7 @@ export default function Shell() {
           {breadcrumbProject && !['/projects', '/profile', '/new', '/about'].includes(pathname) ? <><span className="breadcrumb-project" aria-hidden="true">/</span><span className="breadcrumb-project" title={breadcrumbProject.name}>{breadcrumbProject.name}</span></> : null}
           {pathname !== '/projects' ? <><span className="breadcrumb-separator" aria-hidden="true"> / </span><span aria-current="page">{breadcrumbSection}</span></> : null}
         </nav>
+        <ThemeToggle />
         <Link to="/scan" onClick={adoptProject} className="icon-link" aria-label="Сканировать QR"><ScanLine className="icon" aria-hidden /></Link>
         <button className="icon-link" onClick={() => setNotifying(true)} aria-label={pending ? `Уведомления: ${pending}` : 'Уведомления и журнал'}>
           <Bell className="icon" aria-hidden />

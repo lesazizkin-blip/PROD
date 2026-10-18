@@ -5,10 +5,12 @@ import Avatar from '../components/Avatar'
 import PasswordModal from '../components/PasswordModal'
 import { useAuth } from '../state/AuthContext'
 import { useProjects } from '../state/ProjectContext'
+import { useTheme, type ThemePreference } from '../state/ThemeContext'
 
 /** Account settings only; moving projects and their teams have dedicated pages. */
 export default function ProfilePage() {
   const { user, logout } = useAuth()
+  const { preference, setPreference } = useTheme()
   const { projects } = useProjects()
   const navigate = useNavigate()
   const [changingPassword, setChangingPassword] = useState(false)
@@ -23,6 +25,9 @@ export default function ProfilePage() {
       <h2>Проекты</h2><p className="muted">Все ваши переезды, участие в других проектах и архив на этом устройстве.</p>
       <Link to="/projects" className="button tonal"><FolderOpen className="icon-sm" aria-hidden />Все проекты ({projects.length})</Link>
       <p className="muted small">Адреса, дату переезда и помощников можно изменить в настройках выбранного проекта.</p>
+    </section>
+    <section className="card stack theme-settings"><h2>Оформление</h2>
+      <label>Тема<select value={preference} onChange={event => setPreference(event.target.value as ThemePreference)} aria-label="Тема"><option value="system">Как на устройстве</option><option value="light">Светлая</option><option value="dark">Тёмная</option></select></label>
     </section>
     <section className="card stack"><h2>Безопасность</h2>
       <p className="row muted small"><ShieldCheck className="icon-sm" aria-hidden />Для входа используются логин и пароль.</p>

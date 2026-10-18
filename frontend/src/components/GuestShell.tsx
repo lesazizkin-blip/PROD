@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { CircleHelp } from 'lucide-react'
 import FaqModal from './FaqModal'
 import BrandMark from './BrandMark'
+import ThemeToggle from './ThemeToggle'
 
 /** Public pages have their own header; project navigation appears after signing in. */
 export default function GuestShell() {
@@ -14,6 +15,7 @@ export default function GuestShell() {
         <header className="public-header">
           <Link to="/about" className="brand" aria-label="MoverMate: о нас"><BrandMark /><span>MoverMate</span></Link>
           <nav className="row" aria-label="Информация и вход">
+            <ThemeToggle />
             <Link to="/journey" className="public-tool-link">Путь переезда</Link>
             <Link to="/calculator" className="public-tool-link">Калькулятор</Link>
             <button className="link" aria-label="Вопросы" onClick={() => setFaq(true)}><CircleHelp className="icon-sm" aria-hidden /><span className="public-faq-label">Вопросы</span></button>

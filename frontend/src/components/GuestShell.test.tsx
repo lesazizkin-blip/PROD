@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it } from 'vitest'
 import GuestShell from './GuestShell'
+import { ThemeProvider } from '../state/ThemeContext'
 
 afterEach(cleanup)
 
@@ -13,13 +14,13 @@ HTMLDialogElement.prototype.close = function () { this.open = false }
 describe('гость', () => {
   it('показывает публичную шапку без меню проекта и один вход', async () => {
     render(
-      <MemoryRouter initialEntries={['/']}>
+      <ThemeProvider><MemoryRouter initialEntries={['/']}>
         <Routes>
           <Route element={<GuestShell />}>
             <Route path="*" element={<p>о нас</p>} />
           </Route>
         </Routes>
-      </MemoryRouter>,
+      </MemoryRouter></ThemeProvider>,
     )
     expect(screen.queryByRole('complementary')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Коробки и поиск' })).toBeNull()
