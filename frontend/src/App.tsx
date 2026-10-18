@@ -3,6 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-r
 import NewProjectForm from './components/NewProjectForm'
 import GuestShell from './components/GuestShell'
 import Shell from './components/Shell'
+import RequireProject from './components/RequireProject'
 import AboutPage from './pages/AboutPage'
 import BoxesPage from './pages/BoxesPage'
 import BoxPage from './pages/BoxPage'
@@ -77,7 +78,7 @@ export default function App() {
         <Route path="journey" element={<JourneyPage />} />
         <Route path="budget" element={<BudgetPage />} />
         <Route path="moving-day" element={<MovingDayPage />} />
-        <Route path="scan" element={<Suspense fallback={<div className="state" role="status">Загрузка…</div>}><ScanPage /></Suspense>} />
+        <Route path="scan" element={<RequireProject>{() => <Suspense fallback={<div className="state" role="status">Загрузка…</div>}><ScanPage /></Suspense>}</RequireProject>} />
         <Route path="new" element={<NewProjectPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="projects" element={<ProjectsPage />} />

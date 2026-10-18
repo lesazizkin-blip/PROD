@@ -1,11 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api/endpoints'
 import { useAuth } from './AuthContext'
+import { useLocalProjectArchive } from './localProjectArchive'
 import { loadProjects, saveProjects, type ProjectsState, type SavedProject } from './projects'
 
 interface ProjectContextValue extends ProjectsState {
   /** список с сервера уже загружен: до этого не показываем «создайте проект» */
   ready: boolean
+  archivedIds: string[]
+  archiveError: string | null
+  archiveProject: (id: string, archived: boolean) => void
   add: (project: SavedProject) => void
   select: (id: string) => void
   remove: (id: string) => void
@@ -17,6 +21,9 @@ const EMPTY: ProjectsState = { projects: [], currentId: null }
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
+  const archive = useLocalProjectArchive(user?.id ?? 0)
+  const archiveIds = useRef(archive.ids)
+  useEffect(() => { archiveIds.current = archive.ids }, [archive.ids])
   const [state, setState] = useState<ProjectsState>(loadProjects)
   // для какого пользователя список уже загружен: до этого проекты не показываем (в т.ч. прошлого пользователя)
   const [loadedFor, setLoadedFor] = useState<number | null>(null)
@@ -31,7 +38,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const list = await api.myProjects()
     setState((prev) => {
       const projects = list.map((p) => ({ id: p.id, name: p.name, role: p.role, move_date: p.move_date }))
-      const currentId = projects.some((p) => p.id === prev.currentId) ? prev.currentId : (projects[0]?.id ?? null)
+      const active = projects.filter(p => !archiveIds.current.includes(p.id))
+      const currentId = active.some((p) => p.id === prev.currentId) ? prev.currentId : (active[0]?.id ?? null)
       const next = { projects, currentId }
       saveProjects(next)
       return next
@@ -53,21 +61,32 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }, [user, reload])
 
   const ready = !!user && loadedFor === user.id
-  const visible = ready ? state : EMPTY
+  const active = state.projects.filter(p => !archive.ids.includes(p.id))
+  const currentId = active.some(p => p.id === state.currentId) ? state.currentId : active[0]?.id ?? null
+  const visible = useMemo(() => ready ? { ...state, currentId } : EMPTY, [ready, state, currentId])
 
   const value = useMemo<ProjectContextValue>(
     () => ({
       ...visible,
       ready,
+      archivedIds: archive.ids,
+      archiveError: archive.error,
+      archiveProject: (id, archived) => {
+        archive.archive(id, archived)
+        const nextIds = archived ? [...archive.ids, id] : archive.ids.filter(value => value !== id)
+        archiveIds.current = nextIds
+        const remaining = state.projects.filter(p => !nextIds.includes(p.id))
+        update({ ...state, currentId: remaining.some(p => p.id === currentId) ? currentId : remaining[0]?.id ?? null })
+      },
       reload,
       add: (project) => update({ projects: [...state.projects.filter((p) => p.id !== project.id), project], currentId: project.id }),
-      select: (id) => update({ ...state, currentId: id }),
+      select: (id) => { if (state.projects.some(p => p.id === id) && !archive.ids.includes(id)) update({ ...state, currentId: id }) },
       remove: (id) => {
         const projects = state.projects.filter((p) => p.id !== id)
-        update({ projects, currentId: state.currentId === id ? (projects[0]?.id ?? null) : state.currentId })
+        update({ projects, currentId: currentId === id ? (projects.find(p => !archive.ids.includes(p.id))?.id ?? null) : currentId })
       },
     }),
-    [visible, state, ready, reload, update],
+    [visible, state, ready, reload, update, archive, currentId],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

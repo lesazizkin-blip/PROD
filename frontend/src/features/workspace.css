@@ -36,14 +36,17 @@ dialog.modal.modal--drawer { position: fixed; inset: 0 0 0 auto; margin: 0; widt
   .sidebar .sidebar-toggle { order: 0; flex: 0 0 44px; }
   .is-sidebar-compact .sidebar-head .brand { display: none; }
 }
-@media (max-width: 999px) { .sidebar-head { display: none; } }
+@media (max-width: 999px) {
+  .sidebar-head { display: none; }
+  .breadcrumb > a { flex: 0 0 44px; width: 44px; max-width: 44px; justify-content: center; }
+  .breadcrumb .breadcrumb-projects-label { display: none; }
+}
 @media (max-width: 599px) {
   .page-toolbar > button, .page-toolbar > a { width: 100%; justify-content: center; }
   .project-list-tools { gap: 12px; }
   .project-list-tools > .segmented { width: 100%; }
   .project-list-tools > .segmented > button { flex: 1; }
-  .breadcrumb > a { max-width: 105px; }
-  .breadcrumb { font-size: 11px; gap: 4px; }
+  .breadcrumb { font-size: 13px; gap: 4px; }
   .breadcrumb > .breadcrumb-project { display: none; }
   .modal--drawer .modal-body { padding: 20px; }
   dialog.modal.modal--drawer { border-radius: 16px 0 0 16px; }

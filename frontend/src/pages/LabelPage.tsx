@@ -1,5 +1,6 @@
 import { QRCodeSVG } from 'qrcode.react'
 import { useParams } from 'react-router-dom'
+import RequireProject from '../components/RequireProject'
 import { api } from '../api/endpoints'
 import type { Label } from '../api/types'
 import PrintWorkspace from '../features/labels/print/PrintWorkspace'
@@ -10,7 +11,10 @@ import { roomStyle } from '../ui/roomTheme'
 
 export default function LabelPage() {
   const { pid = '', n = '' } = useParams()
-  const number = Number(n)
+  return <RequireProject pid={pid}>{() => <ProjectLabel pid={pid} number={Number(n)} />}</RequireProject>
+}
+
+function ProjectLabel({ pid, number }: { pid: string; number: number }) {
   const label = useAsync(() => api.label(pid, number), [pid, number])
   return <StateView loading={label.loading && !label.data} error={label.error} onRetry={label.reload}>
     {label.data ? <>
