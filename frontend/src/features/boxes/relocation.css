@@ -1,13 +1,12 @@
 .relocation-board { min-width: 0; }
-.relocation-route { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 16px; padding: 0 0 102px; margin-bottom: 8px; }
-.relocation-route::after { content: ''; position: absolute; bottom: 30px; left: 8%; right: 8%; height: 2px; background: repeating-linear-gradient(90deg, var(--border) 0 12px, transparent 12px 22px); }
-.relocation-stop { position: relative; display: flex; align-items: center; justify-content: flex-start; gap: 12px; padding: 16px 20px; background: var(--surface); border-radius: var(--radius); text-align: left; min-width: 0; }
+.relocation-route { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 12px; margin-bottom: 16px; }
+.relocation-stop { position: relative; display: flex; align-items: center; justify-content: flex-start; gap: 12px; padding: 10px 14px; min-height: 44px; background: var(--surface); border-radius: var(--radius); text-align: left; min-width: 0; }
 .relocation-stop > svg { flex: none; color: var(--muted); }
 .relocation-stop > span { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex: 1; }
-.relocation-stop b { font: 24px/1.2 'IBM Plex Mono', monospace; }
+.relocation-stop b { font: 18px/1.2 'IBM Plex Mono', monospace; }
 .relocation-stop.is-selected { border-color: var(--primary); box-shadow: inset 0 -2px 0 var(--primary); }
 .relocation-stop.is-selected > svg { color: var(--primary); }
-.relocation-route__truck { position: absolute; left: calc(50% - 80px); bottom: 18px; width: 160px; z-index: 1; padding: 0 8px; background: var(--bg); }
+.relocation-route__truck { position: absolute; left: calc(50% - 48px); bottom: -8px; width: 96px; pointer-events: none; z-index: 1; padding: 0 8px; background: var(--bg); }
 .moving-truck { width: 100%; height: auto; display: block; color: var(--text); }
 .relocation-racks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; align-items: start; }
 .relocation-rack { min-width: 0; }
@@ -15,10 +14,8 @@
 .relocation-rack--new { grid-column: 2; grid-row: 1; --shelf-front: #8c9b95; }
 .relocation-rack--truck { display: none; grid-column: 1 / -1; grid-row: 1; padding: 20px; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); }
 .relocation-rack--truck.is-selected { display: block; }
-.relocation-rack__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 0 0 8px; }
-.relocation-rack__heading h2 { margin: 0 0 6px; font-size: 23px; }
-.relocation-rack__heading p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
-.relocation-rack__count { flex: none; display: grid; place-items: center; min-width: 40px; min-height: 40px; border: 1px solid var(--border); border-radius: var(--radius-label); background: var(--surface); font: 18px 'IBM Plex Mono', monospace; }
+.relocation-rack__heading { display: flex; align-items: center; gap: 12px; padding: 0; }
+.relocation-rack__heading h2 { margin: 0; font-size: 18px; line-height: 1.5; }
 .relocation-rack--new .shelf-container { --shelf-front: #879a90; --shelf-top: #b9c8bf; }
 .relocation-rack--truck .box-shelf { border-color: #9d8b6c; --shelf-front: #9d8b6c; --shelf-top: #d8c8ad; box-shadow: inset 8px 0 14px #424b3510, 8px 9px 0 #796b53; }
 .relocation-empty { display: grid; justify-items: center; gap: 20px; padding: 36px 20px; margin: 12px 10px 12px 0; min-height: 280px; border: 1px dashed var(--border); border-radius: var(--radius); background: color-mix(in srgb, var(--surface) 55%, transparent); }
@@ -80,17 +77,15 @@
 @keyframes move-notice-enter { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
 @media (max-width: 999px) { .box-move-announcer { bottom: calc(96px + env(safe-area-inset-bottom)); } }
 @media (max-width: 799px) {
-  .relocation-route { gap: 6px; padding-bottom: 84px; }
+  .relocation-route { gap: 6px; }
   .relocation-stop { flex-direction: column; justify-content: center; gap: 8px; padding: 12px 6px; text-align: center; }
   .relocation-stop > span { display: grid; gap: 4px; font-size: 12px; }
   .relocation-stop b { font-size: 20px; }
-  .relocation-route__truck { width: 130px; left: calc(50% - 65px); bottom: 12px; }
-  .relocation-route::after { bottom: 23px; }
   .relocation-racks { display: block; }
   .relocation-rack { display: none; }
   .relocation-rack.is-selected { display: block; }
   .relocation-rack--truck { padding: 0; background: none; border: 0; }
-  .relocation-rack__heading h2 { font-size: 22px; }
+  .relocation-rack__heading h2 { font-size: 18px; }
   .box-route { gap: 8px; }
   .box-route li { flex-direction: column; align-items: flex-start; gap: 6px; font-size: 12px; }
   .box-route li:not(:last-child)::after { position: absolute; top: 8px; left: 24px; right: 0; }
@@ -109,16 +104,14 @@
 .box-route .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 .relocation-board--truck .relocation-rack--old, .relocation-board--truck .relocation-rack--new { grid-row: 2; }
-.relocation-route__truck.is-delivering { --truck-trip: clamp(60px, 24vw, 300px); animation: rack-truck-drive 950ms var(--ease-out); }
-@keyframes rack-truck-drive { 0% { transform: translateX(calc(-1 * var(--truck-trip))); opacity: 0; } 12% { opacity: 1; } 75% { transform: translateX(var(--truck-trip)); opacity: 1; } 90% { transform: translateX(var(--truck-trip)); opacity: 0; } 91% { transform: translateX(0); opacity: 0; } 100% { opacity: 1; } }
+.relocation-route__truck.is-delivering { --truck-trip: clamp(60px, 24vw, 300px); animation: rack-truck-drive 950ms var(--ease-out) both; }
+@keyframes rack-truck-drive { 0% { transform: translateX(calc(-1 * var(--truck-trip))); opacity: 0; } 12% { opacity: 1; } 75% { transform: translateX(var(--truck-trip)); opacity: 1; } 90% { transform: translateX(var(--truck-trip)); opacity: 0; } 91% { transform: translateX(0); opacity: 0; } 100% { opacity: 0; } }
 @media (max-width: 799px) {
-  .relocation-route { padding-bottom: 42px; }
   .relocation-stop { gap: 4px; padding: 10px 6px; }
   .relocation-stop > span { gap: 2px; }
   .relocation-stop b { font-size: 18px; }
-  .relocation-route__truck { width: 76px; left: calc(50% - 38px); bottom: 1px; padding-inline: 4px; }
-  .relocation-route::after { bottom: 9px; }
+  .relocation-route__truck { width: 76px; left: calc(50% - 38px); bottom: -8px; padding-inline: 4px; }
 }
-@media (prefers-reduced-motion: reduce) { .relocation-route__truck.is-delivering { --truck-trip: clamp(60px, 24vw, 300px); animation: none; } }
+@media (prefers-reduced-motion: reduce) { .relocation-route__truck.is-delivering { --truck-trip: clamp(60px, 24vw, 300px); display: none; } }
 
 .relocation-rack__heading h2 { scroll-margin-top: 100px; }
