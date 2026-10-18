@@ -97,14 +97,14 @@ describe('Прогресс', () => {
 describe('Коробки и поиск', () => {
   it('поиск вещи показывает коробку, комнату и отметку «не могу найти»', async () => {
     setup(<BoxesPage />)
-    await userEvent.type(await screen.findByPlaceholderText(/Вещь или номер коробки/), 'зарядка')
+    await userEvent.type(await screen.findByRole('searchbox', { name: 'Поиск' }), 'зарядка')
     await waitFor(() => expect(search).toHaveBeenCalled())
     expect(await screen.findByText(/Коробка № 3 · Кухня · не могу найти/)).toBeTruthy()
   })
 
   it('номер с этикетки #003 находит коробку по номеру', async () => {
     setup(<BoxesPage />)
-    await userEvent.type(await screen.findByPlaceholderText(/Вещь или номер коробки/), '#003')
+    await userEvent.type(await screen.findByRole('searchbox', { name: 'Поиск' }), '#003')
     await waitFor(() => expect(boxes).toHaveBeenCalledWith('p1', { number: 3 }))
   })
 })

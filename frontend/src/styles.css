@@ -139,6 +139,11 @@ button.small { min-height: var(--control-height); padding: 8px 12px; font-size: 
 .list-row button.link:hover:not(:disabled) { color: var(--primary); }
 
 .error { color: var(--danger); font-size: .82rem; font-weight: 400; }
+/* поле, которое не прошло проверку: красная рамка и текст сразу под ним */
+input[aria-invalid='true'], textarea[aria-invalid='true'], select[aria-invalid='true'] { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+input[aria-invalid='true']:focus, textarea[aria-invalid='true']:focus { outline-color: var(--danger); }
+.error-text { color: var(--danger); margin: 0; }
+.stack > .error-text { margin-top: -8px; }
 .alert { background: #fee2e2; color: #991b1b; border-radius: var(--radius-sm); padding: 10px 12px; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
 .banner { background: #fef3c7; color: #92400e; border-radius: var(--radius-sm); padding: 10px 12px; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
 

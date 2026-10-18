@@ -103,3 +103,18 @@
   .carton-footer > button { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { .carton-workspace.is-closing::before { animation: none; } }
+
+.move-box-list { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 8px; }
+.move-box-list legend { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.move-box-choice { display: flex; align-items: center; gap: 12px; padding: 12px; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-control); cursor: pointer; }
+.move-box-choice.is-selected { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 6%, var(--surface)); box-shadow: inset 0 0 0 1px var(--primary); }
+.move-box-choice > input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--primary); }
+.move-box-choice__body { display: grid; gap: 5px; min-width: 0; flex: 1; }
+.move-box-choice__heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px; }
+.move-box-choice__heading > b { overflow-wrap: anywhere; }
+.move-box-choice__contents { font-size: 13px; line-height: 1.5; font-weight: 400; overflow-wrap: anywhere; }
+.move-box-list:disabled { opacity: .6; }
+.move-box-list:disabled .move-box-choice { cursor: default; }
+
+.move-box-list { max-height: min(40dvh, 360px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 2px 3px 3px; }
+.move-item-form > .primary { position: sticky; bottom: 0; z-index: 1; }
