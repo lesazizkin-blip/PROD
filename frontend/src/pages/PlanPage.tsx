@@ -109,12 +109,12 @@ function Plan({ pid }: { pid: string }) {
         {STAGES.map((s) => {
           const items = list.filter((t) => t.stage === s)
           return (
-            <button key={s} type="button" role="tab" aria-selected={s === activeTab} className={s === activeTab ? 'on' : ''} onClick={() => setTab(s)}>
+            <button key={s} type="button" role="tab" aria-selected={s === activeTab} className={s === activeTab ? 'on' : ''} onClick={(e) => { setTab(s); e.currentTarget.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }) }}>
               {STAGE_LABELS[s]} <span className="count">{items.filter((t) => t.done).length}/{items.length}</span>
             </button>
           )
         })}
-        <button type="button" role="tab" aria-selected={activeTab === 'first-day'} className={activeTab === 'first-day' ? 'on' : ''} onClick={() => setTab('first-day')}>
+        <button type="button" role="tab" aria-selected={activeTab === 'first-day'} className={activeTab === 'first-day' ? 'on' : ''} onClick={(e) => { setTab('first-day'); e.currentTarget.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }) }}>
           Первый день
         </button>
       </div>
@@ -168,6 +168,7 @@ function Plan({ pid }: { pid: string }) {
             if (form === 'new') await api.createTask(pid, body)
             else await api.updateTask(pid, form.id, body)
             setForm(null)
+            if (body.stage) setTab(body.stage) // задачу видно сразу: открываем её этап
             reloadAll()
           }}
         />

@@ -17,6 +17,7 @@ import StatusBadge from '../ui/StatusBadge'
 import { roomStyle } from '../ui/roomTheme'
 import { STATUS_LABELS, boxNumberFromInput, boxPath, plural } from '../ui/format'
 import { BoxLink, useBoxNavigation } from '../features/boxes/BoxNavigation'
+import { mergeRoomBoxes } from '../features/boxes/mergeRoomBoxes'
 import Pagination from '../ui/Pagination'
 import RelocationBoard from '../features/boxes/RelocationBoard'
 import { BOX_LOCATIONS, INITIAL_LOCATION_PAGES, type BoxLocation, type LocationBoxes, type LocationPages } from '../features/boxes/boxLocations'
@@ -86,7 +87,8 @@ function Boxes({ pid }: { pid: string }) {
   return (
     <>
       <PageHeading title="Коробки и вещи" mobileTitle="Коробки">{summary.data ? <>{summary.data.boxes_total} {plural(summary.data.boxes_total, ['коробка', 'коробки', 'коробок'])} · {summary.data.by_status.packing} ещё {plural(summary.data.by_status.packing, ['собирается', 'собираются', 'собираются'])}</> : '…'}</PageHeading>
-      <ErrorAlert message={summary.error} />
+      {/* без сети падают все запросы: одну и ту же ошибку показываем один раз - в списке ниже */}
+      <ErrorAlert message={boxes.error || hits.error ? null : summary.error} />
       <div className="search-tools"><input type="search" maxLength={120} placeholder="Найти вещь или коробку по номеру" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1) }} aria-label="Поиск" /><Link to="/scan" className="button">Сканировать QR</Link><button onClick={() => setRoomPhoto(true)}><Camera className="icon-sm" aria-hidden />Комната по фото</button><button className="primary" onClick={() => setAdding(true)}>+ Коробка</button></div>
 
       {q ? (
@@ -174,13 +176,26 @@ function Boxes({ pid }: { pid: string }) {
 function RoomPhotoModal({ pid, rooms, onClose, onCreated }: { pid: string; rooms: string[]; onClose: () => void; onCreated: () => void }) {
   const [room, setRoom] = useState('')
   const [plan, setPlan] = useState<RoomPlan | null>(null)
+  const [suggested, setSuggested] = useState<RoomPlan | null>(null)
   const [chosen, setChosen] = useState<Set<number>>(new Set())
   const { busy, error, run } = useAction()
 
   const recognize = async (image: string) => {
     const result = await api.roomPlan(pid, room.trim(), image)
     setPlan(result)
+    setSuggested(result)
     setChosen(new Set(result.boxes.map((_, i) => i)))
+  }
+  const merge = () => {
+    if (!plan) return
+    const { boxes, merged } = mergeRoomBoxes(plan.boxes, chosen)
+    setPlan({ ...plan, boxes })
+    setChosen(new Set([merged]))
+  }
+  const restore = () => {
+    if (!suggested) return
+    setPlan(suggested)
+    setChosen(new Set(suggested.boxes.map((_, i) => i)))
   }
   const toggle = (i: number) => setChosen((prev) => {
     const next = new Set(prev)
@@ -201,7 +216,7 @@ function RoomPhotoModal({ pid, rooms, onClose, onCreated }: { pid: string; rooms
       <p className="muted small">Сфотографируйте комнату: подскажем, какие коробки собрать и что в них положить. Коробки создадутся только после вашего выбора.</p>
       <label>
         Комната
-        <input value={room} onChange={(e) => { setRoom(e.target.value); setPlan(null) }} maxLength={60} list="photo-rooms" placeholder="Кухня" data-autofocus />
+        <input value={room} onChange={(e) => { setRoom(e.target.value); setPlan(null); setSuggested(null) }} maxLength={60} list="photo-rooms" placeholder="Кухня" data-autofocus />
         <datalist id="photo-rooms">{rooms.map((r) => <option key={r} value={r} />)}</datalist>
       </label>
       {room.trim() ? <PhotoPicker label="Сфотографировать комнату" busyLabel="Раскладываем по коробкам…" onPhoto={recognize} /> : null}
@@ -223,6 +238,13 @@ function RoomPhotoModal({ pid, rooms, onClose, onCreated }: { pid: string; rooms
                 </li>
               ))}
             </ul>
+            <div className="room-plan__actions">
+              <button type="button" disabled={busy || chosen.size < 2} onClick={merge}>
+                {chosen.size < 2 ? 'Объединить отмеченные' : `Объединить отмеченные (${chosen.size}) в одну`}
+              </button>
+              {plan.boxes !== suggested?.boxes ? <button type="button" className="link" disabled={busy} onClick={restore}>Вернуть как предложено</button> : null}
+            </div>
+            <p className="muted small">Отметьте две коробки и больше, чтобы сложить их вещи в одну.</p>
             <ErrorAlert message={error} />
             <button className="primary" disabled={busy || chosen.size === 0} onClick={create}>
               {busy ? 'Создаём…' : `Создать коробки (${chosen.size})`}

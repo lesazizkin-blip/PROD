@@ -26,6 +26,18 @@ const BOX = (number: number, room: string, status: string) => ({
 
 const search = vi.fn()
 const boxes = vi.fn()
+const createBox = vi.fn()
+
+// в jsdom у <dialog> нет showModal/close
+HTMLDialogElement.prototype.showModal = function () { this.open = true }
+HTMLDialogElement.prototype.close = function () { this.open = false }
+
+// камера и уменьшение фото в jsdom не работают: «фото» - сразу готовый data URL
+vi.mock('../components/PhotoPicker', () => ({
+  default: ({ label, onPhoto }: { label: string; onPhoto: (image: string) => Promise<void> }) => (
+    <button onClick={() => void onPhoto('data:image/jpeg;base64,AAAA')}>{label}</button>
+  ),
+}))
 
 vi.mock('../api/endpoints', () => ({
   api: {
@@ -41,6 +53,15 @@ vi.mock('../api/endpoints', () => ({
     reminders: () => Promise.resolve([]),
     boxes: (...a: unknown[]) => boxes(...a),
     search: (...a: unknown[]) => search(...a),
+    roomPlan: () => Promise.resolve({
+      room: 'Кабинет',
+      boxes: [
+        { label: 'Книги', items: ['Книги'], tip: '' },
+        { label: 'Хрупкое', items: ['Кружка', 'Лампа'], tip: '' },
+        { label: 'Электроника', items: ['Зарядка'], tip: '' },
+      ],
+    }),
+    createBox: (...a: unknown[]) => createBox(...a),
   },
 }))
 
@@ -85,5 +106,30 @@ describe('Коробки и поиск', () => {
     setup(<BoxesPage />)
     await userEvent.type(await screen.findByPlaceholderText(/Найти вещь/), '#003')
     await waitFor(() => expect(boxes).toHaveBeenCalledWith('p1', { number: 3 }))
+  })
+})
+
+describe('Комната по фото', () => {
+  it('отмеченные коробки объединяются в одну до создания, можно вернуть как было', async () => {
+    createBox.mockReset().mockResolvedValue({})
+    setup(<BoxesPage />)
+    await userEvent.click(await screen.findByRole('button', { name: /Комната по фото/ }))
+    await userEvent.type(screen.getByPlaceholderText('Кухня'), 'Кабинет')
+    await userEvent.click(screen.getByRole('button', { name: 'Сфотографировать комнату' }))
+    expect(await screen.findByText(/Предлагаем 3 коробки/)).toBeTruthy()
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /Книги/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Объединить отмеченные \(2\)/ }))
+    expect(screen.getByText(/Предлагаем 2 коробки/)).toBeTruthy()
+    expect(screen.getByText('Кружка, Лампа, Зарядка')).toBeTruthy()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Вернуть как предложено' }))
+    expect(screen.getByText(/Предлагаем 3 коробки/)).toBeTruthy()
+    await userEvent.click(screen.getByRole('checkbox', { name: /Книги/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Объединить отмеченные \(2\)/ }))
+
+    await userEvent.click(screen.getByRole('button', { name: /Создать коробки \(1\)/ }))
+    await waitFor(() => expect(createBox).toHaveBeenCalledTimes(1))
+    expect(createBox).toHaveBeenCalledWith('p1', { room: 'Кабинет', items_text: 'Кружка\nЛампа\nЗарядка', fill_later: false })
   })
 })
