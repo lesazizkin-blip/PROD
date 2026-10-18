@@ -37,7 +37,7 @@ export default function JourneyPage() {
             <h2>{done === stages.length ? 'Переезд завершён' : `Этап ${current?.n ?? 1}: ${current?.title ?? stages[0].title}`}</h2>
             <p className="small">{current?.question ?? 'Все этапы пройдены.'}</p>
           </div>
-          <div className="date-stamp"><strong>{done} / {stages.length}</strong><span>ЭТАПОВ ПРОЙДЕНО</span></div>
+          <div className="date-stamp date-stamp--tape"><strong className="date-stamp__dates">{done} / {stages.length}</strong><span className="date-stamp__caption">ЭТАПОВ ПРОЙДЕНО</span></div>
         </div>
       ) : null}
       <ol className="journey-steps">
