@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.db import get_db
 from app.deps import get_current_user, get_project
-from app.errors import TooManyRequestsError, ValidationFailed
+from app.errors import ValidationFailed
 from app.logging_setup import audit
 from app.models import Project, User
 from app.routers.common import Id
@@ -92,10 +92,7 @@ def box_advice(
         raise ValidationFailed("Добавьте вещи в опись, чтобы получить советы по коробке.")
     if not (settings.ai_api_key.get_secret_value() and settings.ai_base_url and settings.ai_model):
         raise PlannerUnavailable("ИИ-советы пока не настроены. Попробуйте позже.")
-    try:
-        reserve_attempt(db, user.id, settings)
-    except TooManyRequestsError:
-        raise TooManyRequestsError("Лимит ИИ-запросов исчерпан. Попробуйте позже.") from None
+    reserve_attempt(db, user.id, settings)
     result = generate_advice(box, settings)
     audit("ai.box_advice", project_id=project.id, box=number, tips=len(result.tips))
     return result

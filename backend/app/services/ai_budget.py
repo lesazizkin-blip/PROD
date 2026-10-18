@@ -1,6 +1,6 @@
 """Атомарная резервация попытки ДО платного вызова; ошибки не возвращают квоту."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 
 from sqlalchemy import update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -22,16 +22,32 @@ def reserve_attempt(db: Session, user_id: int, settings: Settings, *, now: datet
     Если персональная квота исчерпана, общий счётчик откатывается в той же транзакции.
     """
     current = (now or datetime.now(UTC)).astimezone(UTC)
+    moscow = timezone(timedelta(hours=3))
+    next_hour = current.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+    next_day = current.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+
+    def resets_at(value: datetime) -> str:
+        return value.astimezone(moscow).strftime("%d.%m.%Y в %H:%M по Москве")
+
+    shared = "Лимит общий для советов по коробкам, фото-помощника и ИИ-плана."
+    daily_message = (
+        f"Общий дневной лимит ИИ-запросов для всего приложения исчерпан "
+        f"({settings.ai_global_requests_per_day} за сутки). "
+        f"Обновится {resets_at(next_day)}. {shared}"
+        if settings.ai_global_requests_per_day
+        else "Генерация ИИ отключена в настройках приложения. Обратитесь к администратору."
+    )
     windows = [
         (
             f"global:{current:%Y-%m-%d}",
             settings.ai_global_requests_per_day,
-            "Общий дневной лимит ИИ-запросов исчерпан, он обновится в 03:00 по Москве. План можно создать стандартный, вещи - вписать вручную.",
+            daily_message,
         ),
         (
             f"user:{user_id}:{current:%Y-%m-%dT%H}",
             settings.ai_requests_per_hour,
-            "Лимит ИИ-запросов на этот час исчерпан, он обновится в начале следующего часа. План можно создать стандартный, вещи - вписать вручную.",
+            f"Ваш часовой лимит ИИ-запросов исчерпан ({settings.ai_requests_per_hour} за час). "
+            f"Обновится {resets_at(next_hour)}. {shared}",
         ),
     ]
     dialect = db.get_bind().dialect.name

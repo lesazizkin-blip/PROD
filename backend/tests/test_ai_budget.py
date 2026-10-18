@@ -106,3 +106,37 @@ def test_counter_does_not_store_descriptions_or_credentials(budget_db):
         reserve_attempt(db, 1, Settings(), now=NOW)
         assert len(db.scalars(select(AiUsageBudget)).all()) == 2
     assert set(AiUsageBudget.__table__.columns.keys()) == {"bucket", "used"}
+
+
+@pytest.mark.parametrize(
+    "now,reset",
+    [
+        (NOW, "17.10.2026 в 16:00 по Москве"),
+        (datetime(2026, 12, 31, 23, 59, tzinfo=UTC), "01.01.2027 в 03:00 по Москве"),
+    ],
+)
+def test_hour_limit_message_identifies_scope_limit_and_exact_reset(budget_db, now, reset):
+    engine, _ = budget_db
+    with Session(engine) as db:
+        settings = Settings(ai_requests_per_hour=1, ai_global_requests_per_day=500)
+        reserve_attempt(db, 1, settings, now=now)
+        with pytest.raises(TooManyRequestsError) as error:
+            reserve_attempt(db, 1, settings, now=now)
+        message = str(error.value)
+        assert "Ваш часовой лимит" in message and "1 за час" in message
+        assert reset in message and "советов по коробкам" in message
+
+
+def test_day_limit_message_identifies_shared_scope_and_next_date(budget_db):
+    engine, _ = budget_db
+    now = datetime(2026, 12, 31, 23, 59, tzinfo=UTC)
+    with Session(engine) as db:
+        settings = Settings(ai_global_requests_per_day=1)
+        reserve_attempt(db, 1, settings, now=now)
+        with pytest.raises(TooManyRequestsError) as error:
+            reserve_attempt(db, 2, settings, now=now)
+        message = str(error.value)
+        assert "для всего приложения" in message and "1 за сутки" in message
+        assert "01.01.2027 в 03:00 по Москве" in message
+        with pytest.raises(TooManyRequestsError, match="Генерация ИИ отключена"):
+            reserve_attempt(db, 3, Settings(ai_global_requests_per_day=0), now=now)

@@ -93,7 +93,11 @@ def test_validation_and_project_access_happen_before_paid_call(client, base, pro
     assert outsider.post(url, json={"consent": True}).status_code == 404
     assert calls == []
     assert client.post(url, json={"consent": True}).status_code == 200
-    assert client.post(url, json={"consent": True}).status_code == 429
+    limited = client.post(url, json={"consent": True})
+    assert limited.status_code == 429
+    assert "Ваш часовой лимит" in limited.json()["detail"]
+    assert "Обновится" in limited.json()["detail"]
+    assert "по Москве" in limited.json()["detail"]
     assert len(calls) == 1
 
 
