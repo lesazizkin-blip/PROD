@@ -49,14 +49,42 @@ describe('создание проекта', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Создать проект' }))
     await waitFor(() => expect(createProject).toHaveBeenCalledWith({ name: 'Переезд', move_date: '2026-11-01', plan_mode: 'standard', first_day: FIRST_DAY_BASICS, personal_plan: draft }))
   })
-  it('кнопка недоступна, пока нет названия и даты', async () => {
+  it('без названия и даты кнопка подсказывает, какие поля заполнить, и ставит фокус на первое', async () => {
     await setup()
     const submit = screen.getByRole('button', { name: 'Создать проект' }) as HTMLButtonElement
-    expect(submit.disabled).toBe(true)
-    await userEvent.type(screen.getByLabelText('Название переезда'), '   ')
-    expect(submit.disabled).toBe(true) // пробелы - не название
-    await userEvent.type(screen.getByLabelText('Название переезда'), 'Переезд')
-    expect(submit.disabled).toBe(true) // нет даты
+    expect(submit.disabled).toBe(false)
+    await userEvent.type(screen.getByLabelText('Название переезда'), '   ') // пробелы - не название
+    await userEvent.click(submit)
+    expect(createProject).not.toHaveBeenCalled()
+    const nameField = screen.getByLabelText('Название переезда')
+    expect(screen.getByText('Введите название переезда').id).toBe('new-project-name-error')
+    expect(nameField.getAttribute('aria-invalid')).toBe('true')
+    expect(document.activeElement).toBe(nameField)
+    expect(screen.getByText('Выберите дату переезда').id).toBe('new-project-move_date-error')
+    expect(screen.getByLabelText('Дата переезда').getAttribute('aria-invalid')).toBe('true')
+    await userEvent.type(nameField, 'Переезд')
+    expect(screen.queryByText('Введите название переезда')).toBeNull()
+    expect(nameField.getAttribute('aria-invalid')).toBe('false')
+  })
+
+  it('несуществующая дата (29.02.2100) подсвечивает поле даты, а не молчит', async () => {
+    await setup()
+    await userEvent.type(screen.getByLabelText('Название переезда'), 'Переезд в офис')
+    const dateField = screen.getByLabelText('Дата переезда') as HTMLInputElement
+    // браузер с набранной несуществующей датой отдаёт пустое значение и validity.badInput
+    Object.defineProperty(dateField, 'validity', { configurable: true, value: { badInput: true } })
+    fireEvent.blur(dateField)
+    expect(screen.getByText(/Такой даты нет в календаре/).id).toBe('new-project-move_date-error')
+    expect(dateField.getAttribute('aria-invalid')).toBe('true')
+    await userEvent.click(screen.getByRole('button', { name: 'Создать проект' }))
+    expect(createProject).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(dateField)
+  })
+
+  it('дата дальше 2 лет: причина под полем даты', async () => {
+    await setup()
+    fireEvent.change(screen.getByLabelText('Дата переезда'), { target: { value: '2100-03-01' } })
+    expect(screen.getByText('Дата переезда — не дальше чем через 2 года').id).toBe('new-project-move_date-error')
   })
 
   it('отправляет обрезанное название, запоминает проект и сообщает об успехе', async () => {
@@ -87,8 +115,11 @@ describe('создание проекта', () => {
     fireEvent.change(screen.getByLabelText('Дата переезда'), { target: { value: '2026-11-03' } })
     fireEvent.change(screen.getByLabelText(/^По/), { target: { value: '2026-11-01' } })
     const submit = screen.getByRole('button', { name: 'Создать проект' }) as HTMLButtonElement
-    expect(screen.getByRole('alert').textContent).toBe('Дата окончания раньше даты начала')
-    expect(submit.disabled).toBe(true)
+    expect(screen.getByText('Дата окончания раньше даты начала').id).toBe('new-project-move_date_end-error')
+    expect(screen.getByLabelText(/^По/).getAttribute('aria-invalid')).toBe('true')
+    await userEvent.click(submit)
+    expect(createProject).not.toHaveBeenCalled()
+    expect(document.activeElement).toBe(screen.getByLabelText(/^По/))
     fireEvent.change(screen.getByLabelText('Дата переезда'), { target: { value: '2026-11-01' } })
     fireEvent.change(screen.getByLabelText(/^По/), { target: { value: '2026-11-03' } })
     await userEvent.click(submit)
@@ -105,5 +136,16 @@ describe('создание проекта', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('Некорректные данные')
     expect(onDone).not.toHaveBeenCalled()
     expect(saved().projects).toEqual([])
+  })
+
+  it('422 сервера по полю подсвечивает это поле', async () => {
+    createProject.mockRejectedValue(new ApiError('Некорректные данные', 422, 'validation_failed', { move_date: 'Value error, Дата переезда уже прошла' }))
+    await setup()
+    await userEvent.type(screen.getByLabelText('Название переезда'), 'Переезд')
+    fireEvent.change(screen.getByLabelText('Дата переезда'), { target: { value: '2026-11-01' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Создать проект' }))
+    expect((await screen.findByText('Дата переезда уже прошла')).id).toBe('new-project-move_date-error')
+    expect(screen.getByLabelText('Дата переезда').getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByLabelText('Название переезда').getAttribute('aria-invalid')).toBe('false')
   })
 })

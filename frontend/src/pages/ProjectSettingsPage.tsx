@@ -1,5 +1,5 @@
 import RequireProject from '../components/RequireProject'
-import { useState, type ChangeEvent } from 'react'
+import { useState, type ChangeEvent, type FocusEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Settings2, Trash2, Users } from 'lucide-react'
 import { api } from '../api/endpoints'
@@ -13,6 +13,8 @@ import { useAsync } from '../state/useAsync'
 import { useAction } from '../state/useAction'
 import StateView from '../ui/StateView'
 import ErrorAlert from '../ui/ErrorAlert'
+import FieldError from '../ui/FieldError'
+import { isBadDateInput, serverFieldErrors } from '../ui/fieldErrors'
 import { moveDatesError } from '../ui/format'
 
 // общий демо-проект жюри удалить нельзя (сервер отвечает 403), поэтому кнопку не показываем
@@ -54,18 +56,43 @@ function ProjectForm({ project, onSaved }: { project: Project; onSaved: () => vo
   const [to, setTo] = useState(project.address_to ?? '')
   const [saved, setSaved] = useState(false)
   const { busy, error, submit } = useAction()
+  // набранной даты нет в календаре (29.02.2100): поле при этом пустое, браузер ставит validity.badInput
+  const [badDate, setBadDate] = useState({ start: false, end: false })
+  const [serverFields, setServerFields] = useState<Record<string, string>>({})
   // прошедшая дата уже идущего переезда не мешает сохранить настройки: проверяется только новая
-  const datesError = moveDatesError(date, dateEnd, { checkStart: date !== project.move_date })
-  const invalid = !name.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(date) || datesError !== null
+  const checkStart = date !== project.move_date
+  const startError = moveDatesError(date, '', { checkStart })
+  const errors: Record<string, string | undefined> = {
+    name: serverFields.name ?? (!name.trim() ? 'Введите название переезда' : undefined),
+    move_date: badDate.start ? 'Такой даты нет в календаре: проверьте число и месяц'
+      : startError ?? (!date ? 'Выберите дату переезда' : serverFields.move_date),
+    move_date_end: badDate.end ? 'Дата окончания: такой даты нет в календаре'
+      : (date && !startError && dateEnd ? moveDatesError(date, dateEnd, { checkStart }) : null) ?? serverFields.move_date_end,
+  }
+  const invalid = Object.values(errors).some(Boolean)
+  const alert = error && !Object.values(errors).includes(error) ? error : null
+  const invalidProps = (field: string) => ({
+    'aria-invalid': Boolean(errors[field]),
+    'aria-describedby': errors[field] ? `settings-${field}-error` : undefined,
+  })
+  const checkDate = (key: 'start' | 'end') => (e: FocusEvent<HTMLInputElement>) => {
+    const bad = isBadDateInput(e.currentTarget)
+    setBadDate((b) => (b[key] === bad ? b : { ...b, [key]: bad }))
+  }
 
   const save = async () => {
-    await api.updateProject(project.id, {
-      name: name.trim(),
-      move_date: date,
-      move_date_end: dateEnd || null,
-      address_from: from.trim() || null,
-      address_to: to.trim() || null,
-    })
+    try {
+      await api.updateProject(project.id, {
+        name: name.trim(),
+        move_date: date,
+        move_date_end: dateEnd || null,
+        address_from: from.trim() || null,
+        address_to: to.trim() || null,
+      })
+    } catch (e) {
+      setServerFields(serverFieldErrors(e, ['name', 'move_date', 'move_date_end']))
+      throw e
+    }
     setSaved(true)
     onSaved()
   }
@@ -73,30 +100,39 @@ function ProjectForm({ project, onSaved }: { project: Project; onSaved: () => vo
   const editValue = (set: (v: string) => void) => (v: string) => {
     set(v)
     setSaved(false)
+    setServerFields({})
   }
   const edit = (set: (v: string) => void) => (e: ChangeEvent<HTMLInputElement>) => editValue(set)(e.target.value)
 
   return (
     <form className="card stack" onSubmit={submit(save)}>
       <div className="form-grid">
-        <label>
-          Название
-          <input value={name} onChange={edit(setName)} maxLength={120} />
-        </label>
-        <label>
-          Дата переезда
-          <input type="date" value={date} onChange={edit(setDate)} />
-        </label>
-        <label>
-          По (если переезд на несколько дней)
-          <input type="date" value={dateEnd} min={date || undefined} onChange={edit(setDateEnd)} />
-        </label>
+        <div className="stack">
+          <label>
+            Название
+            <input value={name} onChange={edit(setName)} maxLength={120} {...invalidProps('name')} />
+          </label>
+          <FieldError id="settings-name-error" message={errors.name} />
+        </div>
+        <div className="stack">
+          <label>
+            Дата переезда
+            <input type="date" value={date} onChange={(e) => { setBadDate((b) => ({ ...b, start: false })); edit(setDate)(e) }} onBlur={checkDate('start')} {...invalidProps('move_date')} />
+          </label>
+          <FieldError id="settings-move_date-error" message={errors.move_date} />
+        </div>
+        <div className="stack">
+          <label>
+            По (если переезд на несколько дней)
+            <input type="date" value={dateEnd} min={date || undefined} onChange={(e) => { setBadDate((b) => ({ ...b, end: false })); edit(setDateEnd)(e) }} onBlur={checkDate('end')} {...invalidProps('move_date_end')} />
+          </label>
+          <FieldError id="settings-move_date_end-error" message={errors.move_date_end} />
+        </div>
         <AddressInput label="Откуда (необязательно)" value={from} onChange={editValue(setFrom)} placeholder="ул. Садовая, 5" />
         <AddressInput label="Куда (необязательно)" value={to} onChange={editValue(setTo)} placeholder="ул. Лесная, 12" />
       </div>
-      {datesError ? <p className="error small" role="alert">{datesError}</p> : null}
       <p className="muted small">Адреса видят только участники этого проекта и больше никто.</p>
-      <ErrorAlert message={error} />
+      <ErrorAlert message={alert} />
       <div className="row">
         <button className="primary" type="submit" disabled={busy || invalid}>Сохранить</button>
         {saved ? <span className="muted small" role="status">Сохранено</span> : null}
