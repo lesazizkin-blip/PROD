@@ -2,7 +2,7 @@ import RequireProject from '../components/RequireProject'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRightLeft, Pencil, Plus, QrCode, Trash2 } from 'lucide-react'
-import { type BoxStatus, type Item, type PhotoItem } from '../api/types'
+import { BOX_STATUSES, type BoxStatus, type Item, type PhotoItem } from '../api/types'
 import { errorMessage } from '../api/client'
 import { api } from '../api/endpoints'
 import { readAllPages } from '../api/pagination'
@@ -14,6 +14,8 @@ import { useConfirm } from '../state/confirm'
 import CartonLid from '../components/CartonLid'
 import { useBoxNavigation } from '../features/boxes/BoxNavigation'
 import '../features/boxes/box-workspace.css'
+import BoxRoute from '../features/boxes/BoxRoute'
+import { recordBoxMove } from '../features/boxes/boxMoveEvents'
 import { useProjects } from '../state/ProjectContext'
 import { useAction } from '../state/useAction'
 import { useAsync } from '../state/useAsync'
@@ -36,13 +38,15 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
   const valid = pid !== '' && Number.isInteger(number) && number >= 1
   const card = useAsync(() => (valid ? api.getBox(pid, number) : Promise.reject(new Error('Некорректная ссылка на коробку'))), [pid, number], { refreshOnFocus: true, initialData: navigation.cardSeed(pid, number) })
   const { busy: actionBusy, error, run } = useAction(() => card.reload())
+  const [openingAnimation, setOpeningAnimation] = useState(false)
   const [packingAnimation, setPackingAnimation] = useState(false)
   const animationTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const routeKey = useRef(`${pid}/${number}`)
-  const busy = actionBusy || packingAnimation
+  const busy = actionBusy || packingAnimation || openingAnimation
   useEffect(() => {
     routeKey.current = `${pid}/${number}`
     setPackingAnimation(false)
+    setOpeningAnimation(false)
     return () => {
       routeKey.current = ''
       if (animationTimer.current) clearTimeout(animationTimer.current)
@@ -51,9 +55,19 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
 
   // Вперёд - на следующий этап, назад - на любой; при «Собрана» коробка заклеивается (только после подтверждённого сохранения)
   async function changeStatus(to: BoxStatus) {
+    if (!card.data) return
     const key = `${pid}/${number}`
-    await api.transition(pid, number, to)
+    const before = card.data
+    const correction = BOX_STATUSES.indexOf(to) < BOX_STATUSES.indexOf(before.status)
+    const updated = await api.transition(pid, number, to)
+    if (routeKey.current !== key) return
+    card.mutate(value => value ? { ...value, ...updated, items: value.items } : value)
+    recordBoxMove(pid, before, to, correction)
     card.reload()
+    if (to === 'unpacked' && !correction && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setOpeningAnimation(true)
+      animationTimer.current = setTimeout(() => setOpeningAnimation(false), 850)
+    }
     if (to === 'packed' && routeKey.current === key && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setPackingAnimation(true)
       animationTimer.current = setTimeout(() => setPackingAnimation(false), 1600)
@@ -111,12 +125,13 @@ function BoxWorkspace({ pid, number }: { pid: string; number: number }) {
       event.preventDefault()
       if (navigation.pendingPath !== '/boxes') void navigation.returnToShelf(pid, number)
     }}><ArrowLeft className="icon-sm" aria-hidden />К коробкам</Link>
+    {box ? <BoxRoute status={box.status} /> : null}
     <StateView loading={card.loading && !box} error={card.error} onRetry={card.reload}>
       {box ? (
         <>
           <div className="carton-scene">
           <article className={`carton-workspace ${box.status === 'packing' || box.status === 'unpacked' ? 'is-open' : 'is-sealed'}${packingAnimation ? ' is-closing' : ''}`} style={{ ...roomStyle(box.room), viewTransitionName: 'carton-zoom' }} aria-labelledby="box-heading">
-            <CartonLid status={box.status} closing={packingAnimation} className="carton-workspace__lid" />
+            <CartonLid status={box.status} closing={packingAnimation} opening={openingAnimation} className="carton-workspace__lid" />
             <header className="carton-identity">
               <div className="carton-identity__number" aria-hidden>{String(box.number).padStart(3, '0')}</div>
               <div className="carton-identity__title">

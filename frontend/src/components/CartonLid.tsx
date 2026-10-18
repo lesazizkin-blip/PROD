@@ -2,10 +2,10 @@ import { useId } from 'react'
 import type { BoxStatus } from '../api/types'
 import './CartonLid.css'
 
-export default function CartonLid({ status, closing = false, className = '' }: { status: BoxStatus; closing?: boolean; className?: string }) {
+export default function CartonLid({ status, closing = false, opening = false, className = '' }: { status: BoxStatus; closing?: boolean; opening?: boolean; className?: string }) {
   const tapeId = useId()
   const open = status === 'packing' || status === 'unpacked'
-  return <svg className={`carton-lid-art ${open ? 'is-open' : 'is-sealed'}${closing ? ' is-closing' : ''} ${className}`} viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true">
+  return <svg className={`carton-lid-art ${open ? 'is-open' : 'is-sealed'}${closing ? ' is-closing' : ''}${opening ? ' is-opening' : ''} ${className}`} viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true">
     <defs><pattern id={tapeId} width="1" height="1" viewBox="0 0 100 100" preserveAspectRatio="none"><image href="/assets/duct-tape-material.webp" x="0" y="-100" width="100" height="300" preserveAspectRatio="none" /></pattern></defs>
     <path className="shelf-carton__top" d="M0 64 14 44 300 44 286 64Z" />
     {open || closing ? <>

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
@@ -44,6 +46,7 @@ router = APIRouter(prefix="/projects/{pid}", tags=["boxes"])
 def list_boxes(
     room: str | None = None,
     status: BoxStatus | None = None,
+    location: Literal["old", "truck", "new"] | None = None,
     fill_later: bool | None = None,
     number: int | None = Query(default=None, ge=1, le=MAX_INT),
     page: PageParams = Depends(),
@@ -54,6 +57,7 @@ def list_boxes(
         project.id,
         room=room,
         status=status,
+        location=location,
         fill_later=fill_later,
         number=number,
         offset=page.offset,

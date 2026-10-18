@@ -12,6 +12,7 @@ import ProgressBar from '../../ui/ProgressBar'
 import StateView from '../../ui/StateView'
 import StatusBadge from '../../ui/StatusBadge'
 import { boxNumberFromInput, boxPath } from '../../ui/format'
+import { recordBoxMove } from '../boxes/boxMoveEvents'
 import './journey.css'
 
 type Mode = 'load' | 'accept'
@@ -53,6 +54,7 @@ function MovingDay({ pid }: { pid: string }) {
     setInFlight(new Set(pending.current))
     try {
       await api.transition(pid, n, target)
+      recordBoxMove(pid, box, target)
       boxes.mutate((all) => all ? { items: all.items.map((b: Box) => (b.number === n ? { ...b, status: target } : b)) } : all)
       note(`№ ${n} (${box.room}) ${mode === 'load' ? 'погружена' : 'принята'}`, true)
     } catch (e) {

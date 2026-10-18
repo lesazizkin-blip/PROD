@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, type LinkProps } from 'react-router-dom
 import { api } from '../../api/endpoints'
 import type { Box, BoxCard, Page, Progress, SearchHit } from '../../api/types'
 import { boxPath } from '../../ui/format'
+import { locationFor, INITIAL_LOCATION_PAGES, LOCATION_PAGE_SIZE, type BoxLocation, type LocationBoxes, type LocationPages } from './boxLocations'
 import './box-navigation.css'
 
 export interface ShelfView {
@@ -11,6 +12,9 @@ export interface ShelfView {
   room: string | null
   scrollY: number
   page: number
+  place?: BoxLocation
+  placePages?: LocationPages
+  locations?: LocationBoxes
   summary: Progress | null
   boxes: Page<Box> | null
   hits: Page<SearchHit> | null
@@ -119,12 +123,17 @@ export function BoxNavigationProvider({ children }: { children: ReactNode }) {
     setPendingPath('/boxes')
     try {
       const previous = shelf.current?.pid === pid ? shelf.current : null
-      const [boxes, summary] = await Promise.all([
-        api.boxes(pid, { page_size: 36, page: previous?.page ?? 1, ...(previous?.room ? { room: previous.room } : {}) }),
-        api.progress(pid),
+      const placePages = previous?.placePages ?? INITIAL_LOCATION_PAGES
+      const [old, truck, arrived, summary, card] = await Promise.all([
+        api.boxes(pid, { location: 'old', page_size: LOCATION_PAGE_SIZE, page: placePages.old, ...(previous?.room ? { room: previous.room } : {}) }),
+        api.boxes(pid, { location: 'truck', page_size: LOCATION_PAGE_SIZE, page: placePages.truck, ...(previous?.room ? { room: previous.room } : {}) }),
+        api.boxes(pid, { location: 'new', page_size: LOCATION_PAGE_SIZE, page: placePages.new, ...(previous?.room ? { room: previous.room } : {}) }),
+        api.progress(pid), api.getBox(pid, number),
       ])
       if (!mounted.current || ticket !== request.current || window.location.href !== origin) return
-      shelf.current = { pid, query: previous?.query ?? '', room: previous?.room ?? null, scrollY: previous?.scrollY ?? 0, page: previous?.page ?? 1, hits: previous?.hits ?? null, byNumber: previous?.byNumber ?? null, boxes, summary }
+      const destination = locationFor(card.status)
+      const place = destination
+      shelf.current = { pid, query: previous?.query ?? '', room: previous?.room ?? null, scrollY: previous?.scrollY ?? 0, page: previous?.page ?? 1, hits: previous?.hits ?? null, byNumber: previous?.byNumber ?? null, boxes: previous?.boxes ?? null, summary, place, placePages, locations: { old, truck, new: arrived } }
     } catch {
       if (!mounted.current || ticket !== request.current || window.location.href !== origin) return
       shelf.current = null
@@ -136,7 +145,7 @@ export function BoxNavigationProvider({ children }: { children: ReactNode }) {
       if (!mounted.current || ticket !== request.current || window.location.href !== origin) return
       return navigateAndWait('/boxes', () => {
         window.scrollTo({ top: shelf.current?.scrollY ?? 0, behavior: 'instant' })
-        const links = Array.from(document.querySelectorAll<HTMLElement>('[data-box-path]')).filter((el) => el.dataset.boxPath === boxPath(pid, number))
+        const links = Array.from(document.querySelectorAll<HTMLElement>('[data-box-path]')).filter((el) => el.dataset.boxPath === boxPath(pid, number) && el.getClientRects().length > 0)
         target = links.find((el) => el.dataset.boxSource === sourceId.current) ?? links[0]
         if (target) target.style.viewTransitionName = 'carton-zoom'
       })
