@@ -11,6 +11,7 @@ import SidebarToggle from './SidebarToggle'
 import NotificationsModal from './NotificationsModal'
 import { JOURNEY_TABS, NAV_TABS, tabNumber } from './navTabs'
 import { BoxNavigationProvider } from '../features/boxes/BoxNavigation'
+import BoxMoveNotice from '../features/boxes/BoxMoveNotice'
 import '../features/workspace.css'
 
 
@@ -81,9 +82,9 @@ export default function Shell() {
 
       <header className="topbar">
         <nav className="breadcrumb" aria-label="Вы здесь">
-          <Link to="/projects" aria-label="Все проекты" title="Все проекты"><FolderOpen className="icon-sm" aria-hidden /><span className="breadcrumb-projects-label">Все проекты</span></Link>
+          <Link to="/projects" className="breadcrumb-projects" aria-label="Все проекты" title="Все проекты"><FolderOpen className="icon-sm" aria-hidden /><span className="breadcrumb-projects-label">Все проекты</span></Link>
           {breadcrumbProject && !['/projects', '/profile', '/new', '/about'].includes(pathname) ? <><span className="breadcrumb-project" aria-hidden="true">/</span><span className="breadcrumb-project" title={breadcrumbProject.name}>{breadcrumbProject.name}</span></> : null}
-          {pathname !== '/projects' ? <><span aria-hidden="true"> / </span><span aria-current="page">{breadcrumbSection}</span></> : null}
+          {pathname !== '/projects' ? <><span className="breadcrumb-separator" aria-hidden="true"> / </span><span aria-current="page">{breadcrumbSection}</span></> : null}
         </nav>
         <Link to="/scan" onClick={adoptProject} className="icon-link" aria-label="Сканировать QR"><ScanLine className="icon" aria-hidden /></Link>
         <button className="icon-link" onClick={() => setNotifying(true)} aria-label={pending ? `Уведомления: ${pending}` : 'Уведомления и журнал'}>
@@ -100,6 +101,7 @@ export default function Shell() {
         <BoxNavigationProvider><div key={pathname} className={`page-content${state?.cartonTransition ? '' : ' page-content--enter'}`}><Outlet /></div></BoxNavigationProvider>
       </main>
 
+      <BoxMoveNotice pid={contextId} />
       {notifying ? <NotificationsModal key={contextId} pid={contextId} reminders={reminders.data ?? []} onClose={() => setNotifying(false)} /> : null}
     </div>
   )

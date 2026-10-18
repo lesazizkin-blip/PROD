@@ -225,7 +225,7 @@ packing (собирается) → packed (собрана) → loaded (погр�
 ## Коробки (5.2)
 
 ### `GET /api/projects/{pid}/boxes`
-Фильтры: `room` (точное совпадение), `status`, `fill_later` (`true|false`), `number` (точный номер), пагинация. Сортировка: `number` по возрастанию. `200` страница Box.
+Фильтры: `room` (точное совпадение), `status`, `location` (`old` — `packing|packed`, `truck` — `loaded`, `new` — `delivered|unpacked`), `fill_later` (`true|false`), `number` (точный номер), пагинация. Фильтры пересекаются и применяются до подсчёта `total` и пагинации. Сортировка: `number` по возрастанию. `200` страница Box.
 
 ### `POST /api/projects/{pid}/boxes`
 `{ "room": "Кухня", "fill_later": false, "remind_at": null, "items_text": null }`.

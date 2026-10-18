@@ -11,6 +11,7 @@ import ProgressBar from '../../ui/ProgressBar'
 import StatusBadge from '../../ui/StatusBadge'
 import Pagination from '../../ui/Pagination'
 import { boxPath } from '../../ui/format'
+import { recordBoxMove } from './boxMoveEvents'
 import './loading-checklist.css'
 
 export default function RoomLoadingChecklist({ pid, room, onChanged }: { pid: string; room: RoomProgress; onChanged: () => void }) {
@@ -37,7 +38,7 @@ function RoomBoxes({ pid, room, onChanged }: { pid: string; room: string; onChan
   function advance(box: Box, to: BoxStatus) {
     if (!canAdvanceBox(box.status, to)) return
     boxes.mutate(data => data ? { ...data, items: data.items.map(b => b.number === box.number ? { ...b, status: to } : b) } : data)
-    void run(async () => { try { await api.transition(pid, box.number, to) } catch (e) { boxes.reload(); throw e } })
+    void run(async () => { try { await api.transition(pid, box.number, to); recordBoxMove(pid, box, to) } catch (e) { boxes.reload(); throw e } })
   }
   return <div className="stack loading-boxes">
     <p className="small muted">Отметьте погрузку собранных коробок. Доставку можно отметить после погрузки; ошибочную отметку исправьте в карточке коробки.</p>
@@ -50,8 +51,8 @@ function RoomBoxes({ pid, room, onChanged }: { pid: string; room: string; onChan
         {box.status === 'loaded' ? <button disabled={busy} onClick={() => advance(box, 'delivered')}>Доставлена</button> : box.status === 'packing' ? <span className="small muted">Сначала соберите</span> : null}
       </li>)}</ul>
       <div className="row wrap">
-        {ready.length ? <button disabled={busy} onClick={() => void run(() => api.bulkTransition(pid, ready.map(b => b.number), 'loaded'))}>Погрузить готовые на странице ({ready.length})</button> : null}
-        {loaded.length ? <button disabled={busy} onClick={() => void run(() => api.bulkTransition(pid, loaded.map(b => b.number), 'delivered'))}>Доставлены все погруженные на странице ({loaded.length})</button> : null}
+        {ready.length ? <button disabled={busy} onClick={() => void run(async () => { await api.bulkTransition(pid, ready.map(b => b.number), 'loaded'); if (ready[0]) recordBoxMove(pid, ready[0], 'loaded') })}>Погрузить готовые на странице ({ready.length})</button> : null}
+        {loaded.length ? <button disabled={busy} onClick={() => void run(async () => { await api.bulkTransition(pid, loaded.map(b => b.number), 'delivered'); if (loaded[0]) recordBoxMove(pid, loaded[0], 'delivered') })}>Доставлены все погруженные на странице ({loaded.length})</button> : null}
       </div>
     </StateView>
     <Pagination page={page} pageSize={36} total={boxes.data?.total ?? 0} busy={boxes.loading || busy} onChange={setPage} label={`Коробки: ${room}`} />
