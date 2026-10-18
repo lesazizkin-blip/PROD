@@ -140,3 +140,23 @@ def test_day_limit_message_identifies_shared_scope_and_next_date(budget_db):
         assert "01.01.2027 в 03:00 по Москве" in message
         with pytest.raises(TooManyRequestsError, match="Генерация ИИ отключена"):
             reserve_attempt(db, 3, Settings(ai_global_requests_per_day=0), now=now)
+
+
+@pytest.mark.parametrize("scope", ["user", "global"])
+def test_tenfold_production_limits_accept_config_and_enforce_boundary(budget_db, scope):
+    engine, _ = budget_db
+    settings = Settings(ai_requests_per_hour="400", ai_global_requests_per_day="3000")
+    assert settings.ai_requests_per_hour == 400 and settings.ai_global_requests_per_day == 3000
+    with Session(engine) as db:
+        db.add(
+            AiUsageBudget(bucket=f"global:{NOW:%Y-%m-%d}", used=2999 if scope == "global" else 0)
+        )
+        db.add(
+            AiUsageBudget(bucket=f"user:1:{NOW:%Y-%m-%dT%H}", used=399 if scope == "user" else 0)
+        )
+        db.commit()
+        reserve_attempt(db, 1, settings, now=NOW)
+        with pytest.raises(
+            TooManyRequestsError, match="Ваш часовой" if scope == "user" else "Общий дневной"
+        ):
+            reserve_attempt(db, 1, settings, now=NOW)
